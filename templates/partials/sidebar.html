@@ -1,0 +1,200 @@
+{% load static %}
+
+<div class="app-menu navbar-menu">
+    <div class="sidebar-brand">
+        <a href="{% url 'dashboard' %}" class="logo d-flex align-items-center">
+            <span class="logo-sm">
+                <span class="d-flex align-items-center justify-content-center bg-primary text-white rounded" style="width: 32px; height: 32px; font-size: 16px; font-weight: 700;">N</span>
+            </span>
+            <span class="logo-lg d-flex align-items-center gap-2">
+                <span class="d-flex align-items-center justify-content-center bg-primary text-white rounded" style="width: 32px; height: 32px; font-size: 16px; font-weight: 700;">N</span>
+                <span><span class="fw-bold text-primary fs-5">Nav</span><span class="fw-bold text-dark fs-5">IMS</span></span>
+            </span>
+        </a>
+        <button type="button" class="btn btn-sm p-0 fs-20 header-item float-end btn-vertical-sm-hover" id="vertical-hover">
+            <i class="ri-record-circle-line"></i>
+        </button>
+    </div>
+
+    <div class="sidebar-menu" data-simplebar>
+        <ul class="nav-list" id="navbar-nav">
+
+            <!-- Menu -->
+            <li class="menu-title"><span>Menu</span></li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="{% url 'dashboard' %}">
+                    <i class="ri-dashboard-line"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+
+            <!-- Inventory -->
+            <li class="menu-title"><span>Inventory</span></li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-archive-line"></i>
+                    <span>Products</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-folder-line"></i>
+                    <span>Categories</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-building-2-line"></i>
+                    <span>Warehouses</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-exchange-line"></i>
+                    <span>Stock Movements</span>
+                </a>
+            </li>
+
+            <!-- Purchasing -->
+            <li class="menu-title"><span>Purchasing</span></li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-truck-line"></i>
+                    <span>Suppliers</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-shopping-cart-line"></i>
+                    <span>Purchase Orders</span>
+                </a>
+            </li>
+
+            <!-- Orders -->
+            <li class="menu-title"><span>Orders</span></li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-file-list-3-line"></i>
+                    <span>Sales Orders</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-arrow-go-back-line"></i>
+                    <span>Returns</span>
+                </a>
+            </li>
+
+            <!-- Reports -->
+            <li class="menu-title"><span>Reports</span></li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-bar-chart-box-line"></i>
+                    <span>Stock Reports</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-line-chart-line"></i>
+                    <span>Analytics</span>
+                </a>
+            </li>
+
+            <!-- Administration -->
+            <li class="menu-title"><span>Administration</span></li>
+
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#sidebarTenants" aria-expanded="false">
+                    <i class="ri-building-4-line"></i>
+                    <span>Tenants</span>
+                    <i class="ri-arrow-down-s-line ms-auto"></i>
+                </a>
+                <div class="collapse sub-menu" id="sidebarTenants">
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a class="menu-link" href="#">
+                                <span>All Tenants</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="menu-link" href="#">
+                                <span>Subscriptions</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#sidebarUsers" aria-expanded="false">
+                    <i class="ri-group-line"></i>
+                    <span>User Management</span>
+                    <i class="ri-arrow-down-s-line ms-auto"></i>
+                </a>
+                <div class="collapse sub-menu" id="sidebarUsers">
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a class="menu-link" href="{% url 'accounts:user_list' %}">
+                                <span>Users</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="menu-link" href="#">
+                                <span>Roles & Permissions</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="menu-link" href="{% url 'accounts:user_invite' %}">
+                                <span>User Invites</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="#">
+                    <i class="ri-settings-3-line"></i>
+                    <span>Settings</span>
+                </a>
+            </li>
+
+        </ul>
+    </div>
+
+    <div class="sidebar-profile">
+        <div class="d-flex align-items-center gap-2 p-3 border-top">
+            <div class="flex-shrink-0">
+                <span class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 14px; font-weight: 600;">
+                    {% if user.first_name %}{{ user.first_name|first|upper }}{% else %}<i class="ri-user-3-line"></i>{% endif %}
+                </span>
+            </div>
+            <div class="flex-grow-1 sidebar-profile-info">
+                <h6 class="mb-0 fs-13 fw-semibold">
+                    {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username|default:"User" }}{% endif %}
+                </h6>
+                <span class="fs-11 text-muted">
+                    {% if user.is_superuser %}Super Admin{% elif user.is_tenant_admin %}Admin{% else %}User{% endif %}
+                </span>
+            </div>
+            <div class="flex-shrink-0">
+                <a href="{% url 'accounts:logout' %}" class="text-muted" title="Logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                    <i class="ri-logout-box-r-line fs-16"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="vertical-overlay"></div>
