@@ -1,22 +1,17 @@
 {% load static %}
 
-<div class="app-menu navbar-menu">
+<div class="app-menu navbar-menu" id="app-sidebar">
     <div class="sidebar-brand">
-        <a href="{% url 'dashboard' %}" class="logo d-flex align-items-center">
-            <span class="logo-sm">
-                <span class="d-flex align-items-center justify-content-center bg-primary text-white rounded" style="width: 32px; height: 32px; font-size: 16px; font-weight: 700;">N</span>
-            </span>
-            <span class="logo-lg d-flex align-items-center gap-2">
-                <span class="d-flex align-items-center justify-content-center bg-primary text-white rounded" style="width: 32px; height: 32px; font-size: 16px; font-weight: 700;">N</span>
-                <span><span class="fw-bold text-primary fs-5">Nav</span><span class="fw-bold text-dark fs-5">IMS</span></span>
-            </span>
+        <a href="{% url 'dashboard' %}" class="logo-lg d-flex align-items-center gap-2 text-decoration-none">
+            <span class="brand-icon d-flex align-items-center justify-content-center bg-primary text-white rounded" style="width: 34px; height: 34px; font-size: 16px; font-weight: 800;">N</span>
+            <span class="brand-text"><span class="text-primary">Nav</span><span>IMS</span></span>
         </a>
-        <button type="button" class="btn btn-sm p-0 fs-20 header-item float-end btn-vertical-sm-hover" id="vertical-hover">
-            <i class="ri-record-circle-line"></i>
-        </button>
+        <a href="{% url 'dashboard' %}" class="logo-sm text-decoration-none">
+            <span class="brand-icon d-flex align-items-center justify-content-center bg-primary text-white rounded" style="width: 34px; height: 34px; font-size: 16px; font-weight: 800;">N</span>
+        </a>
     </div>
 
-    <div class="sidebar-menu" data-simplebar>
+    <div class="sidebar-menu">
         <ul class="nav-list" id="navbar-nav">
 
             <!-- Menu -->
@@ -25,7 +20,7 @@
             <li class="nav-item">
                 <a class="menu-link" href="{% url 'dashboard' %}">
                     <i class="ri-dashboard-line"></i>
-                    <span>Dashboard</span>
+                    <span class="menu-text">Dashboard</span>
                 </a>
             </li>
 
@@ -35,28 +30,28 @@
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-archive-line"></i>
-                    <span>Products</span>
+                    <span class="menu-text">Products</span>
                 </a>
             </li>
 
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-folder-line"></i>
-                    <span>Categories</span>
+                    <span class="menu-text">Categories</span>
                 </a>
             </li>
 
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-building-2-line"></i>
-                    <span>Warehouses</span>
+                    <span class="menu-text">Warehouses</span>
                 </a>
             </li>
 
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-exchange-line"></i>
-                    <span>Stock Movements</span>
+                    <span class="menu-text">Stock Movements</span>
                 </a>
             </li>
 
@@ -66,14 +61,14 @@
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-truck-line"></i>
-                    <span>Suppliers</span>
+                    <span class="menu-text">Suppliers</span>
                 </a>
             </li>
 
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-shopping-cart-line"></i>
-                    <span>Purchase Orders</span>
+                    <span class="menu-text">Purchase Orders</span>
                 </a>
             </li>
 
@@ -83,14 +78,14 @@
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-file-list-3-line"></i>
-                    <span>Sales Orders</span>
+                    <span class="menu-text">Sales Orders</span>
                 </a>
             </li>
 
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-arrow-go-back-line"></i>
-                    <span>Returns</span>
+                    <span class="menu-text">Returns</span>
                 </a>
             </li>
 
@@ -100,14 +95,14 @@
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-bar-chart-box-line"></i>
-                    <span>Stock Reports</span>
+                    <span class="menu-text">Stock Reports</span>
                 </a>
             </li>
 
             <li class="nav-item">
                 <a class="menu-link" href="#">
                     <i class="ri-line-chart-line"></i>
-                    <span>Analytics</span>
+                    <span class="menu-text">Analytics</span>
                 </a>
             </li>
 
@@ -115,58 +110,54 @@
             <li class="menu-title"><span>Administration</span></li>
 
             <li class="nav-item has-submenu">
-                <a class="menu-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#sidebarTenants" aria-expanded="false">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-building-4-line"></i>
-                    <span>Tenants</span>
-                    <i class="ri-arrow-down-s-line ms-auto"></i>
+                    <span class="menu-text">Tenants</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
                 </a>
-                <div class="collapse sub-menu" id="sidebarTenants">
-                    <ul class="nav-list">
-                        <li class="nav-item">
-                            <a class="menu-link" href="#">
-                                <span>All Tenants</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="menu-link" href="#">
-                                <span>Subscriptions</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'administration:tenant_list' %}">
+                            <span class="menu-text">All Tenants</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'administration:subscription_list' %}">
+                            <span class="menu-text">Subscriptions</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
 
             <li class="nav-item has-submenu">
-                <a class="menu-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#sidebarUsers" aria-expanded="false">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-group-line"></i>
-                    <span>User Management</span>
-                    <i class="ri-arrow-down-s-line ms-auto"></i>
+                    <span class="menu-text">User Management</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
                 </a>
-                <div class="collapse sub-menu" id="sidebarUsers">
-                    <ul class="nav-list">
-                        <li class="nav-item">
-                            <a class="menu-link" href="{% url 'accounts:user_list' %}">
-                                <span>Users</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="menu-link" href="#">
-                                <span>Roles & Permissions</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="menu-link" href="{% url 'accounts:user_invite' %}">
-                                <span>User Invites</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'accounts:user_list' %}">
+                            <span class="menu-text">Users</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'administration:role_list' %}">
+                            <span class="menu-text">Roles & Permissions</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'accounts:user_invite' %}">
+                            <span class="menu-text">User Invites</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
 
             <li class="nav-item">
-                <a class="menu-link" href="#">
+                <a class="menu-link" href="{% url 'administration:settings' %}">
                     <i class="ri-settings-3-line"></i>
-                    <span>Settings</span>
+                    <span class="menu-text">Settings</span>
                 </a>
             </li>
 
@@ -174,26 +165,23 @@
     </div>
 
     <div class="sidebar-profile">
-        <div class="d-flex align-items-center gap-2 p-3 border-top">
-            <div class="flex-shrink-0">
-                <span class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 14px; font-weight: 600;">
-                    {% if user.first_name %}{{ user.first_name|first|upper }}{% else %}<i class="ri-user-3-line"></i>{% endif %}
-                </span>
-            </div>
-            <div class="flex-grow-1 sidebar-profile-info">
-                <h6 class="mb-0 fs-13 fw-semibold">
-                    {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username|default:"User" }}{% endif %}
-                </h6>
-                <span class="fs-11 text-muted">
-                    {% if user.is_superuser %}Super Admin{% elif user.is_tenant_admin %}Admin{% else %}User{% endif %}
-                </span>
-            </div>
-            <div class="flex-shrink-0">
-                <a href="{% url 'accounts:logout' %}" class="text-muted" title="Logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                    <i class="ri-logout-box-r-line fs-16"></i>
-                </a>
-            </div>
+        <div class="sidebar-profile-avatar">
+            {% if user.first_name %}{{ user.first_name|first|upper }}{% else %}<i class="ri-user-3-line"></i>{% endif %}
         </div>
+        <div class="sidebar-profile-info">
+            <span class="sidebar-profile-name">
+                {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username|default:"User" }}{% endif %}
+            </span>
+            <span class="sidebar-profile-role">
+                {% if user.is_superuser %}Super Admin{% elif user.is_tenant_admin %}Admin{% else %}User{% endif %}
+            </span>
+        </div>
+        <a href="{% url 'accounts:logout' %}" class="sidebar-profile-logout" title="Logout" onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
+            <i class="ri-logout-box-r-line"></i>
+        </a>
+        <form id="sidebar-logout-form" action="{% url 'accounts:logout' %}" method="POST" class="d-none">
+            {% csrf_token %}
+        </form>
     </div>
 </div>
 
