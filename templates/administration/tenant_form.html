@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}{% if tenant.pk %}Edit Tenant{% else %}Add Tenant{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{% if tenant.pk %}Edit Tenant{% else %}Add Tenant{% endif %}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Administration</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'administration:tenant_list' %}">Tenants</a></li>
+                    <li class="breadcrumb-item active">{% if tenant.pk %}Edit{% else %}Add{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{% if tenant.pk %}Edit Tenant{% else %}Add New Tenant{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Tenant Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control {% if form.name.errors %}is-invalid{% endif %}" id="id_name" name="name" value="{{ form.name.value|default:'' }}" placeholder="Enter tenant name" required>
+                        {% if form.name.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.name.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_domain" class="form-label">Domain <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control {% if form.domain.errors %}is-invalid{% endif %}" id="id_domain" name="domain" value="{{ form.domain.value|default:'' }}" placeholder="e.g., company.example.com" required>
+                        {% if form.domain.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.domain.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_plan" class="form-label">Plan <span class="text-danger">*</span></label>
+                        <select class="form-select {% if form.plan.errors %}is-invalid{% endif %}" id="id_plan" name="plan" required>
+                            {% for value, label in form.plan.field.choices %}
+                            <option value="{{ value }}" {% if form.plan.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.plan.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.plan.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="id_is_active" name="is_active" {% if form.is_active.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_is_active">Active</label>
+                        </div>
+                        {% if form.is_active.errors %}
+                        <div class="text-danger fs-12">
+                            {% for error in form.is_active.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end mt-4">
+                        <a href="{% url 'administration:tenant_list' %}" class="btn btn-light">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if tenant.pk %}Update Tenant{% else %}Create Tenant{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
