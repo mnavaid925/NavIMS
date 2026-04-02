@@ -265,7 +265,7 @@
     };
 
     Sidebar.prototype._onSubmenuClick = function (link) {
-        var menuItem = link.closest(".menu-item");
+        var menuItem = link.closest(".nav-item");
         if (!menuItem) return;
 
         var subMenu = menuItem.querySelector(".sub-menu");
@@ -274,7 +274,7 @@
         var isOpen = menuItem.classList.contains("open");
 
         // Close sibling menus
-        var siblings = menuItem.parentElement.querySelectorAll(":scope > .menu-item.open");
+        var siblings = menuItem.parentElement.querySelectorAll(":scope > .nav-item.open");
         var self = this;
         siblings.forEach(function (sibling) {
             if (sibling !== menuItem) {
@@ -378,7 +378,7 @@
     Sidebar.prototype._collapseInactiveSections = function () {
         // Auto-collapse submenus that don't have active items
         if (!this._menuEl) return;
-        var openItems = this._menuEl.querySelectorAll(".menu-item.open");
+        var openItems = this._menuEl.querySelectorAll(".nav-item.open");
         var self = this;
         openItems.forEach(function (item) {
             if (!item.querySelector(".menu-link.active")) {
@@ -430,7 +430,7 @@
             // Exact match or starts-with for nested routes
             if (href === currentPath || (currentPath.startsWith(href) && href !== "/")) {
                 link.classList.add("active");
-                var parent = link.closest(".menu-item");
+                var parent = link.closest(".nav-item");
                 if (parent) {
                     parent.classList.add("active");
                 }
@@ -438,7 +438,7 @@
                 // Expand parent menus
                 var parentMenu = link.closest(".sub-menu");
                 while (parentMenu) {
-                    var parentItem = parentMenu.closest(".menu-item");
+                    var parentItem = parentMenu.closest(".nav-item");
                     if (parentItem) {
                         parentItem.classList.add("open", "active");
                         var sub = parentItem.querySelector(".sub-menu");
