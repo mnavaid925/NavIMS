@@ -1,0 +1,28 @@
+<div id="preloader">
+    <div class="preloader-inner">
+        <div class="preloader-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        <div class="preloader-brand mt-3">
+            <span class="fw-bold text-primary fs-4">Nav</span><span class="fw-bold text-dark fs-4">IMS</span>
+        </div>
+    </div>
+</div>
+
+<style>
+    #preloader {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 9999; background-color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    [data-theme="dark"] #preloader { background-color: #1a1d21; }
+    [data-theme="dark"] #preloader .preloader-brand .text-dark { color: #e9ecef !important; }
+    #preloader.loaded { opacity: 0; visibility: hidden; }
+    .preloader-inner { text-align: center; }
+    .preloader-spinner .spinner-border { width: 3rem; height: 3rem; border-width: 0.3em; }
+    @keyframes preloader-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    .preloader-brand { animation: preloader-pulse 1.5s ease-in-out infinite; }
+</style>
