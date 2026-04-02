@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Tenants{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Tenants</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Administration</a></li>
+                    <li class="breadcrumb-item active">Tenants</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Tenants</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'administration:tenant_create' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-add-line align-middle me-1"></i> Add Tenant
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Search Bar -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="search" value="{{ request.GET.search }}" placeholder="Search tenants...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tenants Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col">Domain</th>
+                                <th scope="col">Plan</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Users</th>
+                                <th scope="col">Created</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tenant in tenants %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'administration:tenant_detail' tenant.pk %}" class="fw-medium text-primary">
+                                        {{ tenant.name }}
+                                    </a>
+                                </td>
+                                <td>{{ tenant.domain }}</td>
+                                <td>
+                                    <span class="badge bg-info-subtle text-info">{{ tenant.get_plan_display|default:tenant.plan }}</span>
+                                </td>
+                                <td>
+                                    {% if tenant.is_active %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ tenant.users_count|default:"0" }}</td>
+                                <td>{{ tenant.created_at|date:"M d, Y" }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'administration:tenant_detail' tenant.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        <a href="{% url 'administration:tenant_edit' tenant.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        <form method="post" action="{% url 'administration:tenant_delete' tenant.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this tenant? This action cannot be undone.');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-building-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No tenants found</p>
+                                        <a href="{% url 'administration:tenant_create' %}" class="btn btn-sm btn-primary mt-2">Add Your First Tenant</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if tenants.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Tenant pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if tenants.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ tenants.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-left-s-line"></i></span>
+                            </li>
+                            {% endif %}
+
+                            {% for num in tenants.paginator.page_range %}
+                            <li class="page-item {% if tenants.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endfor %}
+
+                            {% if tenants.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ tenants.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-right-s-line"></i></span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
