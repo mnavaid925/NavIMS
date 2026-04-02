@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Subscription{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Edit Subscription</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Administration</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'administration:subscription_list' %}">Subscriptions</a></li>
+                    <li class="breadcrumb-item active">Edit</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Edit Subscription for {{ subscription.tenant.name }}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="id_plan" class="form-label">Plan <span class="text-danger">*</span></label>
+                        <select class="form-select {% if form.plan.errors %}is-invalid{% endif %}" id="id_plan" name="plan" required>
+                            {% for value, label in form.plan.field.choices %}
+                            <option value="{{ value }}" {% if form.plan.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.plan.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.plan.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_status" class="form-label">Status <span class="text-danger">*</span></label>
+                        <select class="form-select {% if form.status.errors %}is-invalid{% endif %}" id="id_status" name="status" required>
+                            {% for value, label in form.status.field.choices %}
+                            <option value="{{ value }}" {% if form.status.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.status.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.status.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_max_users" class="form-label">Max Users <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control {% if form.max_users.errors %}is-invalid{% endif %}" id="id_max_users" name="max_users" value="{{ form.max_users.value|default:'' }}" min="1" required>
+                                {% if form.max_users.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.max_users.errors %}{{ error }}{% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_max_warehouses" class="form-label">Max Warehouses <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control {% if form.max_warehouses.errors %}is-invalid{% endif %}" id="id_max_warehouses" name="max_warehouses" value="{{ form.max_warehouses.value|default:'' }}" min="1" required>
+                                {% if form.max_warehouses.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.max_warehouses.errors %}{{ error }}{% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_current_period_start" class="form-label">Period Start <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control {% if form.current_period_start.errors %}is-invalid{% endif %}" id="id_current_period_start" name="current_period_start" value="{{ form.current_period_start.value|date:'Y-m-d'|default:form.current_period_start.value }}" required>
+                                {% if form.current_period_start.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.current_period_start.errors %}{{ error }}{% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_current_period_end" class="form-label">Period End <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control {% if form.current_period_end.errors %}is-invalid{% endif %}" id="id_current_period_end" name="current_period_end" value="{{ form.current_period_end.value|date:'Y-m-d'|default:form.current_period_end.value }}" required>
+                                {% if form.current_period_end.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.current_period_end.errors %}{{ error }}{% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end mt-4">
+                        <a href="{% url 'administration:subscription_list' %}" class="btn btn-light">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i> Update Subscription
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
