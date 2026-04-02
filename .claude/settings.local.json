@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(mysql:*)",
+      "Bash(pip:*)",
+      "Bash(django-admin:*)",
+      "Bash(source:*)",
+      "Bash(git add 'apps/payroll/views.py')",
+      "Bash(git commit:*)",
+      "Bash(git add 'apps/payroll/urls.py')",
+      "Bash(git add 'apps/payroll/templatetags/__init__.py')",
+      "Bash(git add 'apps/payroll/templatetags/payroll_tags.py')",
+      "Bash(git add 'apps/payroll/management/__init__.py')",
+      "Bash(git add 'apps/payroll/management/commands/__init__.py')",
+      "Bash(git add 'apps/payroll/management/commands/seed_payroll.py')",
+      "Bash(git add 'apps/payroll/migrations/__init__.py')",
+      "Bash(git add 'apps/payroll/migrations/0001_initial.py')",
+      "Bash(git add 'config/settings.py')",
+      "Bash(git add 'config/urls.py')",
+      "Bash(git add 'templates/payroll/structure_list.html')",
+      "Bash(git add 'templates/payroll/structure_form.html')",
+      "Bash(git add 'templates/payroll/structure_detail.html')",
+      "Bash(git add 'templates/performance/goal_detail.html')",
+      "Bash(git add 'templates/performance/goal_update_form.html')",
+      "Bash(git add 'templates/performance/cycle_list.html')",
+      "Bash(git add 'templates/performance/cycle_form.html')",
+      "Bash(git add 'templates/performance/cycle_detail.html')",
+      "Bash(git add 'templates/performance/review_list.html')",
+      "Bash(python3 /tmp/claude/scripts/create_engagement.py)",
+      "Bash(find c:xampphtdocsnavhrmtemplates -name dashboard* -o -name home* -o -name index*)",
+      "Bash(python -c \"import django; print\\(django.get_version\\(\\)\\)\")",
+      "Bash(pip install:*)",
+      "Bash(python -c \"import django; print\\(django.__file__\\)\")",
+      "Bash(pip3 install:*)",
+      "Bash(find /c/xampp/htdocs/NavSCM -type f -name *tenant*)"
+    ]
+  }
+}
