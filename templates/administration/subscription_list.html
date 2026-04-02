@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Subscriptions{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Subscriptions</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Administration</a></li>
+                    <li class="breadcrumb-item active">Subscriptions</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">All Subscriptions</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Tenant</th>
+                                <th scope="col">Plan</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Max Users</th>
+                                <th scope="col">Max Warehouses</th>
+                                <th scope="col">Period</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for subscription in subscriptions %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'administration:tenant_detail' subscription.tenant.pk %}" class="fw-medium text-primary">
+                                        {{ subscription.tenant.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info-subtle text-info">{{ subscription.get_plan_display|default:subscription.plan }}</span>
+                                </td>
+                                <td>
+                                    {% if subscription.status == 'active' %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% elif subscription.status == 'trial' %}
+                                        <span class="badge bg-warning-subtle text-warning">Trial</span>
+                                    {% elif subscription.status == 'expired' %}
+                                        <span class="badge bg-danger-subtle text-danger">Expired</span>
+                                    {% elif subscription.status == 'cancelled' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Cancelled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ subscription.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ subscription.max_users }}</td>
+                                <td>{{ subscription.max_warehouses }}</td>
+                                <td>
+                                    <span class="fs-12">
+                                        {{ subscription.current_period_start|date:"M d, Y" }} - {{ subscription.current_period_end|date:"M d, Y" }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'administration:subscription_edit' subscription.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
+                                        <i class="ri-pencil-line"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-file-list-3-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No subscriptions found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
