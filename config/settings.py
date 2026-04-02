@@ -1,12 +1,16 @@
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-a1a)g-mo%6+g+lmhk_*da3xja^*$pf+ylwojcet2f^li7_qgc1'
+load_dotenv(BASE_DIR / '.env')
 
-DEBUG = True
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-a1a)g-mo%6+g+lmhk_*da3xja^*$pf+ylwojcet2f^li7_qgc1')
 
-ALLOWED_HOSTS = ['*']
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
+
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -57,8 +61,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.mysql'),
+        'NAME': os.getenv('DB_NAME', 'ims'),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '3306'),
     }
 }
 
@@ -71,8 +79,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 AUTH_USER_MODEL = 'core.User'
 
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = os.getenv('LANGUAGE_CODE', 'en-us')
+TIME_ZONE = os.getenv('TIME_ZONE', 'UTC')
 USE_I18N = True
 USE_TZ = True
 
@@ -88,9 +96,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGIN_URL = os.getenv('LOGIN_URL', '/accounts/login/')
+LOGIN_REDIRECT_URL = os.getenv('LOGIN_REDIRECT_URL', '/')
+LOGOUT_REDIRECT_URL = os.getenv('LOGOUT_REDIRECT_URL', '/accounts/login/')
 
 MESSAGE_TAGS = {
     10: 'info',
