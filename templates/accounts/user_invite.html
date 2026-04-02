@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Invite User{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Invite User</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">Users</a></li>
+                    <li class="breadcrumb-item active">Invite User</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-mail-send-line align-middle me-1 text-muted"></i> Send Invitation
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if form.non_field_errors %}
+                    {% for error in form.non_field_errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ error }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="POST" action="{% url 'accounts:user_invite' %}" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                               id="email" name="email" placeholder="Enter email address"
+                               value="{{ form.email.value|default:'' }}" required>
+                        {% if form.email.errors %}
+                            <div class="invalid-feedback">{{ form.email.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">An invitation link will be sent to this email address.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                        <select class="form-select {% if form.role.errors %}is-invalid{% endif %}" id="role" name="role" required>
+                            <option value="">Select a role</option>
+                            {% for role in roles %}
+                            <option value="{{ role.id }}" {% if form.role.value == role.id|stringformat:"s" %}selected{% endif %}>
+                                {{ role.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.role.errors %}
+                            <div class="invalid-feedback">{{ form.role.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="message" class="form-label">Personal Message <span class="text-muted">(Optional)</span></label>
+                        <textarea class="form-control" id="message" name="message" rows="3"
+                                  placeholder="Add a personal message to the invitation...">{{ form.message.value|default:'' }}</textarea>
+                        <div class="form-text">This message will be included in the invitation email.</div>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{% url 'accounts:user_list' %}" class="btn btn-light">
+                            <i class="ri-arrow-left-line align-middle me-1"></i> Back to Users
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-send-plane-line align-middle me-1"></i> Send Invitation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
