@@ -1,0 +1,398 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up | NavIMS</title>
+    <link rel="shortcut icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+          integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+          crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css">
+
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #60a5fa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        #particles-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .auth-card {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 520px;
+            margin: 2rem 1rem;
+        }
+
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.97);
+        }
+
+        .card-body { padding: 2.5rem; }
+
+        .auth-logo {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .auth-logo .logo-icon {
+            width: 56px; height: 56px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+        }
+
+        .auth-logo .logo-icon i { font-size: 28px; color: #fff; }
+
+        .auth-logo h4 { font-weight: 700; margin-bottom: 0.25rem; }
+        .auth-logo h4 .text-primary { color: var(--primary) !important; }
+        .auth-logo p { color: #6b7280; font-size: 0.9rem; margin-bottom: 0; }
+
+        .form-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #374151;
+            margin-bottom: 0.4rem;
+        }
+
+        .form-control {
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            border: 1.5px solid #e5e7eb;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .input-group .form-control { border-right: none; }
+
+        .input-group .btn-outline-secondary {
+            border: 1.5px solid #e5e7eb;
+            border-left: none;
+            border-radius: 0 10px 10px 0;
+            color: #6b7280;
+            background: #fff;
+        }
+
+        .input-group .btn-outline-secondary:hover { color: var(--primary); background: #f9fafb; }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 0.7rem 1.5rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .auth-footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-footer a:hover { text-decoration: underline; }
+
+        .copyright {
+            position: fixed;
+            bottom: 1rem;
+            left: 0; right: 0;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.8rem;
+            z-index: 10;
+        }
+
+        .alert { border-radius: 10px; font-size: 0.875rem; }
+
+        @media (max-width: 480px) {
+            .card-body { padding: 1.75rem; }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="particles-canvas"></canvas>
+
+    <div class="auth-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="auth-logo">
+                    <div class="logo-icon">
+                        <i class="ri-box-3-line"></i>
+                    </div>
+                    <h4><span class="text-primary">Nav</span><span class="text-dark">IMS</span></h4>
+                    <p>Start managing your inventory with NavIMS</p>
+                </div>
+
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% if form.non_field_errors %}
+                    {% for error in form.non_field_errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ error }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="POST" action="{% url 'accounts:register' %}" novalidate>
+                    {% csrf_token %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">First Name</label>
+                            <input type="text" class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                                   id="first_name" name="first_name" placeholder="First name"
+                                   value="{{ form.first_name.value|default:'' }}" required>
+                            {% if form.first_name.errors %}
+                                <div class="invalid-feedback">{{ form.first_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">Last Name</label>
+                            <input type="text" class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
+                                   id="last_name" name="last_name" placeholder="Last name"
+                                   value="{{ form.last_name.value|default:'' }}" required>
+                            {% if form.last_name.errors %}
+                                <div class="invalid-feedback">{{ form.last_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                               id="email" name="email" placeholder="Enter your email"
+                               value="{{ form.email.value|default:'' }}" required>
+                        {% if form.email.errors %}
+                            <div class="invalid-feedback">{{ form.email.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="company_name" class="form-label">Company Name</label>
+                        <input type="text" class="form-control {% if form.company_name.errors %}is-invalid{% endif %}"
+                               id="company_name" name="company_name" placeholder="Your company name"
+                               value="{{ form.company_name.value|default:'' }}" required>
+                        {% if form.company_name.errors %}
+                            <div class="invalid-feedback">{{ form.company_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                               id="username" name="username" placeholder="Choose a username"
+                               value="{{ form.username.value|default:'' }}" required>
+                        {% if form.username.errors %}
+                            <div class="invalid-feedback">{{ form.username.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                                       id="password" name="password" placeholder="Create password" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="password">
+                                    <i class="ri-eye-off-line"></i>
+                                </button>
+                            </div>
+                            {% if form.password.errors %}
+                                <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="confirm_password" class="form-label">Confirm Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control {% if form.confirm_password.errors %}is-invalid{% endif %}"
+                                       id="confirm_password" name="confirm_password" placeholder="Confirm password" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="confirm_password">
+                                    <i class="ri-eye-off-line"></i>
+                                </button>
+                            </div>
+                            {% if form.confirm_password.errors %}
+                                <div class="text-danger small mt-1">{{ form.confirm_password.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="terms" name="terms" required>
+                        <label class="form-check-label" for="terms" style="font-size: 0.85rem;">
+                            I agree to the <a href="#" class="text-decoration-none" style="color: var(--primary);">Terms of Service</a> and <a href="#" class="text-decoration-none" style="color: var(--primary);">Privacy Policy</a>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="ri-user-add-line me-1"></i> Create Account
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    <p class="mb-0">Already have an account? <a href="{% url 'accounts:login' %}">Sign In</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="copyright">
+        &copy; 2026 NavIMS. All rights reserved.
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+            crossorigin="anonymous"></script>
+
+    <script>
+        // Password toggle
+        document.querySelectorAll('.toggle-password').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var targetId = this.getAttribute('data-target');
+                var input = document.getElementById(targetId);
+                var icon = this.querySelector('i');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('ri-eye-off-line');
+                    icon.classList.add('ri-eye-line');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('ri-eye-line');
+                    icon.classList.add('ri-eye-off-line');
+                }
+            });
+        });
+
+        // Particles animation
+        (function() {
+            var canvas = document.getElementById('particles-canvas');
+            var ctx = canvas.getContext('2d');
+            var particles = [];
+            var particleCount = 60;
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+
+            function createParticle() {
+                return {
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    radius: Math.random() * 2 + 1,
+                    opacity: Math.random() * 0.5 + 0.2
+                };
+            }
+
+            function init() {
+                resize();
+                particles = [];
+                for (var i = 0; i < particleCount; i++) {
+                    particles.push(createParticle());
+                }
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(function(p) {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255, 255, 255, ' + p.opacity + ')';
+                    ctx.fill();
+                });
+
+                for (var i = 0; i < particles.length; i++) {
+                    for (var j = i + 1; j < particles.length; j++) {
+                        var dx = particles[i].x - particles[j].x;
+                        var dy = particles[i].y - particles[j].y;
+                        var dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 120) {
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.strokeStyle = 'rgba(255, 255, 255, ' + (0.15 * (1 - dist / 120)) + ')';
+                            ctx.lineWidth = 0.5;
+                            ctx.stroke();
+                        }
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+
+            window.addEventListener('resize', resize);
+            init();
+            animate();
+        })();
+    </script>
+</body>
+</html>
