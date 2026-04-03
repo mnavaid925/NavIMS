@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Vendor Communication Log{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Vendor Communication Log</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Vendor Management</a></li>
+                    <li class="breadcrumb-item active">Communication Log</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Communications</h5>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by subject, message, or vendor...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_type %}<input type="hidden" name="type" value="{{ current_type }}">{% endif %}
+                            {% if current_vendor %}<input type="hidden" name="vendor" value="{{ current_vendor }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="" id="typeFilterForm">
+                            <select class="form-select" name="type" onchange="this.form.submit()">
+                                <option value="">All Types</option>
+                                {% for value, label in type_choices %}
+                                <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_vendor %}<input type="hidden" name="vendor" value="{{ current_vendor }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="" id="vendorFilterForm">
+                            <select class="form-select" name="vendor" onchange="this.form.submit()">
+                                <option value="">All Vendors</option>
+                                {% for v in vendors %}
+                                <option value="{{ v.pk }}" {% if current_vendor == v.pk|stringformat:"d" %}selected{% endif %}>{{ v.company_name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_type %}<input type="hidden" name="type" value="{{ current_type }}">{% endif %}
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Communications Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Date</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Subject</th>
+                                <th scope="col">Vendor</th>
+                                <th scope="col">Contact Person</th>
+                                <th scope="col">Communicated By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comm in communications %}
+                            <tr>
+                                <td>{{ comm.communication_date|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    {% if comm.communication_type == 'email' %}
+                                        <span class="badge bg-primary-subtle text-primary">Email</span>
+                                    {% elif comm.communication_type == 'phone' %}
+                                        <span class="badge bg-info-subtle text-info">Phone</span>
+                                    {% elif comm.communication_type == 'meeting' %}
+                                        <span class="badge bg-success-subtle text-success">Meeting</span>
+                                    {% elif comm.communication_type == 'note' %}
+                                        <span class="badge bg-warning-subtle text-warning">Note</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ comm.get_communication_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-medium">{{ comm.subject }}</td>
+                                <td>
+                                    <a href="{% url 'vendors:vendor_detail' comm.vendor.pk %}" class="text-primary">
+                                        {{ comm.vendor.company_name }}
+                                    </a>
+                                </td>
+                                <td>{{ comm.contact_person|default:"—" }}</td>
+                                <td>{{ comm.communicated_by.get_full_name|default:comm.communicated_by.username|default:"—" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-chat-3-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No communications found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if communications.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Communication pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if communications.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ communications.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_vendor %}&vendor={{ current_vendor }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-left-s-line"></i></span>
+                            </li>
+                            {% endif %}
+
+                            {% for num in communications.paginator.page_range %}
+                            <li class="page-item {% if communications.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_vendor %}&vendor={{ current_vendor }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endfor %}
+
+                            {% if communications.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ communications.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_vendor %}&vendor={{ current_vendor }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-right-s-line"></i></span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
