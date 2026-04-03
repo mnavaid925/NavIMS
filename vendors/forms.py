@@ -107,10 +107,13 @@ class VendorPerformanceForm(forms.ModelForm):
     class Meta:
         model = VendorPerformance
         fields = [
-            'review_date', 'delivery_rating', 'quality_rating', 'compliance_rating',
+            'vendor', 'review_date', 'delivery_rating', 'quality_rating', 'compliance_rating',
             'defect_rate', 'on_time_delivery_rate', 'notes',
         ]
         widgets = {
+            'vendor': forms.Select(attrs={
+                'class': 'form-select',
+            }),
             'review_date': forms.DateInput(attrs={
                 'class': 'form-control',
                 'type': 'date',
@@ -149,21 +152,39 @@ class VendorPerformanceForm(forms.ModelForm):
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 2,
+                'rows': 3,
                 'placeholder': 'Review notes (optional)',
             }),
         }
+
+    def __init__(self, *args, tenant=None, **kwargs):
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant:
+            self.fields['vendor'].queryset = Vendor.objects.filter(tenant=tenant, is_active=True)
+            self.fields['vendor'].empty_label = '— Select Vendor —'
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.tenant:
+            instance.tenant = self.tenant
+        if commit:
+            instance.save()
+        return instance
 
 
 class VendorContractForm(forms.ModelForm):
     class Meta:
         model = VendorContract
         fields = [
-            'contract_number', 'title', 'start_date', 'end_date',
+            'vendor', 'contract_number', 'title', 'start_date', 'end_date',
             'payment_terms', 'lead_time_days', 'moq', 'contract_value',
             'status', 'document', 'notes',
         ]
         widgets = {
+            'vendor': forms.Select(attrs={
+                'class': 'form-select',
+            }),
             'contract_number': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'e.g., CON-001',
@@ -207,20 +228,38 @@ class VendorContractForm(forms.ModelForm):
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 2,
+                'rows': 3,
                 'placeholder': 'Contract notes (optional)',
             }),
         }
+
+    def __init__(self, *args, tenant=None, **kwargs):
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant:
+            self.fields['vendor'].queryset = Vendor.objects.filter(tenant=tenant, is_active=True)
+            self.fields['vendor'].empty_label = '— Select Vendor —'
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.tenant:
+            instance.tenant = self.tenant
+        if commit:
+            instance.save()
+        return instance
 
 
 class VendorCommunicationForm(forms.ModelForm):
     class Meta:
         model = VendorCommunication
         fields = [
-            'communication_type', 'subject', 'message',
+            'vendor', 'communication_type', 'subject', 'message',
             'contact_person', 'communication_date',
         ]
         widgets = {
+            'vendor': forms.Select(attrs={
+                'class': 'form-select',
+            }),
             'communication_type': forms.Select(attrs={
                 'class': 'form-select',
             }),
@@ -242,3 +281,18 @@ class VendorCommunicationForm(forms.ModelForm):
                 'type': 'datetime-local',
             }),
         }
+
+    def __init__(self, *args, tenant=None, **kwargs):
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant:
+            self.fields['vendor'].queryset = Vendor.objects.filter(tenant=tenant, is_active=True)
+            self.fields['vendor'].empty_label = '— Select Vendor —'
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.tenant:
+            instance.tenant = self.tenant
+        if commit:
+            instance.save()
+        return instance
