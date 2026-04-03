@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Contract & Terms Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Contract & Terms Management</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Vendor Management</a></li>
+                    <li class="breadcrumb-item active">Contracts</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Contracts</h5>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by contract #, title, or vendor...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                            {% if current_vendor %}<input type="hidden" name="vendor" value="{{ current_vendor }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="" id="statusFilterForm">
+                            <select class="form-select" name="status" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                {% for value, label in status_choices %}
+                                <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_vendor %}<input type="hidden" name="vendor" value="{{ current_vendor }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="" id="vendorFilterForm">
+                            <select class="form-select" name="vendor" onchange="this.form.submit()">
+                                <option value="">All Vendors</option>
+                                {% for v in vendors %}
+                                <option value="{{ v.pk }}" {% if current_vendor == v.pk|stringformat:"d" %}selected{% endif %}>{{ v.company_name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Contracts Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Contract #</th>
+                                <th scope="col">Title</th>
+                                <th scope="col">Vendor</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Start Date</th>
+                                <th scope="col">End Date</th>
+                                <th scope="col">Value</th>
+                                <th scope="col">Payment Terms</th>
+                                <th scope="col" class="text-center">Document</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contract in contracts %}
+                            <tr>
+                                <td><code>{{ contract.contract_number }}</code></td>
+                                <td class="fw-medium">{{ contract.title }}</td>
+                                <td>
+                                    <a href="{% url 'vendors:vendor_detail' contract.vendor.pk %}" class="text-primary">
+                                        {{ contract.vendor.company_name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if contract.status == 'active' %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% elif contract.status == 'draft' %}
+                                        <span class="badge bg-warning-subtle text-warning">Draft</span>
+                                    {% elif contract.status == 'expired' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Expired</span>
+                                    {% elif contract.status == 'terminated' %}
+                                        <span class="badge bg-danger-subtle text-danger">Terminated</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info">{{ contract.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ contract.start_date|date:"M d, Y" }}</td>
+                                <td>{{ contract.end_date|date:"M d, Y"|default:"—" }}</td>
+                                <td>${{ contract.contract_value }}</td>
+                                <td>{{ contract.get_payment_terms_display }}</td>
+                                <td class="text-center">
+                                    {% if contract.document %}
+                                    <a href="{{ contract.document.url }}" target="_blank" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="Download">
+                                        <i class="ri-download-line"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-file-text-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No contracts found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if contracts.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Contract pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if contracts.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ contracts.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_vendor %}&vendor={{ current_vendor }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-left-s-line"></i></span>
+                            </li>
+                            {% endif %}
+
+                            {% for num in contracts.paginator.page_range %}
+                            <li class="page-item {% if contracts.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_vendor %}&vendor={{ current_vendor }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endfor %}
+
+                            {% if contracts.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ contracts.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_vendor %}&vendor={{ current_vendor }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-right-s-line"></i></span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
