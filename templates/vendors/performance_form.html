@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Vendor Management</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'vendors:performance_list' %}">Performance Tracking</a></li>
+                    <li class="breadcrumb-item active">{% if performance %}Edit{% else %}Add{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Review Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_vendor" class="form-label">Vendor <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.vendor.errors %}is-invalid{% endif %}" id="id_vendor" name="vendor" required>
+                                <option value="">— Select Vendor —</option>
+                                {% for v in form.vendor.field.queryset %}
+                                <option value="{{ v.pk }}" {% if form.vendor.value|stringformat:"d" == v.pk|stringformat:"d" %}selected{% endif %}>{{ v.company_name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.vendor.errors %}
+                            <div class="invalid-feedback">{% for error in form.vendor.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_review_date" class="form-label">Review Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control {% if form.review_date.errors %}is-invalid{% endif %}" id="id_review_date" name="review_date" value="{{ form.review_date.value|default:'' }}" required>
+                            {% if form.review_date.errors %}
+                            <div class="invalid-feedback">{% for error in form.review_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Ratings (1-5)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_delivery_rating" class="form-label">Delivery Rating <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control {% if form.delivery_rating.errors %}is-invalid{% endif %}" id="id_delivery_rating" name="delivery_rating" value="{{ form.delivery_rating.value|default:'' }}" min="1" max="5" placeholder="1-5" required>
+                            {% if form.delivery_rating.errors %}
+                            <div class="invalid-feedback">{% for error in form.delivery_rating.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_quality_rating" class="form-label">Quality Rating <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control {% if form.quality_rating.errors %}is-invalid{% endif %}" id="id_quality_rating" name="quality_rating" value="{{ form.quality_rating.value|default:'' }}" min="1" max="5" placeholder="1-5" required>
+                            {% if form.quality_rating.errors %}
+                            <div class="invalid-feedback">{% for error in form.quality_rating.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_compliance_rating" class="form-label">Compliance Rating <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control {% if form.compliance_rating.errors %}is-invalid{% endif %}" id="id_compliance_rating" name="compliance_rating" value="{{ form.compliance_rating.value|default:'' }}" min="1" max="5" placeholder="1-5" required>
+                            {% if form.compliance_rating.errors %}
+                            <div class="invalid-feedback">{% for error in form.compliance_rating.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Metrics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_on_time_delivery_rate" class="form-label">On-Time Delivery Rate (%)</label>
+                            <input type="number" class="form-control {% if form.on_time_delivery_rate.errors %}is-invalid{% endif %}" id="id_on_time_delivery_rate" name="on_time_delivery_rate" value="{{ form.on_time_delivery_rate.value|default:'0' }}" step="0.01" min="0" max="100">
+                            {% if form.on_time_delivery_rate.errors %}
+                            <div class="invalid-feedback">{% for error in form.on_time_delivery_rate.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_defect_rate" class="form-label">Defect Rate (%)</label>
+                            <input type="number" class="form-control {% if form.defect_rate.errors %}is-invalid{% endif %}" id="id_defect_rate" name="defect_rate" value="{{ form.defect_rate.value|default:'0' }}" step="0.01" min="0" max="100">
+                            {% if form.defect_rate.errors %}
+                            <div class="invalid-feedback">{% for error in form.defect_rate.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label for="id_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="id_notes" name="notes" rows="3" placeholder="Review notes (optional)">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if performance %}Update Review{% else %}Add Review{% endif %}
+                        </button>
+                        <a href="{% url 'vendors:performance_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
