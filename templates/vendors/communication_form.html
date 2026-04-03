@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Vendor Management</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'vendors:communication_list' %}">Communication Log</a></li>
+                    <li class="breadcrumb-item active">{% if communication %}Edit{% else %}Add{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Communication Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_vendor" class="form-label">Vendor <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.vendor.errors %}is-invalid{% endif %}" id="id_vendor" name="vendor" required>
+                                <option value="">— Select Vendor —</option>
+                                {% for v in form.vendor.field.queryset %}
+                                <option value="{{ v.pk }}" {% if form.vendor.value|stringformat:"d" == v.pk|stringformat:"d" %}selected{% endif %}>{{ v.company_name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.vendor.errors %}
+                            <div class="invalid-feedback">{% for error in form.vendor.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_communication_type" class="form-label">Type <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.communication_type.errors %}is-invalid{% endif %}" id="id_communication_type" name="communication_type" required>
+                                {% for value, label in form.communication_type.field.choices %}
+                                <option value="{{ value }}" {% if form.communication_type.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.communication_type.errors %}
+                            <div class="invalid-feedback">{% for error in form.communication_type.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_subject" class="form-label">Subject <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control {% if form.subject.errors %}is-invalid{% endif %}" id="id_subject" name="subject" value="{{ form.subject.value|default:'' }}" placeholder="Subject" required>
+                        {% if form.subject.errors %}
+                        <div class="invalid-feedback">{% for error in form.subject.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_contact_person" class="form-label">Contact Person</label>
+                            <input type="text" class="form-control" id="id_contact_person" name="contact_person" value="{{ form.contact_person.value|default:'' }}" placeholder="Contact person (optional)">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_communication_date" class="form-label">Date & Time <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control {% if form.communication_date.errors %}is-invalid{% endif %}" id="id_communication_date" name="communication_date" value="{{ form.communication_date.value|default:'' }}" required>
+                            {% if form.communication_date.errors %}
+                            <div class="invalid-feedback">{% for error in form.communication_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label for="id_message" class="form-label">Message <span class="text-danger">*</span></label>
+                        <textarea class="form-control {% if form.message.errors %}is-invalid{% endif %}" id="id_message" name="message" rows="5" placeholder="Message or notes..." required>{{ form.message.value|default:'' }}</textarea>
+                        {% if form.message.errors %}
+                        <div class="invalid-feedback">{% for error in form.message.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if communication %}Update Communication{% else %}Log Communication{% endif %}
+                        </button>
+                        <a href="{% url 'vendors:communication_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
