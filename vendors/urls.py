@@ -11,6 +11,11 @@ urlpatterns = [
     path('<int:pk>/edit/', views.vendor_edit_view, name='vendor_edit'),
     path('<int:pk>/delete/', views.vendor_delete_view, name='vendor_delete'),
 
+    # Sub-module list pages
+    path('performance/', views.performance_list_view, name='performance_list'),
+    path('contracts/', views.contract_list_view, name='contract_list'),
+    path('communications/', views.communication_list_view, name='communication_list'),
+
     # Performance Reviews (inline from detail page)
     path('<int:pk>/performance/add/', views.vendor_performance_add_view, name='vendor_performance_add'),
     path('<int:pk>/performance/<int:performance_pk>/delete/', views.vendor_performance_delete_view, name='vendor_performance_delete'),
