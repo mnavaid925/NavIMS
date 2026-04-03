@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}{% if product.pk %}Edit Product{% else %}Add Product{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{% if product.pk %}Edit Product{% else %}Add Product{% endif %}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Product Catalog</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'catalog:product_list' %}">Products</a></li>
+                    <li class="breadcrumb-item active">{% if product.pk %}Edit{% else %}Add{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Basic Info -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_sku" class="form-label">SKU <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.sku.errors %}is-invalid{% endif %}" id="id_sku" name="sku" value="{{ form.sku.value|default:'' }}" placeholder="e.g., ELEC-LAP-001" required>
+                            {% if form.sku.errors %}
+                            <div class="invalid-feedback">{% for error in form.sku.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_name" class="form-label">Product Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.name.errors %}is-invalid{% endif %}" id="id_name" name="name" value="{{ form.name.value|default:'' }}" placeholder="Enter product name" required>
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback">{% for error in form.name.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">Description</label>
+                        <textarea class="form-control {% if form.description.errors %}is-invalid{% endif %}" id="id_description" name="description" rows="3" placeholder="Enter product description (optional)">{{ form.description.value|default:'' }}</textarea>
+                        {% if form.description.errors %}
+                        <div class="invalid-feedback">{% for error in form.description.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_category" class="form-label">Category</label>
+                            <select class="form-select {% if form.category.errors %}is-invalid{% endif %}" id="id_category" name="category">
+                                <option value="">— Select Category —</option>
+                                {% for cat in form.category.field.queryset %}
+                                <option value="{{ cat.pk }}" {% if form.category.value|stringformat:"d" == cat.pk|stringformat:"d" %}selected{% endif %}>{{ cat.full_path }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.category.errors %}
+                            <div class="invalid-feedback">{% for error in form.category.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_status" class="form-label">Status <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.status.errors %}is-invalid{% endif %}" id="id_status" name="status" required>
+                                {% for value, label in form.status.field.choices %}
+                                <option value="{{ value }}" {% if form.status.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.status.errors %}
+                            <div class="invalid-feedback">{% for error in form.status.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_brand" class="form-label">Brand</label>
+                            <input type="text" class="form-control {% if form.brand.errors %}is-invalid{% endif %}" id="id_brand" name="brand" value="{{ form.brand.value|default:'' }}" placeholder="Enter brand">
+                            {% if form.brand.errors %}
+                            <div class="invalid-feedback">{% for error in form.brand.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_manufacturer" class="form-label">Manufacturer</label>
+                            <input type="text" class="form-control {% if form.manufacturer.errors %}is-invalid{% endif %}" id="id_manufacturer" name="manufacturer" value="{{ form.manufacturer.value|default:'' }}" placeholder="Enter manufacturer">
+                            {% if form.manufacturer.errors %}
+                            <div class="invalid-feedback">{% for error in form.manufacturer.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_barcode" class="form-label">Barcode</label>
+                            <input type="text" class="form-control {% if form.barcode.errors %}is-invalid{% endif %}" id="id_barcode" name="barcode" value="{{ form.barcode.value|default:'' }}" placeholder="Enter barcode">
+                            {% if form.barcode.errors %}
+                            <div class="invalid-feedback">{% for error in form.barcode.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="id_is_active" name="is_active" {% if form.is_active.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_is_active">Active</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pricing -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Pricing & Costing</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="id_purchase_cost" class="form-label">Purchase Cost ($)</label>
+                            <input type="number" class="form-control {% if form.purchase_cost.errors %}is-invalid{% endif %}" id="id_purchase_cost" name="purchase_cost" value="{{ form.purchase_cost.value|default:'0' }}" step="0.01" min="0">
+                            {% if form.purchase_cost.errors %}
+                            <div class="invalid-feedback">{% for error in form.purchase_cost.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_wholesale_price" class="form-label">Wholesale Price ($)</label>
+                            <input type="number" class="form-control {% if form.wholesale_price.errors %}is-invalid{% endif %}" id="id_wholesale_price" name="wholesale_price" value="{{ form.wholesale_price.value|default:'0' }}" step="0.01" min="0">
+                            {% if form.wholesale_price.errors %}
+                            <div class="invalid-feedback">{% for error in form.wholesale_price.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_retail_price" class="form-label">Retail Price ($)</label>
+                            <input type="number" class="form-control {% if form.retail_price.errors %}is-invalid{% endif %}" id="id_retail_price" name="retail_price" value="{{ form.retail_price.value|default:'0' }}" step="0.01" min="0">
+                            {% if form.retail_price.errors %}
+                            <div class="invalid-feedback">{% for error in form.retail_price.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_markup_percentage" class="form-label">Markup (%)</label>
+                            <input type="number" class="form-control {% if form.markup_percentage.errors %}is-invalid{% endif %}" id="id_markup_percentage" name="markup_percentage" value="{{ form.markup_percentage.value|default:'0' }}" step="0.01" min="0">
+                            {% if form.markup_percentage.errors %}
+                            <div class="invalid-feedback">{% for error in form.markup_percentage.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dimensions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Dimensions & Weight</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="id_weight" class="form-label">Weight (kg)</label>
+                            <input type="number" class="form-control" id="id_weight" name="weight" value="{{ form.weight.value|default:'' }}" step="0.001" min="0" placeholder="kg">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_length" class="form-label">Length (cm)</label>
+                            <input type="number" class="form-control" id="id_length" name="length" value="{{ form.length.value|default:'' }}" step="0.01" min="0" placeholder="cm">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_width" class="form-label">Width (cm)</label>
+                            <input type="number" class="form-control" id="id_width" name="width" value="{{ form.width.value|default:'' }}" step="0.01" min="0" placeholder="cm">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_height" class="form-label">Height (cm)</label>
+                            <input type="number" class="form-control" id="id_height" name="height" value="{{ form.height.value|default:'' }}" step="0.01" min="0" placeholder="cm">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Attributes -->
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <h5 class="card-title mb-0 flex-grow-1">Custom Attributes</h5>
+                    <div class="flex-shrink-0">
+                        <button type="button" class="btn btn-sm btn-soft-primary" id="add-attribute-btn">
+                            <i class="ri-add-line align-middle me-1"></i> Add Attribute
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {{ formset.management_form }}
+                    <div id="attribute-formset">
+                        {% for attr_form in formset %}
+                        <div class="attribute-row row g-2 mb-2 {% if attr_form.DELETE.value %}d-none{% endif %}">
+                            {% if attr_form.instance.pk %}
+                            <input type="hidden" name="{{ attr_form.prefix }}-id" value="{{ attr_form.instance.pk }}">
+                            {% else %}
+                            <input type="hidden" name="{{ attr_form.prefix }}-id" value="">
+                            {% endif %}
+                            <div class="col-md-3">
+                                <input type="text" class="form-control form-control-sm" name="{{ attr_form.prefix }}-name" value="{{ attr_form.name.value|default:'' }}" placeholder="Attribute name">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" class="form-control form-control-sm" name="{{ attr_form.prefix }}-value" value="{{ attr_form.value.value|default:'' }}" placeholder="Value">
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select form-select-sm" name="{{ attr_form.prefix }}-attr_type">
+                                    {% for val, label in attr_form.attr_type.field.choices %}
+                                    <option value="{{ val }}" {% if attr_form.attr_type.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <input type="number" class="form-control form-control-sm" name="{{ attr_form.prefix }}-sort_order" value="{{ attr_form.sort_order.value|default:'0' }}" min="0" placeholder="Order" style="width: 70px;">
+                            </div>
+                            <div class="col-md-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="{{ attr_form.prefix }}-DELETE" {% if attr_form.DELETE.value %}checked{% endif %} id="id_{{ attr_form.prefix }}-DELETE">
+                                        <label class="form-check-label text-danger fs-12" for="id_{{ attr_form.prefix }}-DELETE">Remove</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if product.pk %}Update Product{% else %}Create Product{% endif %}
+                        </button>
+                        <a href="{% url 'catalog:product_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var totalForms = document.getElementById('id_attributes-TOTAL_FORMS');
+    var formsetContainer = document.getElementById('attribute-formset');
+    var addBtn = document.getElementById('add-attribute-btn');
+
+    addBtn.addEventListener('click', function() {
+        var formCount = parseInt(totalForms.value);
+        var newRow = document.createElement('div');
+        newRow.className = 'attribute-row row g-2 mb-2';
+        newRow.innerHTML = '<input type="hidden" name="attributes-' + formCount + '-id" value="">' +
+            '<div class="col-md-3"><input type="text" class="form-control form-control-sm" name="attributes-' + formCount + '-name" placeholder="Attribute name"></div>' +
+            '<div class="col-md-3"><input type="text" class="form-control form-control-sm" name="attributes-' + formCount + '-value" placeholder="Value"></div>' +
+            '<div class="col-md-2"><select class="form-select form-select-sm" name="attributes-' + formCount + '-attr_type"><option value="text">Text</option><option value="number">Number</option><option value="boolean">Yes/No</option><option value="select">Selection</option></select></div>' +
+            '<div class="col-md-2"><input type="number" class="form-control form-control-sm" name="attributes-' + formCount + '-sort_order" value="0" min="0" placeholder="Order" style="width: 70px;"></div>' +
+            '<div class="col-md-2"><div class="d-flex align-items-center gap-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="attributes-' + formCount + '-DELETE" id="id_attributes-' + formCount + '-DELETE"><label class="form-check-label text-danger fs-12" for="id_attributes-' + formCount + '-DELETE">Remove</label></div></div></div>';
+        formsetContainer.appendChild(newRow);
+        totalForms.value = formCount + 1;
+    });
+});
+</script>
+{% endblock %}
