@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier Performance Tracking{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Supplier Performance Tracking</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Vendor Management</a></li>
+                    <li class="breadcrumb-item active">Performance Tracking</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Performance Reviews</h5>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by vendor name or notes...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_vendor %}<input type="hidden" name="vendor" value="{{ current_vendor }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="" id="vendorFilterForm">
+                            <select class="form-select" name="vendor" onchange="this.form.submit()">
+                                <option value="">All Vendors</option>
+                                {% for v in vendors %}
+                                <option value="{{ v.pk }}" {% if current_vendor == v.pk|stringformat:"d" %}selected{% endif %}>{{ v.company_name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Performance Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Vendor</th>
+                                <th scope="col">Review Date</th>
+                                <th scope="col">Delivery</th>
+                                <th scope="col">Quality</th>
+                                <th scope="col">Compliance</th>
+                                <th scope="col">Overall</th>
+                                <th scope="col">On-Time %</th>
+                                <th scope="col">Defect %</th>
+                                <th scope="col">Reviewed By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for perf in performances %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'vendors:vendor_detail' perf.vendor.pk %}" class="fw-medium text-primary">
+                                        {{ perf.vendor.company_name }}
+                                    </a>
+                                </td>
+                                <td>{{ perf.review_date|date:"M d, Y" }}</td>
+                                <td><span class="badge bg-{% if perf.delivery_rating >= 4 %}success{% elif perf.delivery_rating >= 3 %}warning{% else %}danger{% endif %}-subtle text-{% if perf.delivery_rating >= 4 %}success{% elif perf.delivery_rating >= 3 %}warning{% else %}danger{% endif %}">{{ perf.delivery_rating }}/5</span></td>
+                                <td><span class="badge bg-{% if perf.quality_rating >= 4 %}success{% elif perf.quality_rating >= 3 %}warning{% else %}danger{% endif %}-subtle text-{% if perf.quality_rating >= 4 %}success{% elif perf.quality_rating >= 3 %}warning{% else %}danger{% endif %}">{{ perf.quality_rating }}/5</span></td>
+                                <td><span class="badge bg-{% if perf.compliance_rating >= 4 %}success{% elif perf.compliance_rating >= 3 %}warning{% else %}danger{% endif %}-subtle text-{% if perf.compliance_rating >= 4 %}success{% elif perf.compliance_rating >= 3 %}warning{% else %}danger{% endif %}">{{ perf.compliance_rating }}/5</span></td>
+                                <td><strong>{{ perf.overall_score }}/5</strong></td>
+                                <td>{{ perf.on_time_delivery_rate }}%</td>
+                                <td>{{ perf.defect_rate }}%</td>
+                                <td>{{ perf.reviewed_by.get_full_name|default:perf.reviewed_by.username|default:"—" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-bar-chart-box-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No performance reviews found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if performances.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Performance pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if performances.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ performances.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_vendor %}&vendor={{ current_vendor }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-left-s-line"></i></span>
+                            </li>
+                            {% endif %}
+
+                            {% for num in performances.paginator.page_range %}
+                            <li class="page-item {% if performances.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_vendor %}&vendor={{ current_vendor }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endfor %}
+
+                            {% if performances.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ performances.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_vendor %}&vendor={{ current_vendor }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-right-s-line"></i></span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
