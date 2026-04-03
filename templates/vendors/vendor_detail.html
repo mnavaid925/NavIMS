@@ -1,0 +1,565 @@
+{% extends "base.html" %}
+
+{% block title %}Vendor: {{ vendor.company_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Vendor Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Vendor Management</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'vendors:vendor_list' %}">Vendors</a></li>
+                    <li class="breadcrumb-item active">{{ vendor.company_name }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Vendor Info -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Vendor Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Company Name</th>
+                                <td class="fw-medium">{{ vendor.company_name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Contact Person</th>
+                                <td>{{ vendor.contact_person|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Email</th>
+                                <td>
+                                    {% if vendor.email %}
+                                        <a href="mailto:{{ vendor.email }}">{{ vendor.email }}</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Phone</th>
+                                <td>{{ vendor.phone|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Website</th>
+                                <td>
+                                    {% if vendor.website %}
+                                        <a href="{{ vendor.website }}" target="_blank">{{ vendor.website }}</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Tax ID</th>
+                                <td>{{ vendor.tax_id|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Vendor Type</th>
+                                <td>
+                                    {% if vendor.vendor_type == 'manufacturer' %}
+                                        <span class="badge bg-primary-subtle text-primary">Manufacturer</span>
+                                    {% elif vendor.vendor_type == 'distributor' %}
+                                        <span class="badge bg-info-subtle text-info">Distributor</span>
+                                    {% elif vendor.vendor_type == 'wholesaler' %}
+                                        <span class="badge bg-success-subtle text-success">Wholesaler</span>
+                                    {% elif vendor.vendor_type == 'service_provider' %}
+                                        <span class="badge bg-warning-subtle text-warning">Service Provider</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ vendor.get_vendor_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Status</th>
+                                <td>
+                                    {% if vendor.status == 'active' %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% elif vendor.status == 'inactive' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                                    {% elif vendor.status == 'blocked' %}
+                                        <span class="badge bg-danger-subtle text-danger">Blocked</span>
+                                    {% elif vendor.status == 'pending' %}
+                                        <span class="badge bg-warning-subtle text-warning">Pending</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info">{{ vendor.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Created</th>
+                                <td>{{ vendor.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Updated</th>
+                                <td>{{ vendor.updated_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Address Card -->
+        {% if vendor.address_line_1 or vendor.city or vendor.country %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Address</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-1">{{ vendor.address_line_1 }}</p>
+                {% if vendor.address_line_2 %}<p class="mb-1">{{ vendor.address_line_2 }}</p>{% endif %}
+                <p class="mb-0">
+                    {{ vendor.city }}{% if vendor.city and vendor.state %}, {% endif %}{{ vendor.state }} {{ vendor.postal_code }}
+                    {% if vendor.country %}<br>{{ vendor.country }}{% endif %}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Terms & Conditions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Terms & Conditions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 text-center">
+                            <p class="text-muted mb-1 fs-12">Payment Terms</p>
+                            <h5 class="mb-0">{{ vendor.get_payment_terms_display }}</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 text-center">
+                            <p class="text-muted mb-1 fs-12">Lead Time</p>
+                            <h5 class="mb-0">{{ vendor.lead_time_days }} days</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 text-center">
+                            <p class="text-muted mb-1 fs-12">MOQ</p>
+                            <h5 class="mb-0">{{ vendor.minimum_order_quantity }}</h5>
+                        </div>
+                    </div>
+                </div>
+                {% if vendor.notes %}
+                <div class="mt-3">
+                    <p class="text-muted mb-1 fs-12">Notes</p>
+                    <p class="mb-0">{{ vendor.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Performance Reviews -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Performance Reviews</h5>
+                <div class="flex-shrink-0">
+                    <span class="badge bg-primary-subtle text-primary">{{ performances.count }} reviews</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if performances %}
+                <div class="table-responsive mb-4">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Delivery</th>
+                                <th>Quality</th>
+                                <th>Compliance</th>
+                                <th>Overall</th>
+                                <th>On-Time %</th>
+                                <th>Defect %</th>
+                                <th>Reviewed By</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for perf in performances %}
+                            <tr>
+                                <td>{{ perf.review_date|date:"M d, Y" }}</td>
+                                <td><span class="badge bg-{% if perf.delivery_rating >= 4 %}success{% elif perf.delivery_rating >= 3 %}warning{% else %}danger{% endif %}-subtle text-{% if perf.delivery_rating >= 4 %}success{% elif perf.delivery_rating >= 3 %}warning{% else %}danger{% endif %}">{{ perf.delivery_rating }}/5</span></td>
+                                <td><span class="badge bg-{% if perf.quality_rating >= 4 %}success{% elif perf.quality_rating >= 3 %}warning{% else %}danger{% endif %}-subtle text-{% if perf.quality_rating >= 4 %}success{% elif perf.quality_rating >= 3 %}warning{% else %}danger{% endif %}">{{ perf.quality_rating }}/5</span></td>
+                                <td><span class="badge bg-{% if perf.compliance_rating >= 4 %}success{% elif perf.compliance_rating >= 3 %}warning{% else %}danger{% endif %}-subtle text-{% if perf.compliance_rating >= 4 %}success{% elif perf.compliance_rating >= 3 %}warning{% else %}danger{% endif %}">{{ perf.compliance_rating }}/5</span></td>
+                                <td><strong>{{ perf.overall_score }}/5</strong></td>
+                                <td>{{ perf.on_time_delivery_rate }}%</td>
+                                <td>{{ perf.defect_rate }}%</td>
+                                <td>{{ perf.reviewed_by.get_full_name|default:perf.reviewed_by.username|default:"—" }}</td>
+                                <td class="text-center">
+                                    <form method="post" action="{% url 'vendors:vendor_performance_delete' vendor.pk perf.pk %}" class="d-inline" onsubmit="return confirm('Delete this performance review?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Add Performance Form -->
+                <div class="border-top pt-3">
+                    <h6 class="mb-3">Add Performance Review</h6>
+                    <form method="post" action="{% url 'vendors:vendor_performance_add' vendor.pk %}">
+                        {% csrf_token %}
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label">Date</label>
+                                {{ performance_form.review_date }}
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">Delivery</label>
+                                {{ performance_form.delivery_rating }}
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">Quality</label>
+                                {{ performance_form.quality_rating }}
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">Compliance</label>
+                                {{ performance_form.compliance_rating }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">On-Time %</label>
+                                {{ performance_form.on_time_delivery_rate }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Defect %</label>
+                                {{ performance_form.defect_rate }}
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                    <i class="ri-add-line"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contracts -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Contracts</h5>
+                <div class="flex-shrink-0">
+                    <span class="badge bg-primary-subtle text-primary">{{ contracts.count }} contracts</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if contracts %}
+                <div class="table-responsive mb-4">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Contract #</th>
+                                <th>Title</th>
+                                <th>Status</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Value</th>
+                                <th>Terms</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contract in contracts %}
+                            <tr>
+                                <td><code>{{ contract.contract_number }}</code></td>
+                                <td class="fw-medium">{{ contract.title }}</td>
+                                <td>
+                                    {% if contract.status == 'active' %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% elif contract.status == 'draft' %}
+                                        <span class="badge bg-warning-subtle text-warning">Draft</span>
+                                    {% elif contract.status == 'expired' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Expired</span>
+                                    {% elif contract.status == 'terminated' %}
+                                        <span class="badge bg-danger-subtle text-danger">Terminated</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info">{{ contract.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ contract.start_date|date:"M d, Y" }}</td>
+                                <td>{{ contract.end_date|date:"M d, Y"|default:"—" }}</td>
+                                <td>${{ contract.contract_value }}</td>
+                                <td>{{ contract.get_payment_terms_display }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        {% if contract.document %}
+                                        <a href="{{ contract.document.url }}" target="_blank" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="Download">
+                                            <i class="ri-download-line"></i>
+                                        </a>
+                                        {% endif %}
+                                        <form method="post" action="{% url 'vendors:vendor_contract_delete' vendor.pk contract.pk %}" class="d-inline" onsubmit="return confirm('Delete this contract?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Add Contract Form -->
+                <div class="border-top pt-3">
+                    <h6 class="mb-3">Add Contract</h6>
+                    <form method="post" action="{% url 'vendors:vendor_contract_add' vendor.pk %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-3">
+                                <label class="form-label">Contract #</label>
+                                {{ contract_form.contract_number }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Title</label>
+                                {{ contract_form.title }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Status</label>
+                                {{ contract_form.status }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Start Date</label>
+                                {{ contract_form.start_date }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">End Date</label>
+                                {{ contract_form.end_date }}
+                            </div>
+                        </div>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label">Terms</label>
+                                {{ contract_form.payment_terms }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Value ($)</label>
+                                {{ contract_form.contract_value }}
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">Lead</label>
+                                {{ contract_form.lead_time_days }}
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">MOQ</label>
+                                {{ contract_form.moq }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Document</label>
+                                {{ contract_form.document }}
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                    <i class="ri-add-line"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Communication Log -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Communication Log</h5>
+                <div class="flex-shrink-0">
+                    <span class="badge bg-primary-subtle text-primary">{{ communications.count }} entries</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if communications %}
+                <div class="table-responsive mb-4">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Subject</th>
+                                <th>Contact</th>
+                                <th>By</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comm in communications %}
+                            <tr>
+                                <td>{{ comm.communication_date|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    {% if comm.communication_type == 'email' %}
+                                        <span class="badge bg-primary-subtle text-primary">Email</span>
+                                    {% elif comm.communication_type == 'phone' %}
+                                        <span class="badge bg-info-subtle text-info">Phone</span>
+                                    {% elif comm.communication_type == 'meeting' %}
+                                        <span class="badge bg-success-subtle text-success">Meeting</span>
+                                    {% elif comm.communication_type == 'note' %}
+                                        <span class="badge bg-warning-subtle text-warning">Note</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ comm.get_communication_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-medium">{{ comm.subject }}</td>
+                                <td>{{ comm.contact_person|default:"—" }}</td>
+                                <td>{{ comm.communicated_by.get_full_name|default:comm.communicated_by.username|default:"—" }}</td>
+                                <td class="text-center">
+                                    <form method="post" action="{% url 'vendors:vendor_communication_delete' vendor.pk comm.pk %}" class="d-inline" onsubmit="return confirm('Delete this communication entry?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Add Communication Form -->
+                <div class="border-top pt-3">
+                    <h6 class="mb-3">Log Communication</h6>
+                    <form method="post" action="{% url 'vendors:vendor_communication_add' vendor.pk %}">
+                        {% csrf_token %}
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label">Type</label>
+                                {{ communication_form.communication_type }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Subject</label>
+                                {{ communication_form.subject }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Contact</label>
+                                {{ communication_form.contact_person }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Date</label>
+                                {{ communication_form.communication_date }}
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                    <i class="ri-add-line"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-1">
+                            <div class="col-md-12">
+                                <label class="form-label">Message</label>
+                                {{ communication_form.message }}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'vendors:vendor_edit' vendor.pk %}" class="btn btn-soft-warning">
+                        <i class="ri-pencil-line align-middle me-1"></i> Edit Vendor
+                    </a>
+                    <form method="post" action="{% url 'vendors:vendor_delete' vendor.pk %}" onsubmit="return confirm('Are you sure you want to delete this vendor? This action cannot be undone.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-danger w-100">
+                            <i class="ri-delete-bin-line align-middle me-1"></i> Delete Vendor
+                        </button>
+                    </form>
+                    <a href="{% url 'vendors:vendor_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Info Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-store-2-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Company</p>
+                        <h6 class="mb-0">{{ vendor.company_name }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-success-subtle text-success d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-hand-coin-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Payment Terms</p>
+                        <h6 class="mb-0">{{ vendor.get_payment_terms_display }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-info-subtle text-info d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-truck-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Lead Time</p>
+                        <h6 class="mb-0">{{ vendor.lead_time_days }} days</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Summary -->
+        {% if vendor.average_performance_score %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Performance Summary</h5>
+            </div>
+            <div class="card-body text-center">
+                <h2 class="mb-1 {% if vendor.average_performance_score >= 4 %}text-success{% elif vendor.average_performance_score >= 3 %}text-warning{% else %}text-danger{% endif %}">
+                    {{ vendor.average_performance_score }}/5
+                </h2>
+                <p class="text-muted mb-0">Average Score ({{ performances.count }} reviews)</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
