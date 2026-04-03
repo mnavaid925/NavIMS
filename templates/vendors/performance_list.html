@@ -23,6 +23,11 @@
         <div class="card">
             <div class="card-header d-flex align-items-center">
                 <h5 class="card-title mb-0 flex-grow-1">All Performance Reviews</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'vendors:performance_create' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-add-line align-middle me-1"></i> Add Review
+                    </a>
+                </div>
             </div>
             <div class="card-body">
                 <!-- Search & Filters -->
@@ -63,6 +68,7 @@
                                 <th scope="col">On-Time %</th>
                                 <th scope="col">Defect %</th>
                                 <th scope="col">Reviewed By</th>
+                                <th scope="col" class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -81,10 +87,23 @@
                                 <td>{{ perf.on_time_delivery_rate }}%</td>
                                 <td>{{ perf.defect_rate }}%</td>
                                 <td>{{ perf.reviewed_by.get_full_name|default:perf.reviewed_by.username|default:"—" }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'vendors:performance_edit' perf.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        <form method="post" action="{% url 'vendors:performance_delete' perf.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this performance review?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="9" class="text-center py-4">
+                                <td colspan="10" class="text-center py-4">
                                     <div class="text-muted">
                                         <i class="ri-bar-chart-box-line fs-24 d-block mb-2"></i>
                                         <p class="mb-0">No performance reviews found</p>
