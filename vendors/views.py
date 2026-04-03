@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Avg
 
 from .models import Vendor, VendorPerformance, VendorContract, VendorCommunication
 from .forms import (
@@ -132,6 +132,122 @@ def vendor_delete_view(request, pk):
     vendor.delete()
     messages.success(request, f'Vendor "{vendor_name}" deleted successfully.')
     return redirect('vendors:vendor_list')
+
+
+# ──────────────────────────────────────────────
+# Performance Tracking list view
+# ──────────────────────────────────────────────
+
+@login_required
+def performance_list_view(request):
+    tenant = request.tenant
+    queryset = VendorPerformance.objects.filter(tenant=tenant).select_related('vendor', 'reviewed_by')
+
+    # Search
+    q = request.GET.get('q', '').strip()
+    if q:
+        queryset = queryset.filter(
+            Q(vendor__company_name__icontains=q) | Q(notes__icontains=q)
+        )
+
+    # Filter by vendor
+    vendor_id = request.GET.get('vendor', '')
+    if vendor_id:
+        queryset = queryset.filter(vendor_id=vendor_id)
+
+    paginator = Paginator(queryset, 20)
+    page_number = request.GET.get('page')
+    performances = paginator.get_page(page_number)
+
+    context = {
+        'performances': performances,
+        'q': q,
+        'vendors': Vendor.objects.filter(tenant=tenant, is_active=True),
+        'current_vendor': vendor_id,
+    }
+    return render(request, 'vendors/performance_list.html', context)
+
+
+# ──────────────────────────────────────────────
+# Contract list view
+# ──────────────────────────────────────────────
+
+@login_required
+def contract_list_view(request):
+    tenant = request.tenant
+    queryset = VendorContract.objects.filter(tenant=tenant).select_related('vendor')
+
+    # Search
+    q = request.GET.get('q', '').strip()
+    if q:
+        queryset = queryset.filter(
+            Q(contract_number__icontains=q) | Q(title__icontains=q) | Q(vendor__company_name__icontains=q)
+        )
+
+    # Filter by status
+    status = request.GET.get('status', '')
+    if status:
+        queryset = queryset.filter(status=status)
+
+    # Filter by vendor
+    vendor_id = request.GET.get('vendor', '')
+    if vendor_id:
+        queryset = queryset.filter(vendor_id=vendor_id)
+
+    paginator = Paginator(queryset, 20)
+    page_number = request.GET.get('page')
+    contracts = paginator.get_page(page_number)
+
+    context = {
+        'contracts': contracts,
+        'q': q,
+        'status_choices': VendorContract.CONTRACT_STATUS_CHOICES,
+        'vendors': Vendor.objects.filter(tenant=tenant, is_active=True),
+        'current_status': status,
+        'current_vendor': vendor_id,
+    }
+    return render(request, 'vendors/contract_list.html', context)
+
+
+# ──────────────────────────────────────────────
+# Communication Log list view
+# ──────────────────────────────────────────────
+
+@login_required
+def communication_list_view(request):
+    tenant = request.tenant
+    queryset = VendorCommunication.objects.filter(tenant=tenant).select_related('vendor', 'communicated_by')
+
+    # Search
+    q = request.GET.get('q', '').strip()
+    if q:
+        queryset = queryset.filter(
+            Q(subject__icontains=q) | Q(message__icontains=q) | Q(vendor__company_name__icontains=q)
+        )
+
+    # Filter by type
+    comm_type = request.GET.get('type', '')
+    if comm_type:
+        queryset = queryset.filter(communication_type=comm_type)
+
+    # Filter by vendor
+    vendor_id = request.GET.get('vendor', '')
+    if vendor_id:
+        queryset = queryset.filter(vendor_id=vendor_id)
+
+    paginator = Paginator(queryset, 20)
+    page_number = request.GET.get('page')
+    communications = paginator.get_page(page_number)
+
+    context = {
+        'communications': communications,
+        'q': q,
+        'type_choices': VendorCommunication.COMM_TYPE_CHOICES,
+        'vendors': Vendor.objects.filter(tenant=tenant, is_active=True),
+        'current_type': comm_type,
+        'current_vendor': vendor_id,
+    }
+    return render(request, 'vendors/communication_list.html', context)
 
 
 # ──────────────────────────────────────────────
