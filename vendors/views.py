@@ -82,9 +82,9 @@ def vendor_detail_view(request, pk):
     contracts = vendor.contracts.all()
     communications = vendor.communications.all().select_related('communicated_by')
 
-    performance_form = VendorPerformanceForm()
-    contract_form = VendorContractForm()
-    communication_form = VendorCommunicationForm()
+    performance_form = VendorPerformanceForm(tenant=tenant, initial={'vendor': vendor})
+    contract_form = VendorContractForm(tenant=tenant, initial={'vendor': vendor})
+    communication_form = VendorCommunicationForm(tenant=tenant, initial={'vendor': vendor})
 
     context = {
         'vendor': vendor,
@@ -168,6 +168,63 @@ def performance_list_view(request):
     return render(request, 'vendors/performance_list.html', context)
 
 
+@login_required
+def performance_create_view(request):
+    tenant = request.tenant
+
+    if request.method == 'POST':
+        form = VendorPerformanceForm(request.POST, tenant=tenant)
+        if form.is_valid():
+            performance = form.save(commit=False)
+            performance.reviewed_by = request.user
+            performance.save()
+            messages.success(request, 'Performance review added successfully.')
+            return redirect('vendors:performance_list')
+    else:
+        form = VendorPerformanceForm(tenant=tenant)
+
+    context = {
+        'form': form,
+        'title': 'Add Performance Review',
+    }
+    return render(request, 'vendors/performance_form.html', context)
+
+
+@login_required
+def performance_edit_view(request, pk):
+    tenant = request.tenant
+    performance = get_object_or_404(VendorPerformance, pk=pk, tenant=tenant)
+
+    if request.method == 'POST':
+        form = VendorPerformanceForm(request.POST, instance=performance, tenant=tenant)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Performance review updated successfully.')
+            return redirect('vendors:performance_list')
+    else:
+        form = VendorPerformanceForm(instance=performance, tenant=tenant)
+
+    context = {
+        'form': form,
+        'title': 'Edit Performance Review',
+        'performance': performance,
+    }
+    return render(request, 'vendors/performance_form.html', context)
+
+
+@login_required
+def performance_delete_view(request, pk):
+    tenant = request.tenant
+
+    if request.method != 'POST':
+        return redirect('vendors:performance_list')
+
+    performance = get_object_or_404(VendorPerformance, pk=pk, tenant=tenant)
+    performance.delete()
+    messages.success(request, 'Performance review deleted successfully.')
+    return redirect('vendors:performance_list')
+
+
 # ──────────────────────────────────────────────
 # Contract list view
 # ──────────────────────────────────────────────
@@ -209,6 +266,61 @@ def contract_list_view(request):
     return render(request, 'vendors/contract_list.html', context)
 
 
+@login_required
+def contract_create_view(request):
+    tenant = request.tenant
+
+    if request.method == 'POST':
+        form = VendorContractForm(request.POST, request.FILES, tenant=tenant)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Contract "{form.instance.title}" created successfully.')
+            return redirect('vendors:contract_list')
+    else:
+        form = VendorContractForm(tenant=tenant)
+
+    context = {
+        'form': form,
+        'title': 'Add Contract',
+    }
+    return render(request, 'vendors/contract_form.html', context)
+
+
+@login_required
+def contract_edit_view(request, pk):
+    tenant = request.tenant
+    contract = get_object_or_404(VendorContract, pk=pk, tenant=tenant)
+
+    if request.method == 'POST':
+        form = VendorContractForm(request.POST, request.FILES, instance=contract, tenant=tenant)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Contract "{contract.title}" updated successfully.')
+            return redirect('vendors:contract_list')
+    else:
+        form = VendorContractForm(instance=contract, tenant=tenant)
+
+    context = {
+        'form': form,
+        'title': 'Edit Contract',
+        'contract': contract,
+    }
+    return render(request, 'vendors/contract_form.html', context)
+
+
+@login_required
+def contract_delete_view(request, pk):
+    tenant = request.tenant
+
+    if request.method != 'POST':
+        return redirect('vendors:contract_list')
+
+    contract = get_object_or_404(VendorContract, pk=pk, tenant=tenant)
+    contract.delete()
+    messages.success(request, 'Contract deleted successfully.')
+    return redirect('vendors:contract_list')
+
+
 # ──────────────────────────────────────────────
 # Communication Log list view
 # ──────────────────────────────────────────────
@@ -248,6 +360,63 @@ def communication_list_view(request):
         'current_vendor': vendor_id,
     }
     return render(request, 'vendors/communication_list.html', context)
+
+
+@login_required
+def communication_create_view(request):
+    tenant = request.tenant
+
+    if request.method == 'POST':
+        form = VendorCommunicationForm(request.POST, tenant=tenant)
+        if form.is_valid():
+            comm = form.save(commit=False)
+            comm.communicated_by = request.user
+            comm.save()
+            messages.success(request, 'Communication logged successfully.')
+            return redirect('vendors:communication_list')
+    else:
+        form = VendorCommunicationForm(tenant=tenant)
+
+    context = {
+        'form': form,
+        'title': 'Log Communication',
+    }
+    return render(request, 'vendors/communication_form.html', context)
+
+
+@login_required
+def communication_edit_view(request, pk):
+    tenant = request.tenant
+    comm = get_object_or_404(VendorCommunication, pk=pk, tenant=tenant)
+
+    if request.method == 'POST':
+        form = VendorCommunicationForm(request.POST, instance=comm, tenant=tenant)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Communication "{comm.subject}" updated successfully.')
+            return redirect('vendors:communication_list')
+    else:
+        form = VendorCommunicationForm(instance=comm, tenant=tenant)
+
+    context = {
+        'form': form,
+        'title': 'Edit Communication',
+        'communication': comm,
+    }
+    return render(request, 'vendors/communication_form.html', context)
+
+
+@login_required
+def communication_delete_view(request, pk):
+    tenant = request.tenant
+
+    if request.method != 'POST':
+        return redirect('vendors:communication_list')
+
+    comm = get_object_or_404(VendorCommunication, pk=pk, tenant=tenant)
+    comm.delete()
+    messages.success(request, 'Communication deleted successfully.')
+    return redirect('vendors:communication_list')
 
 
 # ──────────────────────────────────────────────
