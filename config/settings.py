@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'administration',
     'dashboard',
     'catalog',
+    'vendors',
 ]
 
 MIDDLEWARE = [
