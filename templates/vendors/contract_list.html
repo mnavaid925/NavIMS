@@ -23,6 +23,11 @@
         <div class="card">
             <div class="card-header d-flex align-items-center">
                 <h5 class="card-title mb-0 flex-grow-1">All Contracts</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'vendors:contract_create' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-add-line align-middle me-1"></i> Add Contract
+                    </a>
+                </div>
             </div>
             <div class="card-body">
                 <!-- Search & Filters -->
@@ -76,7 +81,7 @@
                                 <th scope="col">End Date</th>
                                 <th scope="col">Value</th>
                                 <th scope="col">Payment Terms</th>
-                                <th scope="col" class="text-center">Document</th>
+                                <th scope="col" class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -107,13 +112,22 @@
                                 <td>${{ contract.contract_value }}</td>
                                 <td>{{ contract.get_payment_terms_display }}</td>
                                 <td class="text-center">
-                                    {% if contract.document %}
-                                    <a href="{{ contract.document.url }}" target="_blank" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="Download">
-                                        <i class="ri-download-line"></i>
-                                    </a>
-                                    {% else %}
-                                    <span class="text-muted">—</span>
-                                    {% endif %}
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        {% if contract.document %}
+                                        <a href="{{ contract.document.url }}" target="_blank" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="Download">
+                                            <i class="ri-download-line"></i>
+                                        </a>
+                                        {% endif %}
+                                        <a href="{% url 'vendors:contract_edit' contract.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        <form method="post" action="{% url 'vendors:contract_delete' contract.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this contract?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             {% empty %}
