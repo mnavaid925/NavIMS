@@ -101,6 +101,16 @@ NavIMS/
 │   ├── views.py                # Tenant CRUD, subscriptions, RBAC, settings
 │   └── urls.py                 # Administration URL routes
 │
+├── catalog/                    # Module 2: Product & Catalog Management
+│   ├── models.py               # Category, Product, ProductAttribute, ProductImage, ProductDocument
+│   ├── forms.py                # Category, Product, Attribute formset, Image, Document forms
+│   ├── views.py                # Full CRUD for categories, products, images, documents (14 views)
+│   ├── urls.py                 # Catalog URL routes
+│   ├── admin.py                # Admin registration with inlines
+│   └── management/
+│       └── commands/
+│           └── seed_catalog.py # Catalog seeder with demo data
+│
 ├── dashboard/                  # Dashboard app
 │   ├── views.py                # Dashboard view with stats
 │   └── urls.py                 # Dashboard URL route
@@ -124,15 +134,22 @@ NavIMS/
 │   │   ├── profile.html        # User profile & password change
 │   │   ├── user_list.html      # User management table
 │   │   └── user_invite.html    # Send user invitation
-│   └── administration/
-│       ├── tenant_list.html    # Tenant listing
-│       ├── tenant_form.html    # Tenant create/edit
-│       ├── tenant_detail.html  # Tenant details & subscription
-│       ├── subscription_list.html
-│       ├── subscription_form.html
-│       ├── role_list.html      # Roles & permissions
-│       ├── role_form.html      # Role create/edit
-│       └── settings.html       # Tenant customization settings
+│   ├── administration/
+│   │   ├── tenant_list.html    # Tenant listing
+│   │   ├── tenant_form.html    # Tenant create/edit
+│   │   ├── tenant_detail.html  # Tenant details & subscription
+│   │   ├── subscription_list.html
+│   │   ├── subscription_form.html
+│   │   ├── role_list.html      # Roles & permissions
+│   │   ├── role_form.html      # Role create/edit
+│   │   └── settings.html       # Tenant customization settings
+│   └── catalog/
+│       ├── category_list.html  # Category listing with filters
+│       ├── category_form.html  # Category create/edit
+│       ├── category_detail.html# Category details with children & products
+│       ├── product_list.html   # Product listing with filters
+│       ├── product_form.html   # Product create/edit with attributes
+│       └── product_detail.html # Product details with images & documents
 │
 ├── static/                     # Static assets
 │   ├── css/
@@ -188,11 +205,13 @@ NavIMS/
 5. **Seed demo data**
    ```bash
    python manage.py seed
+   python manage.py seed_catalog
    ```
 
    To reset and re-seed:
    ```bash
    python manage.py seed --flush
+   python manage.py seed_catalog --flush
    ```
 
 ---
@@ -228,6 +247,9 @@ The seed command creates the following demo accounts:
 - 11 global permissions across IMS modules
 - Tenant customizations with different brand colors
 - 3 pending user invitations
+- 21 categories per tenant (3 departments, 6 categories, 12 sub-categories)
+- 12 products per tenant with pricing, dimensions, and custom attributes
+- 32 product attributes per tenant
 
 ---
 
@@ -242,30 +264,40 @@ The seed command creates the following demo accounts:
 | Role-Based Access Control| Granular permission settings for users within each tenant |
 | Theme & Customization    | White-labeling with custom branding, logo, and colors |
 
+### Module 2: Product & Catalog Management (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| SKU Management           | Unique SKU identification, barcode, brand, manufacturer |
+| Product Categorization   | Hierarchical 3-level grouping (Department > Category > Sub-category) |
+| Product Attributes       | Custom EAV attributes (text, number, boolean, selection) per product |
+| Pricing & Costing        | Purchase cost, wholesale price, retail price, markup percentage |
+| Product Imagery          | Multiple image uploads per product with primary image support |
+| Product Documents        | File attachments (manuals, safety sheets, datasheets, warranties) |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 1  | Product & Catalog Management    | SKU, categories, attributes, pricing           |
-| 2  | Vendor / Supplier Management    | Supplier directory, performance tracking       |
-| 3  | Purchase Order Management       | PO creation, approval workflows, tracking      |
-| 4  | Receiving & Putaway             | GRN, three-way matching, quality inspection    |
-| 5  | Warehousing & Bin Management    | Warehouse structure, bin capacity, mapping      |
-| 6  | Inventory Tracking & Control    | Real-time stock, valuation, reservations       |
-| 7  | Stock Movement & Transfers      | Inter/intra-warehouse transfers                |
-| 8  | Lot & Serial Number Tracking    | Batch/serial tracking, expiry management       |
-| 9  | Order Management & Fulfillment  | Sales orders, pick-pack-ship, wave planning    |
-| 10 | Returns Management (RMA)        | Return authorization, inspection, disposition  |
-| 11 | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
-| 12 | Multi-Location Management       | Location hierarchy, global stock visibility    |
-| 13 | Inventory Forecasting & Planning| Demand forecasting, reorder points, safety stock|
-| 14 | Barcode & RFID Integration      | Label generation, scanner integration          |
-| 15 | Quality Control & Inspection    | QC checklists, quarantine, defect reporting    |
-| 16 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
-| 17 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
-| 18 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
-| 19 | Third-Party Integrations & API  | E-commerce, ERP, accounting software sync      |
-| 20 | System Administration & Security| RBAC, audit trail, UOM, data import/export     |
+| 1  | Vendor / Supplier Management    | Supplier directory, performance tracking       |
+| 2  | Purchase Order Management       | PO creation, approval workflows, tracking      |
+| 3  | Receiving & Putaway             | GRN, three-way matching, quality inspection    |
+| 4  | Warehousing & Bin Management    | Warehouse structure, bin capacity, mapping      |
+| 5  | Inventory Tracking & Control    | Real-time stock, valuation, reservations       |
+| 6  | Stock Movement & Transfers      | Inter/intra-warehouse transfers                |
+| 7  | Lot & Serial Number Tracking    | Batch/serial tracking, expiry management       |
+| 8  | Order Management & Fulfillment  | Sales orders, pick-pack-ship, wave planning    |
+| 9  | Returns Management (RMA)        | Return authorization, inspection, disposition  |
+| 10 | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
+| 11 | Multi-Location Management       | Location hierarchy, global stock visibility    |
+| 12 | Inventory Forecasting & Planning| Demand forecasting, reorder points, safety stock|
+| 13 | Barcode & RFID Integration      | Label generation, scanner integration          |
+| 14 | Quality Control & Inspection    | QC checklists, quarantine, defect reporting    |
+| 15 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
+| 16 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
+| 17 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
+| 18 | Third-Party Integrations & API  | E-commerce, ERP, accounting software sync      |
+| 19 | System Administration & Security| RBAC, audit trail, UOM, data import/export     |
 
 ---
 
