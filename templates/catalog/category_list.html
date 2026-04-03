@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Categories{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Categories</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Product Catalog</a></li>
+                    <li class="breadcrumb-item active">Categories</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Categories</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'catalog:category_create' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-add-line align-middle me-1"></i> Add Category
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search categories...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_level %}<input type="hidden" name="level" value="{{ current_level }}">{% endif %}
+                            {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="" id="levelFilterForm">
+                            <select class="form-select" name="level" onchange="this.form.submit()">
+                                <option value="">All Levels</option>
+                                {% for value, label in level_choices %}
+                                <option value="{{ value }}" {% if current_level == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="" id="statusFilterForm">
+                            <select class="form-select" name="status" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                <option value="active" {% if current_status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_level %}<input type="hidden" name="level" value="{{ current_level }}">{% endif %}
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Categories Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col">Parent</th>
+                                <th scope="col">Level</th>
+                                <th scope="col">Products</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Created</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in categories %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'catalog:category_detail' cat.pk %}" class="fw-medium text-primary">
+                                        {{ cat.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if cat.parent %}
+                                        <a href="{% url 'catalog:category_detail' cat.parent.pk %}" class="text-muted">{{ cat.parent.name }}</a>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cat.level == 'department' %}
+                                        <span class="badge bg-primary-subtle text-primary">Department</span>
+                                    {% elif cat.level == 'category' %}
+                                        <span class="badge bg-info-subtle text-info">Category</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Sub-category</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ cat.product_count }}</td>
+                                <td>
+                                    {% if cat.is_active %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ cat.created_at|date:"M d, Y" }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'catalog:category_detail' cat.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        <a href="{% url 'catalog:category_edit' cat.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        <form method="post" action="{% url 'catalog:category_delete' cat.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this category? This action cannot be undone.');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-folder-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No categories found</p>
+                                        <a href="{% url 'catalog:category_create' %}" class="btn btn-sm btn-primary mt-2">Add Your First Category</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if categories.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Category pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if categories.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ categories.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_level %}&level={{ current_level }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-left-s-line"></i></span>
+                            </li>
+                            {% endif %}
+
+                            {% for num in categories.paginator.page_range %}
+                            <li class="page-item {% if categories.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_level %}&level={{ current_level }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endfor %}
+
+                            {% if categories.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ categories.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_level %}&level={{ current_level }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="ri-arrow-right-s-line"></i></span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
