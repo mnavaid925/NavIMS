@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Vendor Management</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'vendors:contract_list' %}">Contracts</a></li>
+                    <li class="breadcrumb-item active">{% if contract %}Edit{% else %}Add{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Contract Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_vendor" class="form-label">Vendor <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.vendor.errors %}is-invalid{% endif %}" id="id_vendor" name="vendor" required>
+                                <option value="">— Select Vendor —</option>
+                                {% for v in form.vendor.field.queryset %}
+                                <option value="{{ v.pk }}" {% if form.vendor.value|stringformat:"d" == v.pk|stringformat:"d" %}selected{% endif %}>{{ v.company_name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.vendor.errors %}
+                            <div class="invalid-feedback">{% for error in form.vendor.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_contract_number" class="form-label">Contract Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.contract_number.errors %}is-invalid{% endif %}" id="id_contract_number" name="contract_number" value="{{ form.contract_number.value|default:'' }}" placeholder="e.g., CON-001" required>
+                            {% if form.contract_number.errors %}
+                            <div class="invalid-feedback">{% for error in form.contract_number.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_title" class="form-label">Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control {% if form.title.errors %}is-invalid{% endif %}" id="id_title" name="title" value="{{ form.title.value|default:'' }}" placeholder="Contract title" required>
+                        {% if form.title.errors %}
+                        <div class="invalid-feedback">{% for error in form.title.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_status" class="form-label">Status <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.status.errors %}is-invalid{% endif %}" id="id_status" name="status" required>
+                                {% for value, label in form.status.field.choices %}
+                                <option value="{{ value }}" {% if form.status.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.status.errors %}
+                            <div class="invalid-feedback">{% for error in form.status.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control {% if form.start_date.errors %}is-invalid{% endif %}" id="id_start_date" name="start_date" value="{{ form.start_date.value|default:'' }}" required>
+                            {% if form.start_date.errors %}
+                            <div class="invalid-feedback">{% for error in form.start_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control {% if form.end_date.errors %}is-invalid{% endif %}" id="id_end_date" name="end_date" value="{{ form.end_date.value|default:'' }}">
+                            {% if form.end_date.errors %}
+                            <div class="invalid-feedback">{% for error in form.end_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Terms & Value</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="id_payment_terms" class="form-label">Payment Terms</label>
+                            <select class="form-select" id="id_payment_terms" name="payment_terms">
+                                {% for value, label in form.payment_terms.field.choices %}
+                                <option value="{{ value }}" {% if form.payment_terms.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_contract_value" class="form-label">Contract Value ($)</label>
+                            <input type="number" class="form-control" id="id_contract_value" name="contract_value" value="{{ form.contract_value.value|default:'0' }}" step="0.01" min="0">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_lead_time_days" class="form-label">Lead Time (Days)</label>
+                            <input type="number" class="form-control" id="id_lead_time_days" name="lead_time_days" value="{{ form.lead_time_days.value|default:'0' }}" min="0">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_moq" class="form-label">MOQ</label>
+                            <input type="number" class="form-control" id="id_moq" name="moq" value="{{ form.moq.value|default:'1' }}" min="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Document & Notes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="id_document" class="form-label">Contract Document</label>
+                        {{ form.document }}
+                        {% if contract and contract.document %}
+                        <small class="text-muted d-block mt-1">Current: <a href="{{ contract.document.url }}" target="_blank">{{ contract.document.name }}</a></small>
+                        {% endif %}
+                    </div>
+                    <div class="mb-0">
+                        <label for="id_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="id_notes" name="notes" rows="3" placeholder="Contract notes (optional)">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if contract %}Update Contract{% else %}Create Contract{% endif %}
+                        </button>
+                        <a href="{% url 'vendors:contract_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
