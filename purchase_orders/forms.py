@@ -3,7 +3,10 @@ from django.forms import inlineformset_factory
 
 from catalog.models import Product
 from vendors.models import Vendor
-from .models import PurchaseOrder, PurchaseOrderItem, ApprovalRule, PurchaseOrderApproval
+from .models import (
+    PurchaseOrder, PurchaseOrderItem, ApprovalRule,
+    PurchaseOrderApproval, PurchaseOrderDispatch,
+)
 
 
 class PurchaseOrderForm(forms.ModelForm):
@@ -149,6 +152,26 @@ class ApprovalRuleForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class PurchaseOrderDispatchForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseOrderDispatch
+        fields = ['dispatch_method', 'sent_to_email', 'notes']
+        widgets = {
+            'dispatch_method': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'sent_to_email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'vendor@example.com',
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Dispatch notes (optional)',
+            }),
+        }
 
 
 class PurchaseOrderApprovalForm(forms.ModelForm):
