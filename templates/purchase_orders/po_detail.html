@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}PO: {{ po.po_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Purchase Order Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Purchasing</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'purchase_orders:po_list' %}">Purchase Orders</a></li>
+                    <li class="breadcrumb-item active">{{ po.po_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Order Information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Order Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">PO Number</th>
+                                <td class="fw-medium"><code>{{ po.po_number }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Vendor</th>
+                                <td>
+                                    <a href="{% url 'vendors:vendor_detail' po.vendor.pk %}" class="text-primary">
+                                        {{ po.vendor.company_name }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Status</th>
+                                <td>
+                                    {% if po.status == 'draft' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Draft</span>
+                                    {% elif po.status == 'pending_approval' %}
+                                        <span class="badge bg-warning-subtle text-warning">Pending Approval</span>
+                                    {% elif po.status == 'approved' %}
+                                        <span class="badge bg-info-subtle text-info">Approved</span>
+                                    {% elif po.status == 'sent' %}
+                                        <span class="badge bg-primary-subtle text-primary">Sent</span>
+                                    {% elif po.status == 'partially_received' %}
+                                        <span class="badge bg-warning-subtle text-warning">Partially Received</span>
+                                    {% elif po.status == 'received' %}
+                                        <span class="badge bg-success-subtle text-success">Received</span>
+                                    {% elif po.status == 'closed' %}
+                                        <span class="badge bg-dark-subtle text-dark">Closed</span>
+                                    {% elif po.status == 'cancelled' %}
+                                        <span class="badge bg-danger-subtle text-danger">Cancelled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ po.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Order Date</th>
+                                <td>{{ po.order_date|date:"M d, Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Expected Delivery</th>
+                                <td>{{ po.expected_delivery_date|date:"M d, Y"|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Payment Terms</th>
+                                <td>{{ po.get_payment_terms_display }}</td>
+                            </tr>
+                            {% if po.shipping_address %}
+                            <tr>
+                                <th class="text-muted">Shipping Address</th>
+                                <td>{{ po.shipping_address|linebreaksbr }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if po.notes %}
+                            <tr>
+                                <th class="text-muted">Notes</th>
+                                <td>{{ po.notes }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th class="text-muted">Created By</th>
+                                <td>{{ po.created_by.get_full_name|default:po.created_by.username|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Created</th>
+                                <td>{{ po.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Updated</th>
+                                <td>{{ po.updated_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Line Items -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Line Items</h5>
+                <div class="flex-shrink-0">
+                    <span class="badge bg-primary-subtle text-primary">{{ items.count }} items</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Product</th>
+                                <th>Description</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Tax %</th>
+                                <th class="text-end">Discount</th>
+                                <th class="text-end">Line Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td class="fw-medium">
+                                    {{ item.product.name }}
+                                    <br><small class="text-muted">{{ item.product.sku }}</small>
+                                </td>
+                                <td>{{ item.description|default:"—" }}</td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">${{ item.unit_price|floatformat:2 }}</td>
+                                <td class="text-end">{{ item.tax_rate|floatformat:2 }}%</td>
+                                <td class="text-end">${{ item.discount_amount|floatformat:2 }}</td>
+                                <td class="text-end fw-medium">${{ item.line_total|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="7" class="text-end fw-medium">Subtotal</td>
+                                <td class="text-end fw-medium">${{ po.subtotal|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="7" class="text-end text-muted">Tax Total</td>
+                                <td class="text-end text-muted">${{ po.tax_total|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="7" class="text-end text-muted">Discount Total</td>
+                                <td class="text-end text-muted">-${{ po.discount_total|floatformat:2 }}</td>
+                            </tr>
+                            <tr class="fw-bold">
+                                <td colspan="7" class="text-end">Grand Total</td>
+                                <td class="text-end text-primary">${{ po.grand_total|floatformat:2 }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="ri-shopping-cart-line fs-24 d-block mb-2"></i>
+                    <p class="mb-0">No line items added yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Approval History -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Approval History</h5>
+                <div class="flex-shrink-0">
+                    <span class="badge bg-primary-subtle text-primary">{{ approvals.count }} approvals</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if approvals %}
+                <div class="table-responsive mb-3">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Approver</th>
+                                <th>Decision</th>
+                                <th>Notes</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for approval in approvals %}
+                            <tr>
+                                <td class="fw-medium">{{ approval.approver.get_full_name|default:approval.approver.username }}</td>
+                                <td>
+                                    {% if approval.decision == 'approved' %}
+                                        <span class="badge bg-success-subtle text-success">Approved</span>
+                                    {% elif approval.decision == 'rejected' %}
+                                        <span class="badge bg-danger-subtle text-danger">Rejected</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ approval.notes|default:"—" }}</td>
+                                <td>{{ approval.decided_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No approval decisions recorded yet.</p>
+                {% endif %}
+
+                {% if po.status == 'pending_approval' %}
+                <!-- Approve / Reject Forms -->
+                <div class="border-top pt-3 mt-3">
+                    <h6 class="mb-3">Submit Your Decision</h6>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Notes (optional)</label>
+                            <textarea class="form-control" id="approval-notes" rows="2" placeholder="Approval notes..."></textarea>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end gap-2">
+                            <form method="post" action="{% url 'purchase_orders:po_approve' po.pk %}" class="flex-grow-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="decision" value="approved">
+                                <input type="hidden" name="notes" value="" class="approval-notes-hidden">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="ri-check-line me-1"></i> Approve
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'purchase_orders:po_reject' po.pk %}" class="flex-grow-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="decision" value="rejected">
+                                <input type="hidden" name="notes" value="" class="approval-notes-hidden">
+                                <button type="submit" class="btn btn-danger w-100">
+                                    <i class="ri-close-line me-1"></i> Reject
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if po.status == 'draft' %}
+                    <form method="post" action="{% url 'purchase_orders:po_submit' po.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ri-send-plane-line align-middle me-1"></i> Submit for Approval
+                        </button>
+                    </form>
+                    <a href="{% url 'purchase_orders:po_edit' po.pk %}" class="btn btn-soft-warning">
+                        <i class="ri-pencil-line align-middle me-1"></i> Edit PO
+                    </a>
+                    <form method="post" action="{% url 'purchase_orders:po_delete' po.pk %}" onsubmit="return confirm('Are you sure you want to delete this purchase order?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-danger w-100">
+                            <i class="ri-delete-bin-line align-middle me-1"></i> Delete PO
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if po.status == 'approved' %}
+                    <form method="post" action="{% url 'purchase_orders:po_mark_sent' po.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ri-mail-send-line align-middle me-1"></i> Mark as Sent
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if po.status == 'sent' %}
+                    <form method="post" action="{% url 'purchase_orders:po_mark_received' po.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="ri-checkbox-circle-line align-middle me-1"></i> Mark as Received
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if po.status == 'partially_received' %}
+                    <form method="post" action="{% url 'purchase_orders:po_mark_received' po.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="ri-checkbox-circle-line align-middle me-1"></i> Mark as Fully Received
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if po.status == 'received' %}
+                    <form method="post" action="{% url 'purchase_orders:po_close' po.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-dark w-100">
+                            <i class="ri-lock-line align-middle me-1"></i> Close PO
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if po.status == 'cancelled' %}
+                    <form method="post" action="{% url 'purchase_orders:po_reopen' po.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-primary w-100">
+                            <i class="ri-restart-line align-middle me-1"></i> Reopen as Draft
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if po.status != 'closed' and po.status != 'cancelled' %}
+                    <form method="post" action="{% url 'purchase_orders:po_cancel' po.pk %}" onsubmit="return confirm('Are you sure you want to cancel this purchase order?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-danger w-100">
+                            <i class="ri-close-circle-line align-middle me-1"></i> Cancel PO
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <a href="{% url 'purchase_orders:po_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Info Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-file-list-3-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">PO Number</p>
+                        <h6 class="mb-0">{{ po.po_number }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-success-subtle text-success d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-money-dollar-circle-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Grand Total</p>
+                        <h6 class="mb-0">${{ po.grand_total|floatformat:2 }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-info-subtle text-info d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-store-2-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Vendor</p>
+                        <h6 class="mb-0">{{ po.vendor.company_name }}</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vendor Info Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Vendor Info</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-1"><strong>{{ po.vendor.company_name }}</strong></p>
+                {% if po.vendor.contact_person %}<p class="mb-1 text-muted">{{ po.vendor.contact_person }}</p>{% endif %}
+                {% if po.vendor.email %}<p class="mb-1"><a href="mailto:{{ po.vendor.email }}">{{ po.vendor.email }}</a></p>{% endif %}
+                {% if po.vendor.phone %}<p class="mb-1">{{ po.vendor.phone }}</p>{% endif %}
+                <p class="mb-0 text-muted">Terms: {{ po.vendor.get_payment_terms_display }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sync approval notes to hidden fields
+    const notesField = document.getElementById('approval-notes');
+    if (notesField) {
+        const hiddenFields = document.querySelectorAll('.approval-notes-hidden');
+        notesField.addEventListener('input', function() {
+            hiddenFields.forEach(function(hidden) {
+                hidden.value = notesField.value;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
