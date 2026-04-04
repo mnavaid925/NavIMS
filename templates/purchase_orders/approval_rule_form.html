@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Purchasing</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'purchase_orders:approval_rule_list' %}">Approval Rules</a></li>
+                    <li class="breadcrumb-item active">{% if rule %}Edit{% else %}Add{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Rule Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Rule Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control {% if form.name.errors %}is-invalid{% endif %}" id="id_name" name="name" value="{{ form.name.value|default:'' }}" placeholder="e.g., Low Value Orders" required>
+                        {% if form.name.errors %}
+                        <div class="invalid-feedback">{% for error in form.name.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_min_amount" class="form-label">Minimum Amount ($) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control {% if form.min_amount.errors %}is-invalid{% endif %}" id="id_min_amount" name="min_amount" value="{{ form.min_amount.value|default:'0' }}" step="0.01" min="0" required>
+                            {% if form.min_amount.errors %}
+                            <div class="invalid-feedback">{% for error in form.min_amount.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_max_amount" class="form-label">Maximum Amount ($) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control {% if form.max_amount.errors %}is-invalid{% endif %}" id="id_max_amount" name="max_amount" value="{{ form.max_amount.value|default:'0' }}" step="0.01" min="0" required>
+                            {% if form.max_amount.errors %}
+                            <div class="invalid-feedback">{% for error in form.max_amount.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_required_approvals" class="form-label">Required Approvals <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control {% if form.required_approvals.errors %}is-invalid{% endif %}" id="id_required_approvals" name="required_approvals" value="{{ form.required_approvals.value|default:'1' }}" min="1" required>
+                            {% if form.required_approvals.errors %}
+                            <div class="invalid-feedback">{% for error in form.required_approvals.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="id_is_active" name="is_active" {% if form.is_active.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_is_active">Active</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if rule %}Update Rule{% else %}Create Rule{% endif %}
+                        </button>
+                        <a href="{% url 'purchase_orders:approval_rule_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Help</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-2 fs-13">Approval rules define how many approvals are required based on PO value.</p>
+                    <p class="text-muted mb-0 fs-13">When a PO is submitted for approval, the system checks the grand total against all active rules and requires the specified number of approvals.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
