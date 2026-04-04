@@ -111,6 +111,16 @@ NavIMS/
 │       └── commands/
 │           └── seed_catalog.py # Catalog seeder with demo data
 │
+├── purchase_orders/            # Module 3: Purchase Order Management
+│   ├── models.py               # PurchaseOrder, PurchaseOrderItem, ApprovalRule, PurchaseOrderApproval
+│   ├── forms.py                # PO form, line item formset, approval rule & approval forms
+│   ├── views.py                # PO CRUD, status transitions, approval workflows (18 views)
+│   ├── urls.py                 # Purchase order URL routes
+│   ├── admin.py                # Admin registration with inlines
+│   └── management/
+│       └── commands/
+│           └── seed_purchase_orders.py  # PO seeder with demo data
+│
 ├── dashboard/                  # Dashboard app
 │   ├── views.py                # Dashboard view with stats
 │   └── urls.py                 # Dashboard URL route
@@ -143,13 +153,20 @@ NavIMS/
 │   │   ├── role_list.html      # Roles & permissions
 │   │   ├── role_form.html      # Role create/edit
 │   │   └── settings.html       # Tenant customization settings
-│   └── catalog/
-│       ├── category_list.html  # Category listing with filters
-│       ├── category_form.html  # Category create/edit
-│       ├── category_detail.html# Category details with children & products
-│       ├── product_list.html   # Product listing with filters
-│       ├── product_form.html   # Product create/edit with attributes
-│       └── product_detail.html # Product details with images & documents
+│   ├── catalog/
+│   │   ├── category_list.html  # Category listing with filters
+│   │   ├── category_form.html  # Category create/edit
+│   │   ├── category_detail.html# Category details with children & products
+│   │   ├── product_list.html   # Product listing with filters
+│   │   ├── product_form.html   # Product create/edit with attributes
+│   │   └── product_detail.html # Product details with images & documents
+│   └── purchase_orders/
+│       ├── po_list.html        # PO listing with search, status/vendor/date filters
+│       ├── po_form.html        # PO create/edit with dynamic line item formset
+│       ├── po_detail.html      # PO details with items, totals, approval history
+│       ├── approval_list.html  # Pending approvals for current user
+│       ├── approval_rule_list.html  # Approval rules management
+│       └── approval_rule_form.html  # Approval rule create/edit
 │
 ├── static/                     # Static assets
 │   ├── css/
@@ -206,12 +223,16 @@ NavIMS/
    ```bash
    python manage.py seed
    python manage.py seed_catalog
+   python manage.py seed_vendors
+   python manage.py seed_purchase_orders
    ```
 
    To reset and re-seed:
    ```bash
    python manage.py seed --flush
    python manage.py seed_catalog --flush
+   python manage.py seed_vendors --flush
+   python manage.py seed_purchase_orders --flush
    ```
 
 ---
@@ -250,6 +271,14 @@ The seed command creates the following demo accounts:
 - 21 categories per tenant (3 departments, 6 categories, 12 sub-categories)
 - 12 products per tenant with pricing, dimensions, and custom attributes
 - 32 product attributes per tenant
+- 5 vendors per tenant with contacts, addresses, and terms
+- 5 vendor performance reviews per tenant
+- 5 vendor contracts per tenant
+- 5 vendor communication logs per tenant
+- 3 approval rules per tenant (low/medium/high value thresholds)
+- 8 purchase orders per tenant across all statuses (draft through closed)
+- 16 PO line items per tenant with pricing, tax, and discounts
+- 5 PO approval records per tenant
 
 ---
 
@@ -275,29 +304,47 @@ The seed command creates the following demo accounts:
 | Product Imagery          | Multiple image uploads per product with primary image support |
 | Product Documents        | File attachments (manuals, safety sheets, datasheets, warranties) |
 
+### Module 3: Vendor / Supplier Management (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Supplier Directory       | Vendor CRUD with type, status, payment terms, lead time |
+| Performance Tracking     | Delivery, quality, compliance ratings with overall score |
+| Contracts & Terms        | Contract management with documents, MOQ, payment terms |
+| Communication Log        | Email, phone, meeting, and note tracking per vendor   |
+
+### Module 4: Purchase Order Management (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| PO Creation & Drafting   | Manual PO creation with auto-generated PO numbers     |
+| Line Item Management     | Dynamic line items with product, qty, price, tax, discount |
+| Approval Workflows       | Multi-tier approval routing based on configurable PO value thresholds |
+| PO Status Tracking       | Full lifecycle: Draft, Pending Approval, Approved, Sent, Partially Received, Received, Closed, Cancelled |
+| Approval Rules           | Configurable rules with min/max amounts and required approval counts |
+| Pending Approvals        | Dedicated view for approvers to review and act on POs |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 1  | Vendor / Supplier Management    | Supplier directory, performance tracking       |
-| 2  | Purchase Order Management       | PO creation, approval workflows, tracking      |
-| 3  | Receiving & Putaway             | GRN, three-way matching, quality inspection    |
-| 4  | Warehousing & Bin Management    | Warehouse structure, bin capacity, mapping      |
-| 5  | Inventory Tracking & Control    | Real-time stock, valuation, reservations       |
-| 6  | Stock Movement & Transfers      | Inter/intra-warehouse transfers                |
-| 7  | Lot & Serial Number Tracking    | Batch/serial tracking, expiry management       |
-| 8  | Order Management & Fulfillment  | Sales orders, pick-pack-ship, wave planning    |
-| 9  | Returns Management (RMA)        | Return authorization, inspection, disposition  |
-| 10 | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
-| 11 | Multi-Location Management       | Location hierarchy, global stock visibility    |
-| 12 | Inventory Forecasting & Planning| Demand forecasting, reorder points, safety stock|
-| 13 | Barcode & RFID Integration      | Label generation, scanner integration          |
-| 14 | Quality Control & Inspection    | QC checklists, quarantine, defect reporting    |
-| 15 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
-| 16 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
-| 17 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
-| 18 | Third-Party Integrations & API  | E-commerce, ERP, accounting software sync      |
-| 19 | System Administration & Security| RBAC, audit trail, UOM, data import/export     |
+| 1  | Receiving & Putaway             | GRN, three-way matching, quality inspection    |
+| 2  | Warehousing & Bin Management    | Warehouse structure, bin capacity, mapping      |
+| 3  | Inventory Tracking & Control    | Real-time stock, valuation, reservations       |
+| 4  | Stock Movement & Transfers      | Inter/intra-warehouse transfers                |
+| 5  | Lot & Serial Number Tracking    | Batch/serial tracking, expiry management       |
+| 6  | Order Management & Fulfillment  | Sales orders, pick-pack-ship, wave planning    |
+| 7  | Returns Management (RMA)        | Return authorization, inspection, disposition  |
+| 8  | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
+| 9  | Multi-Location Management       | Location hierarchy, global stock visibility    |
+| 10 | Inventory Forecasting & Planning| Demand forecasting, reorder points, safety stock|
+| 11 | Barcode & RFID Integration      | Label generation, scanner integration          |
+| 12 | Quality Control & Inspection    | QC checklists, quarantine, defect reporting    |
+| 13 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
+| 14 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
+| 15 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
+| 16 | Third-Party Integrations & API  | E-commerce, ERP, accounting software sync      |
+| 17 | System Administration & Security| RBAC, audit trail, UOM, data import/export     |
 
 ---
 
