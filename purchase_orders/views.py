@@ -1,17 +1,24 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.mail import send_mail
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.template.loader import render_to_string
+from django.conf import settings as django_settings
 
 from catalog.models import Product
 from vendors.models import Vendor
-from .models import PurchaseOrder, PurchaseOrderItem, ApprovalRule, PurchaseOrderApproval
+from .models import (
+    PurchaseOrder, PurchaseOrderItem, ApprovalRule,
+    PurchaseOrderApproval, PurchaseOrderDispatch,
+)
 from .forms import (
     PurchaseOrderForm,
     PurchaseOrderItemFormSet,
     ApprovalRuleForm,
     PurchaseOrderApprovalForm,
+    PurchaseOrderDispatchForm,
 )
 
 
@@ -114,13 +121,39 @@ def po_detail_view(request, pk):
     )
     items = po.items.all().select_related('product')
     approvals = po.approvals.all().select_related('approver')
+    dispatches = po.dispatches.all().select_related('sent_by')
     approval_form = PurchaseOrderApprovalForm()
+
+    # Status timeline data
+    status_order = ['draft', 'pending_approval', 'approved', 'sent', 'received', 'closed']
+    status_labels = {
+        'draft': 'Draft',
+        'pending_approval': 'Pending Approval',
+        'approved': 'Approved',
+        'sent': 'Sent',
+        'received': 'Received',
+        'closed': 'Closed',
+    }
+    current_idx = status_order.index(po.status) if po.status in status_order else -1
+    timeline = []
+    for i, s in enumerate(status_order):
+        if po.status == 'cancelled':
+            state = 'cancelled'
+        elif i < current_idx:
+            state = 'completed'
+        elif i == current_idx:
+            state = 'current'
+        else:
+            state = 'upcoming'
+        timeline.append({'status': s, 'label': status_labels[s], 'state': state})
 
     context = {
         'po': po,
         'items': items,
         'approvals': approvals,
+        'dispatches': dispatches,
         'approval_form': approval_form,
+        'timeline': timeline,
     }
     return render(request, 'purchase_orders/po_detail.html', context)
 
@@ -285,22 +318,98 @@ def po_reject_view(request, pk):
 
 
 @login_required
-def po_mark_sent_view(request, pk):
+def po_dispatch_view(request, pk):
     tenant = request.tenant
-
-    if request.method != 'POST':
-        return redirect('purchase_orders:po_detail', pk=pk)
-
-    po = get_object_or_404(PurchaseOrder, pk=pk, tenant=tenant)
+    po = get_object_or_404(
+        PurchaseOrder.objects.select_related('vendor', 'created_by'),
+        pk=pk, tenant=tenant,
+    )
 
     if not po.can_transition_to('sent'):
-        messages.warning(request, f'Cannot mark PO as sent from "{po.get_status_display()}" status.')
+        messages.warning(request, f'Cannot dispatch PO from "{po.get_status_display()}" status.')
         return redirect('purchase_orders:po_detail', pk=po.pk)
 
-    po.status = 'sent'
-    po.save()
-    messages.success(request, f'Purchase Order "{po.po_number}" marked as sent to vendor.')
-    return redirect('purchase_orders:po_detail', pk=po.pk)
+    items = po.items.all().select_related('product')
+
+    if request.method == 'POST':
+        form = PurchaseOrderDispatchForm(request.POST)
+        if form.is_valid():
+            dispatch = form.save(commit=False)
+            dispatch.tenant = tenant
+            dispatch.purchase_order = po
+            dispatch.sent_by = request.user
+            dispatch.save()
+
+            # Send email if dispatch method is email and email is provided
+            if dispatch.dispatch_method == 'email' and dispatch.sent_to_email:
+                subject = f'Purchase Order {po.po_number} from {tenant.name}'
+                # Build plain-text email body
+                lines = [
+                    f'Purchase Order: {po.po_number}',
+                    f'Date: {po.order_date}',
+                    f'Payment Terms: {po.get_payment_terms_display()}',
+                    '',
+                    'Line Items:',
+                    '-' * 50,
+                ]
+                for item in items:
+                    lines.append(
+                        f'  {item.product.name} (SKU: {item.product.sku}) '
+                        f'x {item.quantity} @ ${item.unit_price} = ${item.line_total}'
+                    )
+                lines.extend([
+                    '-' * 50,
+                    f'Subtotal: ${po.subtotal}',
+                    f'Tax: ${po.tax_total}',
+                    f'Discount: -${po.discount_total}',
+                    f'Grand Total: ${po.grand_total}',
+                    '',
+                ])
+                if po.shipping_address:
+                    lines.append(f'Ship To: {po.shipping_address}')
+                if po.notes:
+                    lines.append(f'Notes: {po.notes}')
+
+                from_email = getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@navims.local')
+                try:
+                    send_mail(
+                        subject=subject,
+                        message='\n'.join(lines),
+                        from_email=from_email,
+                        recipient_list=[dispatch.sent_to_email],
+                        fail_silently=False,
+                    )
+                    messages.success(
+                        request,
+                        f'Purchase Order "{po.po_number}" dispatched via email to {dispatch.sent_to_email}.'
+                    )
+                except Exception as e:
+                    messages.warning(
+                        request,
+                        f'PO dispatched but email failed to send: {e}. '
+                        f'Please send manually.'
+                    )
+            else:
+                messages.success(
+                    request,
+                    f'Purchase Order "{po.po_number}" dispatched via {dispatch.get_dispatch_method_display()}.'
+                )
+
+            po.status = 'sent'
+            po.save()
+            return redirect('purchase_orders:po_detail', pk=po.pk)
+    else:
+        form = PurchaseOrderDispatchForm(initial={
+            'dispatch_method': 'email',
+            'sent_to_email': po.vendor.email,
+        })
+
+    context = {
+        'form': form,
+        'po': po,
+        'items': items,
+    }
+    return render(request, 'purchase_orders/po_dispatch.html', context)
 
 
 @login_required
