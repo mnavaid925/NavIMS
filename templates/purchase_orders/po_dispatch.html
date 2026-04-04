@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Dispatch PO: {{ po.po_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Dispatch Purchase Order</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Purchasing</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'purchase_orders:po_list' %}">Purchase Orders</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'purchase_orders:po_detail' po.pk %}">{{ po.po_number }}</a></li>
+                    <li class="breadcrumb-item active">Dispatch</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Dispatch Method -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Dispatch Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_dispatch_method" class="form-label">Dispatch Method <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.dispatch_method.errors %}is-invalid{% endif %}" id="id_dispatch_method" name="dispatch_method" required>
+                                {% for value, label in form.dispatch_method.field.choices %}
+                                <option value="{{ value }}" {% if form.dispatch_method.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.dispatch_method.errors %}
+                            <div class="invalid-feedback">{% for error in form.dispatch_method.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-8 mb-3" id="email-field-container">
+                            <label for="id_sent_to_email" class="form-label">Send To Email</label>
+                            <input type="email" class="form-control {% if form.sent_to_email.errors %}is-invalid{% endif %}" id="id_sent_to_email" name="sent_to_email" value="{{ form.sent_to_email.value|default:'' }}" placeholder="vendor@example.com">
+                            {% if form.sent_to_email.errors %}
+                            <div class="invalid-feedback">{% for error in form.sent_to_email.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                            <div class="form-text">The PO summary will be emailed to this address.</div>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label for="id_notes" class="form-label">Dispatch Notes</label>
+                        <textarea class="form-control" id="id_notes" name="notes" rows="3" placeholder="Additional dispatch notes (optional)">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PO Summary Preview -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">PO Summary (Preview)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>PO Number:</strong> <code>{{ po.po_number }}</code></p>
+                            <p class="mb-1"><strong>Order Date:</strong> {{ po.order_date|date:"M d, Y" }}</p>
+                            <p class="mb-1"><strong>Payment Terms:</strong> {{ po.get_payment_terms_display }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Vendor:</strong> {{ po.vendor.company_name }}</p>
+                            <p class="mb-1"><strong>Contact:</strong> {{ po.vendor.contact_person|default:"—" }}</p>
+                            <p class="mb-1"><strong>Expected Delivery:</strong> {{ po.expected_delivery_date|date:"M d, Y"|default:"—" }}</p>
+                        </div>
+                    </div>
+
+                    {% if items %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th class="text-center">Qty</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Line Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr>
+                                    <td>{{ item.product.name }}</td>
+                                    <td><code>{{ item.product.sku }}</code></td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">${{ item.unit_price|floatformat:2 }}</td>
+                                    <td class="text-end">${{ item.line_total|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="4" class="text-end fw-medium">Subtotal</td>
+                                    <td class="text-end fw-medium">${{ po.subtotal|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="text-end text-muted">Tax</td>
+                                    <td class="text-end text-muted">${{ po.tax_total|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="text-end text-muted">Discount</td>
+                                    <td class="text-end text-muted">-${{ po.discount_total|floatformat:2 }}</td>
+                                </tr>
+                                <tr class="fw-bold">
+                                    <td colspan="4" class="text-end">Grand Total</td>
+                                    <td class="text-end text-primary">${{ po.grand_total|floatformat:2 }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-mail-send-line align-middle me-1"></i> Dispatch PO
+                        </button>
+                        <a href="{% url 'purchase_orders:po_detail' po.pk %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Vendor Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>{{ po.vendor.company_name }}</strong></p>
+                    {% if po.vendor.contact_person %}<p class="mb-1 text-muted">{{ po.vendor.contact_person }}</p>{% endif %}
+                    {% if po.vendor.email %}<p class="mb-1"><a href="mailto:{{ po.vendor.email }}">{{ po.vendor.email }}</a></p>{% endif %}
+                    {% if po.vendor.phone %}<p class="mb-1">{{ po.vendor.phone }}</p>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const methodSelect = document.getElementById('id_dispatch_method');
+    const emailContainer = document.getElementById('email-field-container');
+
+    function toggleEmailField() {
+        if (methodSelect.value === 'email') {
+            emailContainer.style.display = '';
+        } else {
+            emailContainer.style.display = 'none';
+        }
+    }
+
+    methodSelect.addEventListener('change', toggleEmailField);
+    toggleEmailField();
+});
+</script>
+{% endblock %}
