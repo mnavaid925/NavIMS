@@ -232,3 +232,40 @@ class PurchaseOrderApproval(models.Model):
 
     def __str__(self):
         return f"{self.purchase_order.po_number} - {self.get_decision_display()} by {self.approver}"
+
+
+class PurchaseOrderDispatch(models.Model):
+    DISPATCH_METHOD_CHOICES = [
+        ('email', 'Email'),
+        ('edi', 'EDI (Electronic Data Interchange)'),
+        ('manual', 'Manual / Hand Delivery'),
+        ('other', 'Other'),
+    ]
+
+    tenant = models.ForeignKey(
+        'core.Tenant',
+        on_delete=models.CASCADE,
+        related_name='po_dispatches',
+    )
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name='dispatches',
+    )
+    dispatch_method = models.CharField(max_length=20, choices=DISPATCH_METHOD_CHOICES, default='email')
+    sent_to_email = models.EmailField(blank=True, default='')
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='po_dispatches',
+    )
+    notes = models.TextField(blank=True, default='')
+    dispatched_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-dispatched_at']
+
+    def __str__(self):
+        return f"{self.purchase_order.po_number} - {self.get_dispatch_method_display()} on {self.dispatched_at}"
