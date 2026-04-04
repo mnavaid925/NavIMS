@@ -112,9 +112,9 @@ NavIMS/
 │           └── seed_catalog.py # Catalog seeder with demo data
 │
 ├── purchase_orders/            # Module 3: Purchase Order Management
-│   ├── models.py               # PurchaseOrder, PurchaseOrderItem, ApprovalRule, PurchaseOrderApproval
-│   ├── forms.py                # PO form, line item formset, approval rule & approval forms
-│   ├── views.py                # PO CRUD, status transitions, approval workflows (18 views)
+│   ├── models.py               # PurchaseOrder, PurchaseOrderItem, ApprovalRule, PurchaseOrderApproval, PurchaseOrderDispatch
+│   ├── forms.py                # PO form, line item formset, dispatch, approval rule & approval forms
+│   ├── views.py                # PO CRUD, dispatch with email, status transitions, approval workflows (19 views)
 │   ├── urls.py                 # Purchase order URL routes
 │   ├── admin.py                # Admin registration with inlines
 │   └── management/
@@ -163,7 +163,8 @@ NavIMS/
 │   └── purchase_orders/
 │       ├── po_list.html        # PO listing with search, status/vendor/date filters
 │       ├── po_form.html        # PO create/edit with dynamic line item formset
-│       ├── po_detail.html      # PO details with items, totals, approval history
+│       ├── po_detail.html      # PO details with status timeline, items, dispatch & approval history
+│       ├── po_dispatch.html    # PO dispatch form with email sending and PO summary preview
 │       ├── approval_list.html  # Pending approvals for current user
 │       ├── approval_rule_list.html  # Approval rules management
 │       └── approval_rule_form.html  # Approval rule create/edit
@@ -320,7 +321,8 @@ The seed command creates the following demo accounts:
 | PO Creation & Drafting   | Manual PO creation with auto-generated PO numbers     |
 | Line Item Management     | Dynamic line items with product, qty, price, tax, discount |
 | Approval Workflows       | Multi-tier approval routing based on configurable PO value thresholds |
-| PO Status Tracking       | Full lifecycle: Draft, Pending Approval, Approved, Sent, Partially Received, Received, Closed, Cancelled |
+| PO Dispatch              | Send POs to vendors via Email, EDI, or Manual delivery with dispatch history tracking |
+| PO Status Tracking       | Visual status timeline (Draft > Approved > Sent > Received > Closed) with real-time progress |
 | Approval Rules           | Configurable rules with min/max amounts and required approval counts |
 | Pending Approvals        | Dedicated view for approvers to review and act on POs |
 
