@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Inspection: {{ inspection.inspection_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Quality Inspection Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Receiving</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'receiving:inspection_list' %}">Quality Inspections</a></li>
+                    <li class="breadcrumb-item active">{{ inspection.inspection_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Inspection Information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Inspection Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Inspection Number</th>
+                                <td class="fw-medium"><code>{{ inspection.inspection_number }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">GRN</th>
+                                <td>
+                                    <a href="{% url 'receiving:grn_detail' inspection.grn.pk %}" class="text-primary">
+                                        {{ inspection.grn.grn_number }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Status</th>
+                                <td>
+                                    {% if inspection.status == 'pending' %}
+                                        <span class="badge bg-warning-subtle text-warning">Pending</span>
+                                    {% elif inspection.status == 'in_progress' %}
+                                        <span class="badge bg-info-subtle text-info">In Progress</span>
+                                    {% elif inspection.status == 'completed' %}
+                                        <span class="badge bg-success-subtle text-success">Completed</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ inspection.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Inspector</th>
+                                <td>{{ inspection.inspector.get_full_name|default:inspection.inspector.username|default:"--" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Inspection Date</th>
+                                <td>{{ inspection.inspection_date|date:"M d, Y" }}</td>
+                            </tr>
+                            {% if inspection.notes %}
+                            <tr>
+                                <th class="text-muted">Notes</th>
+                                <td>{{ inspection.notes|linebreaksbr }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th class="text-muted">Created By</th>
+                                <td>{{ inspection.created_by.get_full_name|default:inspection.created_by.username|default:"--" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Created</th>
+                                <td>{{ inspection.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Updated</th>
+                                <td>{{ inspection.updated_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inspection Summary -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Inspection Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center">
+                            <h4 class="mb-1">{{ inspection.total_inspected|default:0 }}</h4>
+                            <p class="text-muted mb-0 fs-13">Total Inspected</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center">
+                            <h4 class="mb-1 text-success">{{ inspection.total_accepted|default:0 }}</h4>
+                            <p class="text-muted mb-0 fs-13">Accepted</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center">
+                            <h4 class="mb-1 text-danger">{{ inspection.total_rejected|default:0 }}</h4>
+                            <p class="text-muted mb-0 fs-13">Rejected</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center">
+                            <h4 class="mb-1 text-warning">{{ inspection.total_quarantined|default:0 }}</h4>
+                            <p class="text-muted mb-0 fs-13">Quarantined</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inspection Items -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Inspection Items</h5>
+                <div class="flex-shrink-0">
+                    <span class="badge bg-primary-subtle text-primary">{{ items.count }} items</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Product</th>
+                                <th class="text-center">Qty Inspected</th>
+                                <th class="text-center">Qty Accepted</th>
+                                <th class="text-center">Qty Rejected</th>
+                                <th class="text-center">Qty Quarantined</th>
+                                <th>Decision</th>
+                                <th>Reject Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td class="fw-medium">
+                                    {{ item.product.name }}
+                                    <br><small class="text-muted">{{ item.product.sku }}</small>
+                                </td>
+                                <td class="text-center">{{ item.quantity_inspected }}</td>
+                                <td class="text-center">{{ item.quantity_accepted }}</td>
+                                <td class="text-center">{{ item.quantity_rejected }}</td>
+                                <td class="text-center">{{ item.quantity_quarantined }}</td>
+                                <td>
+                                    {% if item.decision == 'pending' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Pending</span>
+                                    {% elif item.decision == 'accepted' %}
+                                        <span class="badge bg-success-subtle text-success">Accepted</span>
+                                    {% elif item.decision == 'rejected' %}
+                                        <span class="badge bg-danger-subtle text-danger">Rejected</span>
+                                    {% elif item.decision == 'quarantined' %}
+                                        <span class="badge bg-warning-subtle text-warning">Quarantined</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ item.get_decision_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.reject_reason|default:"--" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="ri-file-list-3-line fs-24 d-block mb-2"></i>
+                    <p class="mb-0">No inspection items recorded</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if inspection.status == 'pending' or inspection.status == 'in_progress' %}
+                    <a href="{% url 'receiving:inspection_edit' inspection.pk %}" class="btn btn-soft-warning">
+                        <i class="ri-pencil-line align-middle me-1"></i> Edit Inspection
+                    </a>
+                    <form method="post" action="{% url 'receiving:inspection_complete' inspection.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="ri-check-double-line align-middle me-1"></i> Mark Completed
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if inspection.status == 'pending' %}
+                    <form method="post" action="{% url 'receiving:inspection_delete' inspection.pk %}" onsubmit="return confirm('Are you sure you want to delete this inspection?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-danger w-100">
+                            <i class="ri-delete-bin-line align-middle me-1"></i> Delete Inspection
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <a href="{% url 'receiving:inspection_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Info Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-file-search-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Inspection #</p>
+                        <h6 class="mb-0">{{ inspection.inspection_number }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-success-subtle text-success d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-inbox-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">GRN #</p>
+                        <h6 class="mb-0">{{ inspection.grn.grn_number }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-info-subtle text-info d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-checkbox-circle-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Status</p>
+                        <h6 class="mb-0">{{ inspection.get_status_display }}</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
