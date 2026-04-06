@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Receiving</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'receiving:invoice_list' %}">Vendor Invoices</a></li>
+                    <li class="breadcrumb-item active">{% if invoice %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Invoice Information -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Invoice Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_invoice_number" class="form-label">Invoice Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.invoice_number.errors %}is-invalid{% endif %}" id="id_invoice_number" name="invoice_number" value="{{ form.invoice_number.value|default:'' }}" required>
+                            {% if form.invoice_number.errors %}
+                            <div class="invalid-feedback">{% for error in form.invoice_number.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_vendor" class="form-label">Vendor <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.vendor.errors %}is-invalid{% endif %}" id="id_vendor" name="vendor" required>
+                                <option value="">— Select Vendor —</option>
+                                {% for choice in form.vendor.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.vendor.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.company_name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.vendor.errors %}
+                            <div class="invalid-feedback">{% for error in form.vendor.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_purchase_order" class="form-label">Purchase Order</label>
+                            <select class="form-select {% if form.purchase_order.errors %}is-invalid{% endif %}" id="id_purchase_order" name="purchase_order">
+                                <option value="">— Select PO —</option>
+                                {% for choice in form.purchase_order.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.purchase_order.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.po_number }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.purchase_order.errors %}
+                            <div class="invalid-feedback">{% for error in form.purchase_order.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="id_invoice_date" class="form-label">Invoice Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control {% if form.invoice_date.errors %}is-invalid{% endif %}" id="id_invoice_date" name="invoice_date" value="{{ form.invoice_date.value|default:'' }}" required>
+                            {% if form.invoice_date.errors %}
+                            <div class="invalid-feedback">{% for error in form.invoice_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_due_date" class="form-label">Due Date</label>
+                            <input type="date" class="form-control {% if form.due_date.errors %}is-invalid{% endif %}" id="id_due_date" name="due_date" value="{{ form.due_date.value|default:'' }}">
+                            {% if form.due_date.errors %}
+                            <div class="invalid-feedback">{% for error in form.due_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="id_subtotal" class="form-label">Subtotal <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control {% if form.subtotal.errors %}is-invalid{% endif %}" id="id_subtotal" name="subtotal" value="{{ form.subtotal.value|default:'0' }}" step="0.01" min="0" required>
+                            {% if form.subtotal.errors %}
+                            <div class="invalid-feedback">{% for error in form.subtotal.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="id_tax_amount" class="form-label">Tax Amount</label>
+                            <input type="number" class="form-control {% if form.tax_amount.errors %}is-invalid{% endif %}" id="id_tax_amount" name="tax_amount" value="{{ form.tax_amount.value|default:'0' }}" step="0.01" min="0">
+                            {% if form.tax_amount.errors %}
+                            <div class="invalid-feedback">{% for error in form.tax_amount.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="id_total_amount" class="form-label">Total Amount <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control {% if form.total_amount.errors %}is-invalid{% endif %}" id="id_total_amount" name="total_amount" value="{{ form.total_amount.value|default:'0' }}" step="0.01" min="0" required>
+                            {% if form.total_amount.errors %}
+                            <div class="invalid-feedback">{% for error in form.total_amount.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_document" class="form-label">Document</label>
+                            <input type="file" class="form-control {% if form.document.errors %}is-invalid{% endif %}" id="id_document" name="document">
+                            {% if form.document.errors %}
+                            <div class="invalid-feedback">{% for error in form.document.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                            {% if invoice and invoice.document %}
+                            <small class="text-muted mt-1 d-block">Current: <a href="{{ invoice.document.url }}" target="_blank">{{ invoice.document.name }}</a></small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            <textarea class="form-control {% if form.notes.errors %}is-invalid{% endif %}" id="id_notes" name="notes" rows="3" placeholder="Additional notes (optional)">{{ form.notes.value|default:'' }}</textarea>
+                            {% if form.notes.errors %}
+                            <div class="invalid-feedback">{% for error in form.notes.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if invoice %}Update Invoice{% else %}Create Invoice{% endif %}
+                        </button>
+                        <a href="{% url 'receiving:invoice_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if invoice %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Invoice Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Invoice Number:</strong> <code>{{ invoice.invoice_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong> {{ invoice.get_status_display }}</p>
+                    <p class="mb-0"><strong>Created:</strong> {{ invoice.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
