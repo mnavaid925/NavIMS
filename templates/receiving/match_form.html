@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Receiving</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'receiving:match_list' %}">Three-Way Matching</a></li>
+                    <li class="breadcrumb-item active">Create</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Match Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_purchase_order" class="form-label">Purchase Order <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.purchase_order.errors %}is-invalid{% endif %}" id="id_purchase_order" name="purchase_order" required>
+                                <option value="">-- Select Purchase Order --</option>
+                                {% for choice in form.purchase_order.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.purchase_order.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.po_number }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.purchase_order.errors %}
+                            <div class="invalid-feedback">{% for error in form.purchase_order.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_grn" class="form-label">GRN <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.grn.errors %}is-invalid{% endif %}" id="id_grn" name="grn" required>
+                                <option value="">-- Select GRN --</option>
+                                {% for choice in form.grn.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.grn.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.grn_number }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.grn.errors %}
+                            <div class="invalid-feedback">{% for error in form.grn.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_vendor_invoice" class="form-label">Vendor Invoice <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.vendor_invoice.errors %}is-invalid{% endif %}" id="id_vendor_invoice" name="vendor_invoice" required>
+                                <option value="">-- Select Invoice --</option>
+                                {% for choice in form.vendor_invoice.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.vendor_invoice.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.invoice_number }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.vendor_invoice.errors %}
+                            <div class="invalid-feedback">{% for error in form.vendor_invoice.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label for="id_discrepancy_notes" class="form-label">Discrepancy Notes</label>
+                        <textarea class="form-control {% if form.discrepancy_notes.errors %}is-invalid{% endif %}" id="id_discrepancy_notes" name="discrepancy_notes" rows="3" placeholder="Notes about any discrepancies (optional)">{{ form.discrepancy_notes.value|default:'' }}</textarea>
+                        {% if form.discrepancy_notes.errors %}
+                        <div class="invalid-feedback">{% for error in form.discrepancy_notes.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i> Save Match
+                        </button>
+                        <a href="{% url 'receiving:match_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
