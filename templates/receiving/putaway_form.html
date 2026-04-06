@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Receiving</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'receiving:putaway_list' %}">Putaway Tasks</a></li>
+                    <li class="breadcrumb-item active">{% if task %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Task Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_grn" class="form-label">GRN <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.grn.errors %}is-invalid{% endif %}" id="id_grn" name="grn" required>
+                                <option value="">— Select GRN —</option>
+                                {% for choice in form.grn.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.grn.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.grn_number }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.grn.errors %}<div class="invalid-feedback">{% for e in form.grn.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_grn_item" class="form-label">GRN Item <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.grn_item.errors %}is-invalid{% endif %}" id="id_grn_item" name="grn_item" required>
+                                <option value="">— Select GRN Item —</option>
+                                {% for choice in form.grn_item.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.grn_item.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.grn_item.errors %}<div class="invalid-feedback">{% for e in form.grn_item.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_product" class="form-label">Product <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.product.errors %}is-invalid{% endif %}" id="id_product" name="product" required>
+                                <option value="">— Select Product —</option>
+                                {% for choice in form.product.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.product.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.name }} ({{ choice.sku }})</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.product.errors %}<div class="invalid-feedback">{% for e in form.product.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control {% if form.quantity.errors %}is-invalid{% endif %}" id="id_quantity" name="quantity" value="{{ form.quantity.value|default:'0' }}" min="1" required>
+                            {% if form.quantity.errors %}<div class="invalid-feedback">{% for e in form.quantity.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_assigned_to" class="form-label">Assigned To</label>
+                            <select class="form-select" id="id_assigned_to" name="assigned_to">
+                                <option value="">— Unassigned —</option>
+                                {% for choice in form.assigned_to.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.assigned_to.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.get_full_name|default:choice.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_suggested_location" class="form-label">Suggested Location</label>
+                            <select class="form-select" id="id_suggested_location" name="suggested_location">
+                                <option value="">— Auto-suggest —</option>
+                                {% for choice in form.suggested_location.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.suggested_location.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.code }} - {{ choice.name }} (Avail: {{ choice.available_capacity }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_assigned_location" class="form-label">Assigned Location</label>
+                            <select class="form-select" id="id_assigned_location" name="assigned_location">
+                                <option value="">— None —</option>
+                                {% for choice in form.assigned_location.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.assigned_location.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.code }} - {{ choice.name }} (Avail: {{ choice.available_capacity }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label for="id_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="id_notes" name="notes" rows="3" placeholder="Notes (optional)">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if task %}Update Task{% else %}Create Task{% endif %}
+                        </button>
+                        <a href="{% url 'receiving:putaway_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if task %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Task Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Task #:</strong> <code>{{ task.task_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong> {{ task.get_status_display }}</p>
+                    <p class="mb-0"><strong>Created:</strong> {{ task.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
