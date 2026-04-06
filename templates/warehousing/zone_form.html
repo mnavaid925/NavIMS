@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}{% if zone %}Edit Zone{% else %}Create Zone{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{% if zone %}Edit Zone{% else %}Create Zone{% endif %}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Warehousing</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'warehousing:zone_list' %}">Zones</a></li>
+                    <li class="breadcrumb-item active">{% if zone %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Zone Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_warehouse" class="form-label">Warehouse <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.warehouse.errors %}is-invalid{% endif %}" id="id_warehouse" name="warehouse" required>
+                                <option value="">— Select Warehouse —</option>
+                                {% for choice in form.warehouse.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.warehouse.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.warehouse.errors %}
+                            <div class="invalid-feedback">{% for error in form.warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_name" class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.name.errors %}is-invalid{% endif %}" id="id_name" name="name" value="{{ form.name.value|default:'' }}" required>
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback">{% for error in form.name.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_code" class="form-label">Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.code.errors %}is-invalid{% endif %}" id="id_code" name="code" value="{{ form.code.value|default:'' }}" required>
+                            {% if form.code.errors %}
+                            <div class="invalid-feedback">{% for error in form.code.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_zone_type" class="form-label">Zone Type <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.zone_type.errors %}is-invalid{% endif %}" id="id_zone_type" name="zone_type" required>
+                                <option value="">— Select Type —</option>
+                                {% for value, label in form.zone_type.field.choices %}
+                                {% if value %}
+                                <option value="{{ value }}" {% if form.zone_type.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                            {% if form.zone_type.errors %}
+                            <div class="invalid-feedback">{% for error in form.zone_type.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3 d-flex align-items-center pt-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="id_is_active" name="is_active" {% if form.is_active.value %}checked{% endif %}>
+                                <label class="form-check-label" for="id_is_active">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="id_temperature_controlled" name="temperature_controlled" {% if form.temperature_controlled.value %}checked{% endif %}>
+                                <label class="form-check-label" for="id_temperature_controlled">Temperature Controlled</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" id="temperature-fields" style="{% if not form.temperature_controlled.value %}display: none;{% endif %}">
+                        <div class="col-md-3 mb-3">
+                            <label for="id_temperature_min" class="form-label">Min Temp (&deg;C)</label>
+                            <input type="number" class="form-control {% if form.temperature_min.errors %}is-invalid{% endif %}" id="id_temperature_min" name="temperature_min" value="{{ form.temperature_min.value|default:'' }}" step="0.1">
+                            {% if form.temperature_min.errors %}
+                            <div class="invalid-feedback">{% for error in form.temperature_min.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_temperature_max" class="form-label">Max Temp (&deg;C)</label>
+                            <input type="number" class="form-control {% if form.temperature_max.errors %}is-invalid{% endif %}" id="id_temperature_max" name="temperature_max" value="{{ form.temperature_max.value|default:'' }}" step="0.1">
+                            {% if form.temperature_max.errors %}
+                            <div class="invalid-feedback">{% for error in form.temperature_max.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-0">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea class="form-control" id="id_description" name="description" rows="3" placeholder="Optional description...">{{ form.description.value|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if zone %}Update Zone{% else %}Create Zone{% endif %}
+                        </button>
+                        <a href="{% url 'warehousing:zone_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if zone %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Zone Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Code:</strong> <code>{{ zone.code }}</code></p>
+                    <p class="mb-1"><strong>Warehouse:</strong> {{ zone.warehouse.name }}</p>
+                    <p class="mb-0"><strong>Created:</strong> {{ zone.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var tempCheckbox = document.getElementById('id_temperature_controlled');
+    var tempFields = document.getElementById('temperature-fields');
+
+    if (tempCheckbox && tempFields) {
+        tempCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                tempFields.style.display = '';
+            } else {
+                tempFields.style.display = 'none';
+                document.getElementById('id_temperature_min').value = '';
+                document.getElementById('id_temperature_max').value = '';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
