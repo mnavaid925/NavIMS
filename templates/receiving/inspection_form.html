@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Receiving</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'receiving:inspection_list' %}">Quality Inspections</a></li>
+                    <li class="breadcrumb-item active">{% if inspection %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Inspection Information -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Inspection Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_grn" class="form-label">GRN <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.grn.errors %}is-invalid{% endif %}" id="id_grn" name="grn" required>
+                                <option value="">-- Select GRN --</option>
+                                {% for choice in form.grn.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.grn.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.grn_number }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.grn.errors %}
+                            <div class="invalid-feedback">{% for error in form.grn.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_inspector" class="form-label">Inspector <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.inspector.errors %}is-invalid{% endif %}" id="id_inspector" name="inspector" required>
+                                <option value="">-- Select Inspector --</option>
+                                {% for choice in form.inspector.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.inspector.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.get_full_name|default:choice.username }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.inspector.errors %}
+                            <div class="invalid-feedback">{% for error in form.inspector.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_inspection_date" class="form-label">Inspection Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control {% if form.inspection_date.errors %}is-invalid{% endif %}" id="id_inspection_date" name="inspection_date" value="{{ form.inspection_date.value|default:'' }}" required>
+                            {% if form.inspection_date.errors %}
+                            <div class="invalid-feedback">{% for error in form.inspection_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label for="id_notes" class="form-label">Notes</label>
+                        <textarea class="form-control {% if form.notes.errors %}is-invalid{% endif %}" id="id_notes" name="notes" rows="2" placeholder="Additional notes (optional)">{{ form.notes.value|default:'' }}</textarea>
+                        {% if form.notes.errors %}
+                        <div class="invalid-feedback">{% for error in form.notes.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inspection Items -->
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <h5 class="card-title mb-0 flex-grow-1">Inspection Items</h5>
+                    <div class="flex-shrink-0">
+                        <button type="button" class="btn btn-sm btn-soft-primary" id="add-item-btn">
+                            <i class="ri-add-line align-middle me-1"></i> Add Item
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {{ formset.management_form }}
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0" id="items-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="min-width: 160px;">GRN Item</th>
+                                    <th style="min-width: 160px;">Product</th>
+                                    <th style="width: 90px;">Qty Inspected</th>
+                                    <th style="width: 90px;">Qty Accepted</th>
+                                    <th style="width: 90px;">Qty Rejected</th>
+                                    <th style="width: 100px;">Qty Quarantined</th>
+                                    <th style="min-width: 120px;">Decision</th>
+                                    <th style="min-width: 150px;">Reject Reason</th>
+                                    <th style="width: 50px;">Del</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-body">
+                                {% for item_form in formset %}
+                                <tr class="item-row {% if item_form.DELETE.value %}d-none{% endif %}">
+                                    <td>
+                                        {{ item_form.id }}
+                                        <select name="{{ item_form.grn_item.html_name }}" class="form-select form-select-sm" id="{{ item_form.grn_item.id_for_label }}">
+                                            <option value="">-- GRN Item --</option>
+                                            {% for choice in item_form.fields.grn_item.queryset %}
+                                            <option value="{{ choice.pk }}" {% if item_form.grn_item.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="{{ item_form.product.html_name }}" class="form-select form-select-sm" id="{{ item_form.product.id_for_label }}">
+                                            <option value="">-- Product --</option>
+                                            {% for choice in item_form.fields.product.queryset %}
+                                            <option value="{{ choice.pk }}" {% if item_form.product.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.name }} ({{ choice.sku }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="{{ item_form.quantity_inspected.html_name }}" class="form-control form-control-sm" value="{{ item_form.quantity_inspected.value|default:'0' }}" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="{{ item_form.quantity_accepted.html_name }}" class="form-control form-control-sm" value="{{ item_form.quantity_accepted.value|default:'0' }}" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="{{ item_form.quantity_rejected.html_name }}" class="form-control form-control-sm" value="{{ item_form.quantity_rejected.value|default:'0' }}" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="{{ item_form.quantity_quarantined.html_name }}" class="form-control form-control-sm" value="{{ item_form.quantity_quarantined.value|default:'0' }}" min="0">
+                                    </td>
+                                    <td>
+                                        <select name="{{ item_form.decision.html_name }}" class="form-select form-select-sm" id="{{ item_form.decision.id_for_label }}">
+                                            {% for value, label in item_form.fields.decision.choices %}
+                                            <option value="{{ value }}" {% if item_form.decision.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="{{ item_form.reject_reason.html_name }}" class="form-control form-control-sm" value="{{ item_form.reject_reason.value|default:'' }}" placeholder="Reason">
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item_form.instance.pk %}
+                                        <div class="form-check d-flex justify-content-center">
+                                            <input type="checkbox" name="{{ item_form.DELETE.html_name }}" class="form-check-input delete-checkbox" id="{{ item_form.DELETE.id_for_label }}" {% if item_form.DELETE.value %}checked{% endif %}>
+                                        </div>
+                                        {% else %}
+                                        <button type="button" class="btn btn-sm btn-soft-danger remove-row-btn">
+                                            <i class="ri-close-line"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if inspection %}Update Inspection{% else %}Create Inspection{% endif %}
+                        </button>
+                        <a href="{% url 'receiving:inspection_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if inspection %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Inspection Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Inspection #:</strong> <code>{{ inspection.inspection_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong> {{ inspection.get_status_display }}</p>
+                    <p class="mb-0"><strong>Created:</strong> {{ inspection.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-item-btn');
+    const tbody = document.getElementById('items-body');
+    const totalFormsInput = document.querySelector('[name="items-TOTAL_FORMS"]');
+
+    addBtn.addEventListener('click', function() {
+        const formCount = parseInt(totalFormsInput.value);
+        const lastRow = tbody.querySelector('.item-row:last-child');
+        if (!lastRow) return;
+
+        const newRow = lastRow.cloneNode(true);
+        newRow.classList.remove('d-none');
+
+        // Update form indices
+        newRow.innerHTML = newRow.innerHTML.replace(
+            new RegExp('items-\\d+', 'g'),
+            'items-' + formCount
+        );
+
+        // Clear values
+        newRow.querySelectorAll('input[type="text"]').forEach(function(input) {
+            input.value = '';
+        });
+        newRow.querySelectorAll('input[type="number"]').forEach(function(input) {
+            input.value = '0';
+        });
+        newRow.querySelectorAll('select').forEach(function(select) {
+            select.selectedIndex = 0;
+        });
+
+        // Ensure remove button for new rows
+        const delCell = newRow.querySelector('td:last-child');
+        delCell.innerHTML = '<button type="button" class="btn btn-sm btn-soft-danger remove-row-btn"><i class="ri-close-line"></i></button>';
+
+        // Remove hidden id field value (new item)
+        const idInput = newRow.querySelector('input[name$="-id"]');
+        if (idInput) idInput.value = '';
+
+        tbody.appendChild(newRow);
+        totalFormsInput.value = formCount + 1;
+
+        attachRemoveHandlers();
+    });
+
+    function attachRemoveHandlers() {
+        document.querySelectorAll('.remove-row-btn').forEach(function(btn) {
+            btn.onclick = function() {
+                btn.closest('tr').remove();
+            };
+        });
+
+        document.querySelectorAll('.delete-checkbox').forEach(function(cb) {
+            cb.onchange = function() {
+                cb.closest('tr').classList.toggle('d-none', cb.checked);
+            };
+        });
+    }
+
+    attachRemoveHandlers();
+});
+</script>
+{% endblock %}
