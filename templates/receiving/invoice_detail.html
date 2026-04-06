@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice: {{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Invoice Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Receiving</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'receiving:invoice_list' %}">Vendor Invoices</a></li>
+                    <li class="breadcrumb-item active">{{ invoice.invoice_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Invoice Information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Invoice Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Invoice Number</th>
+                                <td class="fw-medium"><code>{{ invoice.invoice_number }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Vendor</th>
+                                <td>
+                                    <a href="{% url 'vendors:vendor_detail' invoice.vendor.pk %}" class="text-primary">
+                                        {{ invoice.vendor.company_name }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">PO Number</th>
+                                <td>
+                                    {% if invoice.purchase_order %}
+                                    <a href="{% url 'purchase_orders:po_detail' invoice.purchase_order.pk %}" class="text-primary">
+                                        <code>{{ invoice.purchase_order.po_number }}</code>
+                                    </a>
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Status</th>
+                                <td>
+                                    {% if invoice.status == 'draft' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Draft</span>
+                                    {% elif invoice.status == 'pending_match' %}
+                                        <span class="badge bg-warning-subtle text-warning">Pending Match</span>
+                                    {% elif invoice.status == 'matched' %}
+                                        <span class="badge bg-info-subtle text-info">Matched</span>
+                                    {% elif invoice.status == 'disputed' %}
+                                        <span class="badge bg-danger-subtle text-danger">Disputed</span>
+                                    {% elif invoice.status == 'paid' %}
+                                        <span class="badge bg-success-subtle text-success">Paid</span>
+                                    {% elif invoice.status == 'cancelled' %}
+                                        <span class="badge bg-danger-subtle text-danger">Cancelled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ invoice.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Invoice Date</th>
+                                <td>{{ invoice.invoice_date|date:"M d, Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Due Date</th>
+                                <td>{{ invoice.due_date|date:"M d, Y"|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Created By</th>
+                                <td>{{ invoice.created_by.get_full_name|default:invoice.created_by.username|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Created</th>
+                                <td>{{ invoice.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Updated</th>
+                                <td>{{ invoice.updated_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Summary -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Financial Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Subtotal</th>
+                                <td class="text-end fw-medium">${{ invoice.subtotal|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Tax Amount</th>
+                                <td class="text-end text-muted">${{ invoice.tax_amount|floatformat:2 }}</td>
+                            </tr>
+                            <tr class="fw-bold">
+                                <th>Total Amount</th>
+                                <td class="text-end text-primary">${{ invoice.total_amount|floatformat:2 }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document -->
+        {% if invoice.document %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Document</h5>
+            </div>
+            <div class="card-body">
+                <a href="{{ invoice.document.url }}" class="btn btn-soft-primary" target="_blank">
+                    <i class="ri-download-2-line align-middle me-1"></i> Download Document
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Three-Way Matches -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Three-Way Matches</h5>
+                <div class="flex-shrink-0">
+                    <span class="badge bg-primary-subtle text-primary">{{ matches.count }} matches</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if matches %}
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Match #</th>
+                                <th>PO Number</th>
+                                <th>GRN Number</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for match in matches %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'receiving:match_detail' match.pk %}" class="fw-medium text-primary">
+                                        <code>{{ match.match_number }}</code>
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if match.purchase_order %}
+                                    <a href="{% url 'purchase_orders:po_detail' match.purchase_order.pk %}" class="text-primary">
+                                        <code>{{ match.purchase_order.po_number }}</code>
+                                    </a>
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if match.grn %}
+                                    <code>{{ match.grn.grn_number }}</code>
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if match.status == 'pending' %}
+                                        <span class="badge bg-warning-subtle text-warning">Pending</span>
+                                    {% elif match.status == 'matched' %}
+                                        <span class="badge bg-success-subtle text-success">Matched</span>
+                                    {% elif match.status == 'discrepancy' %}
+                                        <span class="badge bg-danger-subtle text-danger">Discrepancy</span>
+                                    {% elif match.status == 'resolved' %}
+                                        <span class="badge bg-info-subtle text-info">Resolved</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ match.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="ri-links-line fs-24 d-block mb-2"></i>
+                    <p class="mb-0">No three-way matches recorded yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if invoice.status == 'draft' %}
+                    <form method="post" action="{% url 'receiving:invoice_transition' invoice.pk 'pending_match' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ri-send-plane-line align-middle me-1"></i> Submit for Matching
+                        </button>
+                    </form>
+                    <a href="{% url 'receiving:invoice_edit' invoice.pk %}" class="btn btn-soft-warning">
+                        <i class="ri-pencil-line align-middle me-1"></i> Edit Invoice
+                    </a>
+                    <form method="post" action="{% url 'receiving:invoice_delete' invoice.pk %}" onsubmit="return confirm('Are you sure you want to delete this invoice?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-danger w-100">
+                            <i class="ri-delete-bin-line align-middle me-1"></i> Delete Invoice
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if invoice.status == 'pending_match' %}
+                    <a href="{% url 'receiving:invoice_edit' invoice.pk %}" class="btn btn-soft-warning">
+                        <i class="ri-pencil-line align-middle me-1"></i> Edit Invoice
+                    </a>
+                    {% endif %}
+
+                    {% if invoice.status == 'matched' %}
+                    <form method="post" action="{% url 'receiving:invoice_transition' invoice.pk 'paid' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="ri-checkbox-circle-line align-middle me-1"></i> Mark as Paid
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if invoice.status == 'disputed' %}
+                    <form method="post" action="{% url 'receiving:invoice_transition' invoice.pk 'pending_match' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ri-restart-line align-middle me-1"></i> Resubmit for Matching
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if invoice.status == 'cancelled' %}
+                    <form method="post" action="{% url 'receiving:invoice_transition' invoice.pk 'draft' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-primary w-100">
+                            <i class="ri-restart-line align-middle me-1"></i> Reopen as Draft
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if invoice.status != 'paid' and invoice.status != 'cancelled' %}
+                    <form method="post" action="{% url 'receiving:invoice_transition' invoice.pk 'cancelled' %}" onsubmit="return confirm('Are you sure you want to cancel this invoice?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-danger w-100">
+                            <i class="ri-close-circle-line align-middle me-1"></i> Cancel Invoice
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <a href="{% url 'receiving:invoice_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Info Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-file-text-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Invoice #</p>
+                        <h6 class="mb-0">{{ invoice.invoice_number }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-success-subtle text-success d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-money-dollar-circle-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Total Amount</p>
+                        <h6 class="mb-0">${{ invoice.total_amount|floatformat:2 }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-info-subtle text-info d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-store-2-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Vendor</p>
+                        <h6 class="mb-0">{{ invoice.vendor.company_name }}</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes Card -->
+        {% if invoice.notes %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Notes</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-0">{{ invoice.notes|linebreaksbr }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
