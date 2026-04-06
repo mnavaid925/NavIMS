@@ -165,6 +165,82 @@
                 </ul>
             </li>
 
+            <!-- Receiving & Putaway -->
+            <li class="menu-title"><span>Receiving</span></li>
+
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-inbox-archive-line"></i>
+                    <span class="menu-text">Receiving & Putaway</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'receiving:grn_list' %}">
+                            <span class="menu-text">Goods Receipt Notes</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'receiving:invoice_list' %}">
+                            <span class="menu-text">Vendor Invoices</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'receiving:match_list' %}">
+                            <span class="menu-text">Three-Way Matching</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'receiving:inspection_list' %}">
+                            <span class="menu-text">Quality Inspections</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'receiving:location_list' %}">
+                            <span class="menu-text">Warehouse Locations</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'receiving:putaway_list' %}">
+                            <span class="menu-text">Putaway Tasks</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- Warehousing -->
+            <li class="menu-title"><span>Warehousing</span></li>
+
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-building-2-line"></i>
+                    <span class="menu-text">Warehousing</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'warehousing:warehouse_list' %}">
+                            <span class="menu-text">Warehouses</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'warehousing:zone_list' %}">
+                            <span class="menu-text">Zones</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'warehousing:bin_list' %}">
+                            <span class="menu-text">Bins</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'warehousing:crossdock_list' %}">
+                            <span class="menu-text">Cross-Docking</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
         </ul>
     </div>
 
