@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Warehouse Map: {{ warehouse.code }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Warehouse Map</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Warehousing</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'warehousing:warehouse_list' %}">Warehouses</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'warehousing:warehouse_detail' warehouse.pk %}">{{ warehouse.code }}</a></li>
+                    <li class="breadcrumb-item active">Map</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-layout-grid-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Total Zones</p>
+                        <h5 class="mb-0">{{ warehouse.zone_count }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-info-subtle text-info d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-inbox-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Total Bins</p>
+                        <h5 class="mb-0">{{ total_bins }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-warning-subtle text-warning d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-archive-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Occupied</p>
+                        <h5 class="mb-0">{{ occupied_bins }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-success-subtle text-success d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-checkbox-blank-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Available</p>
+                        <h5 class="mb-0">{{ available_bins }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expand/Collapse Controls -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-soft-primary" id="expand-all-btn">
+                <i class="ri-arrow-down-s-line align-middle me-1"></i> Expand All
+            </button>
+            <button type="button" class="btn btn-sm btn-soft-secondary" id="collapse-all-btn">
+                <i class="ri-arrow-up-s-line align-middle me-1"></i> Collapse All
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Zone Accordion (Level 1) -->
+<div class="row">
+    <div class="col-12">
+        <div class="accordion" id="warehouseMapAccordion">
+            {% for zone in zones %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="zoneHeading-{{ zone.pk }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#zone-{{ zone.pk }}" aria-expanded="false" aria-controls="zone-{{ zone.pk }}">
+                        <div class="d-flex align-items-center gap-2 flex-grow-1 me-3">
+                            <code>{{ zone.code }}</code>
+                            <span class="fw-medium">{{ zone.name }}</span>
+                            {% if zone.zone_type == 'receiving' %}
+                                <span class="badge bg-info-subtle text-info">{{ zone.get_zone_type_display }}</span>
+                            {% elif zone.zone_type == 'storage' %}
+                                <span class="badge bg-primary-subtle text-primary">{{ zone.get_zone_type_display }}</span>
+                            {% elif zone.zone_type == 'shipping' %}
+                                <span class="badge bg-warning-subtle text-warning">{{ zone.get_zone_type_display }}</span>
+                            {% elif zone.zone_type == 'staging' %}
+                                <span class="badge bg-secondary-subtle text-secondary">{{ zone.get_zone_type_display }}</span>
+                            {% elif zone.zone_type == 'cross_dock' %}
+                                <span class="badge bg-dark-subtle text-dark">{{ zone.get_zone_type_display }}</span>
+                            {% elif zone.zone_type == 'quarantine' %}
+                                <span class="badge bg-danger-subtle text-danger">{{ zone.get_zone_type_display }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">{{ zone.get_zone_type_display }}</span>
+                            {% endif %}
+                            <span class="badge bg-light text-muted">{{ zone.bin_count }} bins</span>
+                        </div>
+                    </button>
+                </h2>
+                <div id="zone-{{ zone.pk }}" class="accordion-collapse collapse" aria-labelledby="zoneHeading-{{ zone.pk }}" data-bs-parent="#warehouseMapAccordion">
+                    <div class="accordion-body">
+
+                        <!-- Floor Bins (bins with no rack) -->
+                        {% if zone.floor_bins %}
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-2"><i class="ri-layout-bottom-line me-1"></i> Floor Bins</h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for bin in zone.floor_bins %}
+                                <a href="{% url 'warehousing:bin_detail' bin.pk %}" class="text-decoration-none">
+                                    <span class="badge {% if bin.utilization > 85 %}bg-danger-subtle text-danger{% elif bin.utilization >= 60 %}bg-warning-subtle text-warning{% else %}bg-success-subtle text-success{% endif %} px-2 py-1">
+                                        {{ bin.code }} ({{ bin.get_bin_type_display }}) {{ bin.utilization }}%
+                                    </span>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Aisle Accordion (Level 2) -->
+                        {% if zone.aisles.all %}
+                        <div class="accordion" id="zoneAislesAccordion-{{ zone.pk }}">
+                            {% for aisle in zone.aisles.all %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="aisleHeading-{{ aisle.pk }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#aisle-{{ aisle.pk }}" aria-expanded="false" aria-controls="aisle-{{ aisle.pk }}">
+                                        <div class="d-flex align-items-center gap-2 flex-grow-1 me-3">
+                                            <code>{{ aisle.code }}</code>
+                                            <span class="fw-medium">{{ aisle.name }}</span>
+                                            <span class="badge bg-light text-muted">{{ aisle.racks.count }} racks</span>
+                                        </div>
+                                    </button>
+                                </h2>
+                                <div id="aisle-{{ aisle.pk }}" class="accordion-collapse collapse" aria-labelledby="aisleHeading-{{ aisle.pk }}" data-bs-parent="#zoneAislesAccordion-{{ zone.pk }}">
+                                    <div class="accordion-body">
+
+                                        <!-- Rack Cards (Level 3) -->
+                                        <div class="row g-3">
+                                            {% for rack in aisle.racks.all %}
+                                            <div class="col-md-6 col-lg-4">
+                                                <div class="card border mb-0">
+                                                    <div class="card-header bg-light py-2 d-flex align-items-center justify-content-between">
+                                                        <div>
+                                                            <code>{{ rack.code }}</code>
+                                                            <span class="fw-medium ms-1">{{ rack.name }}</span>
+                                                        </div>
+                                                        <small class="text-muted">{{ rack.levels }} levels | {{ rack.max_weight }} kg</small>
+                                                    </div>
+                                                    <div class="card-body py-2">
+                                                        <!-- Bin Badges (Level 4) -->
+                                                        {% if rack.bins.all %}
+                                                        <div class="d-flex flex-wrap gap-1">
+                                                            {% for bin in rack.bins.all %}
+                                                            <a href="{% url 'warehousing:bin_detail' bin.pk %}" class="text-decoration-none">
+                                                                <span class="badge {% if bin.utilization > 85 %}bg-danger-subtle text-danger{% elif bin.utilization >= 60 %}bg-warning-subtle text-warning{% else %}bg-success-subtle text-success{% endif %} px-2 py-1" data-bs-toggle="tooltip" title="{{ bin.code }} - {{ bin.get_bin_type_display }} - {{ bin.utilization }}% utilized">
+                                                                    {{ bin.code }}
+                                                                </span>
+                                                            </a>
+                                                            {% endfor %}
+                                                        </div>
+                                                        {% else %}
+                                                        <p class="text-muted mb-0 fs-12">No bins</p>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% empty %}
+                                            <div class="col-12">
+                                                <p class="text-muted mb-0">No racks in this aisle</p>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No aisles in this zone</p>
+                        {% endif %}
+
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-4">
+                <div class="text-muted">
+                    <i class="ri-layout-grid-line fs-24 d-block mb-2"></i>
+                    <p class="mb-0">No zones configured for this warehouse</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Back Button -->
+<div class="row mt-3">
+    <div class="col-12">
+        <a href="{% url 'warehousing:warehouse_detail' warehouse.pk %}" class="btn btn-light">
+            <i class="ri-arrow-left-line align-middle me-1"></i> Back to Warehouse Detail
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var expandBtn = document.getElementById('expand-all-btn');
+    var collapseBtn = document.getElementById('collapse-all-btn');
+
+    expandBtn.addEventListener('click', function() {
+        var collapseElements = document.querySelectorAll('.accordion-collapse');
+        collapseElements.forEach(function(el) {
+            var bsCollapse = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+            bsCollapse.show();
+        });
+    });
+
+    collapseBtn.addEventListener('click', function() {
+        var collapseElements = document.querySelectorAll('.accordion-collapse');
+        collapseElements.forEach(function(el) {
+            var bsCollapse = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+            bsCollapse.hide();
+        });
+    });
+
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function(tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}
