@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{% if aisle %}Edit Aisle{% else %}Create Aisle{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{% if aisle %}Edit Aisle{% else %}Create Aisle{% endif %}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Warehousing</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'warehousing:aisle_list' %}">Aisles</a></li>
+                    <li class="breadcrumb-item active">{% if aisle %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Aisle Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="id_zone" class="form-label">Zone <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.zone.errors %}is-invalid{% endif %}" id="id_zone" name="zone" required>
+                                <option value="">— Select Zone —</option>
+                                {% for choice in form.zone.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.zone.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.code }} - {{ choice.name }} ({{ choice.warehouse.name }})</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.zone.errors %}
+                            <div class="invalid-feedback">{% for error in form.zone.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_name" class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.name.errors %}is-invalid{% endif %}" id="id_name" name="name" value="{{ form.name.value|default:'' }}" required>
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback">{% for error in form.name.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_code" class="form-label">Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.code.errors %}is-invalid{% endif %}" id="id_code" name="code" value="{{ form.code.value|default:'' }}" required>
+                            {% if form.code.errors %}
+                            <div class="invalid-feedback">{% for error in form.code.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-0">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="id_is_active" name="is_active" {% if form.is_active.value %}checked{% endif %}>
+                                <label class="form-check-label" for="id_is_active">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if aisle %}Update Aisle{% else %}Create Aisle{% endif %}
+                        </button>
+                        <a href="{% url 'warehousing:aisle_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if aisle %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Aisle Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Code:</strong> <code>{{ aisle.code }}</code></p>
+                    <p class="mb-1"><strong>Zone:</strong> {{ aisle.zone.code }} - {{ aisle.zone.name }}</p>
+                    <p class="mb-0"><strong>Created:</strong> {{ aisle.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
