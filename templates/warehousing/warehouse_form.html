@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Warehousing</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'warehousing:warehouse_list' %}">Warehouses</a></li>
+                    <li class="breadcrumb-item active">{% if warehouse %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Warehouse Information -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Warehouse Information</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Row 1: Name + Type -->
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="id_name" class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.name.errors %}is-invalid{% endif %}" id="id_name" name="name" value="{{ form.name.value|default:'' }}" placeholder="Enter warehouse name" required>
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback">{% for error in form.name.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_warehouse_type" class="form-label">Type <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.warehouse_type.errors %}is-invalid{% endif %}" id="id_warehouse_type" name="warehouse_type" required>
+                                {% for value, label in form.warehouse_type.field.choices %}
+                                <option value="{{ value }}" {% if form.warehouse_type.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.warehouse_type.errors %}
+                            <div class="invalid-feedback">{% for error in form.warehouse_type.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Address -->
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="id_address" class="form-label">Address</label>
+                            <textarea class="form-control {% if form.address.errors %}is-invalid{% endif %}" id="id_address" name="address" rows="2" placeholder="Street address">{{ form.address.value|default:'' }}</textarea>
+                            {% if form.address.errors %}
+                            <div class="invalid-feedback">{% for error in form.address.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Row 3: City, State, Country, Postal Code -->
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="id_city" class="form-label">City</label>
+                            <input type="text" class="form-control {% if form.city.errors %}is-invalid{% endif %}" id="id_city" name="city" value="{{ form.city.value|default:'' }}" placeholder="City">
+                            {% if form.city.errors %}
+                            <div class="invalid-feedback">{% for error in form.city.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_state" class="form-label">State</label>
+                            <input type="text" class="form-control {% if form.state.errors %}is-invalid{% endif %}" id="id_state" name="state" value="{{ form.state.value|default:'' }}" placeholder="State / Province">
+                            {% if form.state.errors %}
+                            <div class="invalid-feedback">{% for error in form.state.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_country" class="form-label">Country</label>
+                            <input type="text" class="form-control {% if form.country.errors %}is-invalid{% endif %}" id="id_country" name="country" value="{{ form.country.value|default:'' }}" placeholder="Country">
+                            {% if form.country.errors %}
+                            <div class="invalid-feedback">{% for error in form.country.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_postal_code" class="form-label">Postal Code</label>
+                            <input type="text" class="form-control {% if form.postal_code.errors %}is-invalid{% endif %}" id="id_postal_code" name="postal_code" value="{{ form.postal_code.value|default:'' }}" placeholder="Postal code">
+                            {% if form.postal_code.errors %}
+                            <div class="invalid-feedback">{% for error in form.postal_code.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Contact Person, Email, Phone -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_contact_person" class="form-label">Contact Person</label>
+                            <input type="text" class="form-control {% if form.contact_person.errors %}is-invalid{% endif %}" id="id_contact_person" name="contact_person" value="{{ form.contact_person.value|default:'' }}" placeholder="Contact name">
+                            {% if form.contact_person.errors %}
+                            <div class="invalid-feedback">{% for error in form.contact_person.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_contact_email" class="form-label">Contact Email</label>
+                            <input type="email" class="form-control {% if form.contact_email.errors %}is-invalid{% endif %}" id="id_contact_email" name="contact_email" value="{{ form.contact_email.value|default:'' }}" placeholder="email@example.com">
+                            {% if form.contact_email.errors %}
+                            <div class="invalid-feedback">{% for error in form.contact_email.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_contact_phone" class="form-label">Contact Phone</label>
+                            <input type="text" class="form-control {% if form.contact_phone.errors %}is-invalid{% endif %}" id="id_contact_phone" name="contact_phone" value="{{ form.contact_phone.value|default:'' }}" placeholder="Phone number">
+                            {% if form.contact_phone.errors %}
+                            <div class="invalid-feedback">{% for error in form.contact_phone.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Row 5: Active switch + Description -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check form-switch mt-4">
+                                <input type="checkbox" class="form-check-input {% if form.is_active.errors %}is-invalid{% endif %}" id="id_is_active" name="is_active" role="switch" {% if form.is_active.value %}checked{% endif %}>
+                                <label class="form-check-label" for="id_is_active">Active</label>
+                                {% if form.is_active.errors %}
+                                <div class="invalid-feedback">{% for error in form.is_active.errors %}{{ error }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea class="form-control {% if form.description.errors %}is-invalid{% endif %}" id="id_description" name="description" rows="3" placeholder="Description (optional)">{{ form.description.value|default:'' }}</textarea>
+                            {% if form.description.errors %}
+                            <div class="invalid-feedback">{% for error in form.description.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if warehouse %}Update Warehouse{% else %}Create Warehouse{% endif %}
+                        </button>
+                        <a href="{% url 'warehousing:warehouse_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if warehouse %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Warehouse Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Code:</strong> <code>{{ warehouse.code }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong>
+                        {% if warehouse.is_active %}
+                            <span class="badge bg-success-subtle text-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger">Inactive</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0"><strong>Created:</strong> {{ warehouse.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
