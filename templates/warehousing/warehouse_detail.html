@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Warehouse: {{ warehouse.code }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Warehouse Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Warehousing</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'warehousing:warehouse_list' %}">Warehouses</a></li>
+                    <li class="breadcrumb-item active">{{ warehouse.code }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Warehouse Information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Warehouse Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Code</th>
+                                <td class="fw-medium"><code>{{ warehouse.code }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Name</th>
+                                <td>{{ warehouse.name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Type</th>
+                                <td><span class="badge bg-info-subtle text-info">{{ warehouse.get_warehouse_type_display }}</span></td>
+                            </tr>
+                            {% if warehouse.address %}
+                            <tr>
+                                <th class="text-muted">Address</th>
+                                <td>{{ warehouse.address|linebreaksbr }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th class="text-muted">City / State / Country</th>
+                                <td>
+                                    {{ warehouse.city|default:"—" }}, {{ warehouse.state|default:"—" }}, {{ warehouse.country|default:"—" }}
+                                    {% if warehouse.postal_code %} ({{ warehouse.postal_code }}){% endif %}
+                                </td>
+                            </tr>
+                            {% if warehouse.contact_person %}
+                            <tr>
+                                <th class="text-muted">Contact Person</th>
+                                <td>{{ warehouse.contact_person }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if warehouse.contact_email %}
+                            <tr>
+                                <th class="text-muted">Email</th>
+                                <td><a href="mailto:{{ warehouse.contact_email }}">{{ warehouse.contact_email }}</a></td>
+                            </tr>
+                            {% endif %}
+                            {% if warehouse.contact_phone %}
+                            <tr>
+                                <th class="text-muted">Phone</th>
+                                <td>{{ warehouse.contact_phone }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if warehouse.description %}
+                            <tr>
+                                <th class="text-muted">Description</th>
+                                <td>{{ warehouse.description }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th class="text-muted">Created</th>
+                                <td>{{ warehouse.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Updated</th>
+                                <td>{{ warehouse.updated_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zones -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Zones</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'warehousing:zone_create' %}?warehouse={{ warehouse.pk }}" class="btn btn-sm btn-soft-primary">
+                        <i class="ri-add-line align-middle me-1"></i> Add Zone
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if zones %}
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th class="text-center">Temp Controlled</th>
+                                <th class="text-center">Bins</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for zone in zones %}
+                            <tr>
+                                <td class="fw-medium"><code>{{ zone.code }}</code></td>
+                                <td>{{ zone.name }}</td>
+                                <td><span class="badge bg-info-subtle text-info">{{ zone.get_zone_type_display }}</span></td>
+                                <td class="text-center">
+                                    {% if zone.temperature_controlled %}
+                                        <i class="ri-check-line text-success fs-18"></i>
+                                    {% else %}
+                                        <i class="ri-close-line text-muted fs-18"></i>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ zone.bin_count }}</td>
+                                <td>
+                                    {% if zone.is_active %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'warehousing:zone_detail' zone.pk %}" class="btn btn-sm btn-soft-primary" title="View">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="ri-layout-masonry-line fs-24 d-block mb-2"></i>
+                    <p class="mb-0">No zones added yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'warehousing:warehouse_edit' warehouse.pk %}" class="btn btn-soft-warning">
+                        <i class="ri-pencil-line align-middle me-1"></i> Edit Warehouse
+                    </a>
+                    <form method="post" action="{% url 'warehousing:warehouse_delete' warehouse.pk %}" onsubmit="return confirm('Are you sure you want to delete this warehouse?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-danger w-100">
+                            <i class="ri-delete-bin-line align-middle me-1"></i> Delete Warehouse
+                        </button>
+                    </form>
+                    <a href="{% url 'warehousing:warehouse_map' warehouse.pk %}" class="btn btn-soft-info">
+                        <i class="ri-map-pin-line align-middle me-1"></i> View Map
+                    </a>
+                    <a href="{% url 'warehousing:warehouse_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Info Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-layout-masonry-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Zones</p>
+                        <h6 class="mb-0">{{ warehouse.zone_count }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-info-subtle text-info d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-inbox-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Bins</p>
+                        <h6 class="mb-0">{{ warehouse.bin_count }}</h6>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded {% if warehouse.is_active %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="{% if warehouse.is_active %}ri-checkbox-circle-line{% else %}ri-close-circle-line{% endif %} fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Status</p>
+                        <h6 class="mb-0">
+                            {% if warehouse.is_active %}
+                                <span class="badge bg-success-subtle text-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger">Inactive</span>
+                            {% endif %}
+                        </h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
