@@ -13,6 +13,7 @@ urlpatterns = [
     path('purchase-orders/', include('purchase_orders.urls')),
     path('receiving/', include('receiving.urls')),
     path('warehousing/', include('warehousing.urls')),
+    path('inventory/', include('inventory.urls')),
 ]
 
 if settings.DEBUG:
