@@ -121,6 +121,36 @@ NavIMS/
 │       └── commands/
 │           └── seed_purchase_orders.py  # PO seeder with demo data
 │
+├── receiving/                  # Module 5: Receiving & Putaway
+│   ├── models.py               # GoodsReceiptNote, VendorInvoice, ThreeWayMatch, QualityInspection, PutawayTask, WarehouseLocation
+│   ├── forms.py                # GRN, Invoice, Match, Inspection, Location, Putaway forms
+│   ├── views.py                # Full CRUD for receiving & putaway workflows
+│   ├── urls.py                 # Receiving URL routes
+│   ├── admin.py                # Admin registration
+│   └── management/
+│       └── commands/
+│           └── seed_receiving.py   # Receiving seeder with demo data
+│
+├── warehousing/                # Module 6: Warehousing & Bin Management
+│   ├── models.py               # Warehouse, Zone, Aisle, Rack, Bin, CrossDockOrder, CrossDockItem
+│   ├── forms.py                # Warehouse, Zone, Aisle, Rack, Bin, CrossDock forms
+│   ├── views.py                # Full CRUD for all warehouse entities + cross-docking
+│   ├── urls.py                 # Warehousing URL routes
+│   ├── admin.py                # Admin registration
+│   └── management/
+│       └── commands/
+│           └── seed_warehousing.py  # Warehousing seeder with demo data
+│
+├── inventory/                  # Module 7: Inventory Tracking & Control
+│   ├── models.py               # StockLevel, StockAdjustment, StockStatus, StockStatusTransition, ValuationConfig, InventoryValuation, ValuationEntry, InventoryReservation
+│   ├── forms.py                # StockAdjustment, StockStatusTransition, ValuationConfig, InventoryReservation forms
+│   ├── views.py                # Stock levels, status management, valuation, reservations (19 views)
+│   ├── urls.py                 # Inventory URL routes
+│   ├── admin.py                # Admin registration for all 8 models
+│   └── management/
+│       └── commands/
+│           └── seed_inventory.py   # Inventory seeder with demo data
+│
 ├── dashboard/                  # Dashboard app
 │   ├── views.py                # Dashboard view with stats
 │   └── urls.py                 # Dashboard URL route
@@ -160,14 +190,62 @@ NavIMS/
 │   │   ├── product_list.html   # Product listing with filters
 │   │   ├── product_form.html   # Product create/edit with attributes
 │   │   └── product_detail.html # Product details with images & documents
-│   └── purchase_orders/
-│       ├── po_list.html        # PO listing with search, status/vendor/date filters
-│       ├── po_form.html        # PO create/edit with dynamic line item formset
-│       ├── po_detail.html      # PO details with status timeline, items, dispatch & approval history
-│       ├── po_dispatch.html    # PO dispatch form with email sending and PO summary preview
-│       ├── approval_list.html  # Pending approvals for current user
-│       ├── approval_rule_list.html  # Approval rules management
-│       └── approval_rule_form.html  # Approval rule create/edit
+│   ├── purchase_orders/
+│   │   ├── po_list.html        # PO listing with search, status/vendor/date filters
+│   │   ├── po_form.html        # PO create/edit with dynamic line item formset
+│   │   ├── po_detail.html      # PO details with status timeline, items, dispatch & approval history
+│   │   ├── po_dispatch.html    # PO dispatch form with email sending and PO summary preview
+│   │   ├── approval_list.html  # Pending approvals for current user
+│   │   ├── approval_rule_list.html  # Approval rules management
+│   │   └── approval_rule_form.html  # Approval rule create/edit
+│   ├── receiving/
+│   │   ├── grn_list.html       # GRN listing with filters
+│   │   ├── grn_form.html       # GRN create/edit
+│   │   ├── grn_detail.html     # GRN details with items
+│   │   ├── invoice_list.html   # Vendor invoice listing
+│   │   ├── invoice_form.html   # Invoice create/edit
+│   │   ├── invoice_detail.html # Invoice details
+│   │   ├── match_list.html     # Three-way match listing
+│   │   ├── match_detail.html   # Match details
+│   │   ├── inspection_list.html    # Quality inspection listing
+│   │   ├── inspection_form.html    # Inspection create/edit
+│   │   ├── inspection_detail.html  # Inspection details
+│   │   ├── location_list.html  # Warehouse location listing
+│   │   ├── location_form.html  # Location create/edit
+│   │   ├── location_detail.html# Location details
+│   │   ├── putaway_list.html   # Putaway task listing
+│   │   ├── putaway_form.html   # Putaway create/edit
+│   │   └── putaway_detail.html # Putaway details
+│   ├── warehousing/
+│   │   ├── warehouse_list.html # Warehouse listing with filters
+│   │   ├── warehouse_form.html # Warehouse create/edit
+│   │   ├── warehouse_detail.html   # Warehouse details with zones
+│   │   ├── warehouse_map.html  # Warehouse visual map
+│   │   ├── zone_list.html      # Zone listing
+│   │   ├── zone_form.html      # Zone create/edit
+│   │   ├── zone_detail.html    # Zone details
+│   │   ├── bin_list.html       # Bin listing
+│   │   ├── bin_form.html       # Bin create/edit
+│   │   ├── bin_detail.html     # Bin details
+│   │   ├── crossdock_list.html # Cross-dock order listing
+│   │   ├── crossdock_form.html # Cross-dock create/edit
+│   │   └── crossdock_detail.html   # Cross-dock details with timeline
+│   └── inventory/
+│       ├── stock_level_list.html       # Stock levels with warehouse & low-stock filters
+│       ├── stock_level_detail.html     # Stock level details with quantity breakdown
+│       ├── stock_adjust_form.html      # Stock adjustment form
+│       ├── stock_adjustment_list.html  # Adjustment history with type & reason filters
+│       ├── stock_adjustment_detail.html# Adjustment details
+│       ├── stock_status_list.html      # Stock status with status & warehouse filters
+│       ├── stock_status_detail.html    # Status details with transition history
+│       ├── stock_status_transition_form.html  # Status transition form
+│       ├── stock_status_transition_list.html  # Transition history list
+│       ├── valuation_dashboard.html    # Valuation dashboard with summary cards
+│       ├── valuation_detail.html       # Product valuation with cost layers
+│       ├── valuation_config_form.html  # Valuation method configuration
+│       ├── reservation_list.html       # Reservations with status & warehouse filters
+│       ├── reservation_form.html       # Reservation create/edit
+│       └── reservation_detail.html     # Reservation details with status timeline
 │
 ├── static/                     # Static assets
 │   ├── css/
@@ -226,6 +304,9 @@ NavIMS/
    python manage.py seed_catalog
    python manage.py seed_vendors
    python manage.py seed_purchase_orders
+   python manage.py seed_receiving
+   python manage.py seed_warehousing
+   python manage.py seed_inventory
    ```
 
    To reset and re-seed:
@@ -234,6 +315,9 @@ NavIMS/
    python manage.py seed_catalog --flush
    python manage.py seed_vendors --flush
    python manage.py seed_purchase_orders --flush
+   python manage.py seed_receiving --flush
+   python manage.py seed_warehousing --flush
+   python manage.py seed_inventory --flush
    ```
 
 ---
@@ -280,6 +364,22 @@ The seed command creates the following demo accounts:
 - 8 purchase orders per tenant across all statuses (draft through closed)
 - 16 PO line items per tenant with pricing, tax, and discounts
 - 5 PO approval records per tenant
+- 6 warehouse locations per tenant
+- 6 goods receipt notes per tenant
+- 6 vendor invoices per tenant
+- 6 three-way matches per tenant
+- 6 quality inspections per tenant
+- 6 putaway tasks per tenant
+- 2 warehouses per tenant with zones, aisles, racks, and bins
+- 3 cross-dock orders per tenant
+- 16 stock levels per tenant (8 products x 2 warehouses)
+- 20+ stock status records per tenant (active, damaged, on-hold)
+- 4 stock adjustments per tenant
+- 3 stock status transitions per tenant
+- 35+ valuation entries (cost layers) per tenant
+- 16 inventory valuations per tenant
+- 4 inventory reservations per tenant across statuses
+- 1 valuation configuration per tenant (weighted average default)
 
 ---
 
@@ -326,27 +426,59 @@ The seed command creates the following demo accounts:
 | Approval Rules           | Configurable rules with min/max amounts and required approval counts |
 | Pending Approvals        | Dedicated view for approvers to review and act on POs |
 
+### Module 5: Receiving & Putaway (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Goods Receipt Notes      | GRN creation linked to POs with line item receiving   |
+| Vendor Invoices          | Invoice recording and management per vendor           |
+| Three-Way Matching       | PO vs GRN vs Invoice matching with variance detection |
+| Quality Inspections      | Inspection checklists with pass/fail/conditional results |
+| Warehouse Locations      | Location management for putaway destinations          |
+| Putaway Tasks            | Task assignment for moving received goods to locations |
+
+### Module 6: Warehousing & Bin Management (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Warehouse Management     | Full CRUD for warehouses with type, contact, location |
+| Zone Management          | Zones within warehouses (receiving, storage, shipping) |
+| Aisle & Rack Management  | Aisle and rack hierarchy within zones                 |
+| Bin Management           | Bins with capacity tracking (weight, volume, quantity) |
+| Cross-Docking            | Cross-dock orders with status workflow and item tracking |
+| Warehouse Map            | Visual map view of warehouse structure                |
+
+### Module 7: Inventory Tracking & Control (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Real-Time Stock Levels   | On-Hand, Allocated, Available, On-Order per product per warehouse |
+| Stock Adjustments        | Manual stock corrections with type, reason, and audit trail |
+| Stock Status Management  | Categorize stock as Active, Damaged, Expired, or On-Hold |
+| Status Transitions       | Move quantities between statuses with transition logging |
+| Inventory Valuation      | Calculate total value using FIFO, LIFO, or Weighted Average |
+| Cost Layers              | Track individual cost entries for accurate valuation  |
+| Valuation Configuration  | Tenant-level setting for valuation method             |
+| Inventory Reservations   | Lock stock for sales orders or jobs with status workflow (Pending > Confirmed > Released) |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 1  | Receiving & Putaway             | GRN, three-way matching, quality inspection    |
-| 2  | Warehousing & Bin Management    | Warehouse structure, bin capacity, mapping      |
-| 3  | Inventory Tracking & Control    | Real-time stock, valuation, reservations       |
-| 4  | Stock Movement & Transfers      | Inter/intra-warehouse transfers                |
-| 5  | Lot & Serial Number Tracking    | Batch/serial tracking, expiry management       |
-| 6  | Order Management & Fulfillment  | Sales orders, pick-pack-ship, wave planning    |
-| 7  | Returns Management (RMA)        | Return authorization, inspection, disposition  |
-| 8  | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
-| 9  | Multi-Location Management       | Location hierarchy, global stock visibility    |
-| 10 | Inventory Forecasting & Planning| Demand forecasting, reorder points, safety stock|
-| 11 | Barcode & RFID Integration      | Label generation, scanner integration          |
-| 12 | Quality Control & Inspection    | QC checklists, quarantine, defect reporting    |
-| 13 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
-| 14 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
-| 15 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
-| 16 | Third-Party Integrations & API  | E-commerce, ERP, accounting software sync      |
-| 17 | System Administration & Security| RBAC, audit trail, UOM, data import/export     |
+| 8  | Stock Movement & Transfers      | Inter/intra-warehouse transfers                |
+| 9  | Lot & Serial Number Tracking    | Batch/serial tracking, expiry management       |
+| 10 | Order Management & Fulfillment  | Sales orders, pick-pack-ship, wave planning    |
+| 11 | Returns Management (RMA)        | Return authorization, inspection, disposition  |
+| 12 | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
+| 13 | Multi-Location Management       | Location hierarchy, global stock visibility    |
+| 14 | Inventory Forecasting & Planning| Demand forecasting, reorder points, safety stock|
+| 15 | Barcode & RFID Integration      | Label generation, scanner integration          |
+| 16 | Quality Control & Inspection    | QC checklists, quarantine, defect reporting    |
+| 17 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
+| 18 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
+| 19 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
+| 20 | Third-Party Integrations & API  | E-commerce, ERP, accounting software sync      |
+| 21 | System Administration & Security| RBAC, audit trail, UOM, data import/export     |
 
 ---
 
