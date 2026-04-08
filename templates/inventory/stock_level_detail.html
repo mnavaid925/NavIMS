@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Level: {{ stock_level.product.sku }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Stock Level Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Inventory Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'inventory:stock_level_list' %}">Stock Levels</a></li>
+                    <li class="breadcrumb-item active">{{ stock_level.product.sku }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Quantity Breakdown -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quantity Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center">
+                            <p class="text-muted mb-1 fs-12">On Hand</p>
+                            <h4 class="mb-0 text-primary">{{ stock_level.on_hand }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center">
+                            <p class="text-muted mb-1 fs-12">Allocated</p>
+                            <h4 class="mb-0 text-warning">{{ stock_level.allocated }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center">
+                            <p class="text-muted mb-1 fs-12">Available</p>
+                            <h4 class="mb-0 {% if stock_level.needs_reorder %}text-danger{% else %}text-success{% endif %}">{{ stock_level.available }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center">
+                            <p class="text-muted mb-1 fs-12">On Order</p>
+                            <h4 class="mb-0 text-info">{{ stock_level.on_order }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Stock Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Product</th>
+                                <td>{{ stock_level.product.name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">SKU</th>
+                                <td><code>{{ stock_level.product.sku }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Warehouse</th>
+                                <td>{{ stock_level.warehouse.code }} - {{ stock_level.warehouse.name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Reorder Point</th>
+                                <td>{{ stock_level.reorder_point }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Reorder Quantity</th>
+                                <td>{{ stock_level.reorder_quantity }}</td>
+                            </tr>
+                            {% if stock_level.last_counted_at %}
+                            <tr>
+                                <th class="text-muted">Last Counted</th>
+                                <td>{{ stock_level.last_counted_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th class="text-muted">Updated</th>
+                                <td>{{ stock_level.updated_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Status Breakdown -->
+        {% if statuses %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Stock Status Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Status</th>
+                                <th class="text-end">Quantity</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ss in statuses %}
+                            <tr>
+                                <td>
+                                    {% if ss.status == 'active' %}
+                                        <span class="badge bg-success-subtle text-success">{{ ss.get_status_display }}</span>
+                                    {% elif ss.status == 'damaged' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ ss.get_status_display }}</span>
+                                    {% elif ss.status == 'expired' %}
+                                        <span class="badge bg-warning-subtle text-warning">{{ ss.get_status_display }}</span>
+                                    {% elif ss.status == 'on_hold' %}
+                                        <span class="badge bg-info-subtle text-info">{{ ss.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ ss.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-medium">{{ ss.quantity }}</td>
+                                <td>
+                                    <a href="{% url 'inventory:stock_status_detail' ss.pk %}" class="btn btn-sm btn-soft-primary">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent Adjustments -->
+        {% if adjustments %}
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Recent Adjustments</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'inventory:stock_adjustment_list' %}" class="btn btn-sm btn-soft-primary">View All</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Number</th>
+                                <th>Type</th>
+                                <th>Quantity</th>
+                                <th>Reason</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for adj in adjustments %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'inventory:stock_adjustment_detail' adj.pk %}" class="fw-medium text-primary">
+                                        <code>{{ adj.adjustment_number }}</code>
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if adj.adjustment_type == 'increase' %}
+                                        <span class="badge bg-success-subtle text-success">{{ adj.get_adjustment_type_display }}</span>
+                                    {% elif adj.adjustment_type == 'decrease' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ adj.get_adjustment_type_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info">{{ adj.get_adjustment_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-medium">{{ adj.quantity }}</td>
+                                <td>{{ adj.get_reason_display }}</td>
+                                <td>{{ adj.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Active Reservations -->
+        {% if reservations %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Active Reservations</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Number</th>
+                                <th>Quantity</th>
+                                <th>Reference</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for res in reservations %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'inventory:reservation_detail' res.pk %}" class="fw-medium text-primary">
+                                        <code>{{ res.reservation_number }}</code>
+                                    </a>
+                                </td>
+                                <td>{{ res.quantity }}</td>
+                                <td>{{ res.reference_type }} {{ res.reference_number }}</td>
+                                <td>
+                                    {% if res.status == 'pending' %}
+                                        <span class="badge bg-warning-subtle text-warning">{{ res.get_status_display }}</span>
+                                    {% elif res.status == 'confirmed' %}
+                                        <span class="badge bg-success-subtle text-success">{{ res.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ res.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'inventory:stock_adjust' stock_level.pk %}" class="btn btn-soft-warning">
+                        <i class="ri-scales-line align-middle me-1"></i> Adjust Stock
+                    </a>
+                    <a href="{% url 'inventory:stock_status_transition' %}" class="btn btn-soft-info">
+                        <i class="ri-exchange-line align-middle me-1"></i> Change Status
+                    </a>
+                    <a href="{% url 'inventory:stock_level_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Info -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded {% if stock_level.needs_reorder %}bg-danger-subtle text-danger{% else %}bg-success-subtle text-success{% endif %} d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="{% if stock_level.needs_reorder %}ri-error-warning-line{% else %}ri-checkbox-circle-line{% endif %} fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Stock Status</p>
+                        <h6 class="mb-0">
+                            {% if stock_level.needs_reorder %}
+                                <span class="badge bg-danger-subtle text-danger">Low Stock</span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success">In Stock</span>
+                            {% endif %}
+                        </h6>
+                    </div>
+                </div>
+                {% if stock_level.reorder_point > 0 %}
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <span class="avatar-sm rounded bg-warning-subtle text-warning d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="ri-alarm-warning-line fs-20"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <p class="text-muted mb-0 fs-12">Reorder Point</p>
+                        <h6 class="mb-0">{{ stock_level.reorder_point }} units</h6>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
