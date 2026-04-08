@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Adjustment: {{ adjustment.adjustment_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Adjustment Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Inventory Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'inventory:stock_adjustment_list' %}">Adjustments</a></li>
+                    <li class="breadcrumb-item active">{{ adjustment.adjustment_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Adjustment Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Adjustment Number</th>
+                                <td class="fw-medium"><code>{{ adjustment.adjustment_number }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Product</th>
+                                <td>{{ adjustment.stock_level.product.name }} (<code>{{ adjustment.stock_level.product.sku }}</code>)</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Warehouse</th>
+                                <td>{{ adjustment.stock_level.warehouse.code }} - {{ adjustment.stock_level.warehouse.name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Type</th>
+                                <td>
+                                    {% if adjustment.adjustment_type == 'increase' %}
+                                        <span class="badge bg-success-subtle text-success">{{ adjustment.get_adjustment_type_display }}</span>
+                                    {% elif adjustment.adjustment_type == 'decrease' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ adjustment.get_adjustment_type_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info">{{ adjustment.get_adjustment_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Quantity</th>
+                                <td class="fw-medium fs-16">{{ adjustment.quantity }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Reason</th>
+                                <td>{{ adjustment.get_reason_display }}</td>
+                            </tr>
+                            {% if adjustment.notes %}
+                            <tr>
+                                <th class="text-muted">Notes</th>
+                                <td>{{ adjustment.notes }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th class="text-muted">Adjusted By</th>
+                                <td>{{ adjustment.adjusted_by.get_full_name|default:adjustment.adjusted_by.username|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Date</th>
+                                <td>{{ adjustment.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'inventory:stock_level_detail' adjustment.stock_level.pk %}" class="btn btn-soft-primary">
+                        <i class="ri-bar-chart-box-line align-middle me-1"></i> View Stock Level
+                    </a>
+                    <a href="{% url 'inventory:stock_adjustment_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
