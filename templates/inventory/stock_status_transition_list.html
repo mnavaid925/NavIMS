@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Status Transitions{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Status Transitions</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Inventory Tracking</a></li>
+                    <li class="breadcrumb-item active">Status Transitions</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Transitions</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'inventory:stock_status_transition' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-exchange-line align-middle me-1"></i> New Transition
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search transition # or product...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_from_status %}<input type="hidden" name="from_status" value="{{ current_from_status }}">{% endif %}
+                            {% if current_to_status %}<input type="hidden" name="to_status" value="{{ current_to_status }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" action="">
+                            <select class="form-select" name="from_status" onchange="this.form.submit()">
+                                <option value="">From: All</option>
+                                {% for value, label in status_choices %}
+                                <option value="{{ value }}" {% if current_from_status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_to_status %}<input type="hidden" name="to_status" value="{{ current_to_status }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" action="">
+                            <select class="form-select" name="to_status" onchange="this.form.submit()">
+                                <option value="">To: All</option>
+                                {% for value, label in status_choices %}
+                                <option value="{{ value }}" {% if current_to_status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_from_status %}<input type="hidden" name="from_status" value="{{ current_from_status }}">{% endif %}
+                        </form>
+                    </div>
+                    {% if q or current_from_status or current_to_status %}
+                    <div class="col-md-1">
+                        <a href="{% url 'inventory:stock_status_transition_list' %}" class="btn btn-light w-100" data-bs-toggle="tooltip" title="Clear Filters">
+                            <i class="ri-filter-off-line"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Number</th>
+                                <th scope="col">Product</th>
+                                <th scope="col">Warehouse</th>
+                                <th scope="col">From</th>
+                                <th scope="col">To</th>
+                                <th scope="col" class="text-end">Quantity</th>
+                                <th scope="col">By</th>
+                                <th scope="col">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in transitions %}
+                            <tr>
+                                <td><code>{{ t.transition_number }}</code></td>
+                                <td>{{ t.product.name }}</td>
+                                <td>{{ t.warehouse.code }}</td>
+                                <td><span class="badge bg-secondary-subtle text-secondary">{{ t.get_from_status_display }}</span></td>
+                                <td><span class="badge bg-primary-subtle text-primary">{{ t.get_to_status_display }}</span></td>
+                                <td class="text-end fw-medium">{{ t.quantity }}</td>
+                                <td>{{ t.transitioned_by.get_full_name|default:t.transitioned_by.username|default:"—" }}</td>
+                                <td>{{ t.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-exchange-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No transitions found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if transitions.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Transition pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if transitions.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ transitions.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_from_status %}&from_status={{ current_from_status }}{% endif %}{% if current_to_status %}&to_status={{ current_to_status }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-left-s-line"></i></span></li>
+                            {% endif %}
+                            {% for num in transitions.paginator.page_range %}
+                            <li class="page-item {% if transitions.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_from_status %}&from_status={{ current_from_status }}{% endif %}{% if current_to_status %}&to_status={{ current_to_status }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            {% if transitions.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ transitions.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_from_status %}&from_status={{ current_from_status }}{% endif %}{% if current_to_status %}&to_status={{ current_to_status }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-right-s-line"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
