@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Levels{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Stock Levels</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Inventory Tracking</a></li>
+                    <li class="breadcrumb-item active">Stock Levels</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Stock Levels</h5>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search product name or SKU...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_warehouse %}<input type="hidden" name="warehouse" value="{{ current_warehouse }}">{% endif %}
+                            {% if current_low_stock %}<input type="hidden" name="low_stock" value="{{ current_low_stock }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="">
+                            <select class="form-select" name="warehouse" onchange="this.form.submit()">
+                                <option value="">All Warehouses</option>
+                                {% for wh in warehouses %}
+                                <option value="{{ wh.pk }}" {% if current_warehouse == wh.pk|stringformat:"d" %}selected{% endif %}>{{ wh.code }} - {{ wh.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_low_stock %}<input type="hidden" name="low_stock" value="{{ current_low_stock }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" action="">
+                            <select class="form-select" name="low_stock" onchange="this.form.submit()">
+                                <option value="">All Stock</option>
+                                <option value="yes" {% if current_low_stock == 'yes' %}selected{% endif %}>Low Stock Only</option>
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_warehouse %}<input type="hidden" name="warehouse" value="{{ current_warehouse }}">{% endif %}
+                        </form>
+                    </div>
+                    {% if q or current_warehouse or current_low_stock %}
+                    <div class="col-md-1">
+                        <a href="{% url 'inventory:stock_level_list' %}" class="btn btn-light w-100" data-bs-toggle="tooltip" title="Clear Filters">
+                            <i class="ri-filter-off-line"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Product</th>
+                                <th scope="col">SKU</th>
+                                <th scope="col">Warehouse</th>
+                                <th scope="col" class="text-end">On Hand</th>
+                                <th scope="col" class="text-end">Allocated</th>
+                                <th scope="col" class="text-end">Available</th>
+                                <th scope="col" class="text-end">On Order</th>
+                                <th scope="col">Status</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sl in stock_levels %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'inventory:stock_level_detail' sl.pk %}" class="fw-medium text-primary">
+                                        {{ sl.product.name }}
+                                    </a>
+                                </td>
+                                <td><code>{{ sl.product.sku }}</code></td>
+                                <td>{{ sl.warehouse.code }} - {{ sl.warehouse.name }}</td>
+                                <td class="text-end fw-medium">{{ sl.on_hand }}</td>
+                                <td class="text-end">{{ sl.allocated }}</td>
+                                <td class="text-end fw-medium {% if sl.needs_reorder %}text-danger{% else %}text-success{% endif %}">{{ sl.available }}</td>
+                                <td class="text-end">{{ sl.on_order }}</td>
+                                <td>
+                                    {% if sl.needs_reorder %}
+                                        <span class="badge bg-danger-subtle text-danger">Low Stock</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success">In Stock</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'inventory:stock_level_detail' sl.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        <a href="{% url 'inventory:stock_adjust' sl.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Adjust Stock">
+                                            <i class="ri-scales-line"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-bar-chart-box-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No stock levels found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if stock_levels.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Stock level pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if stock_levels.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ stock_levels.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_warehouse %}&warehouse={{ current_warehouse }}{% endif %}{% if current_low_stock %}&low_stock={{ current_low_stock }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-left-s-line"></i></span></li>
+                            {% endif %}
+                            {% for num in stock_levels.paginator.page_range %}
+                            <li class="page-item {% if stock_levels.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_warehouse %}&warehouse={{ current_warehouse }}{% endif %}{% if current_low_stock %}&low_stock={{ current_low_stock }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            {% if stock_levels.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ stock_levels.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_warehouse %}&warehouse={{ current_warehouse }}{% endif %}{% if current_low_stock %}&low_stock={{ current_low_stock }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-right-s-line"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
