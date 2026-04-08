@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Inventory Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'inventory:valuation_dashboard' %}">Valuation</a></li>
+                    <li class="breadcrumb-item active">Configuration</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Valuation Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_method" class="form-label">Valuation Method <span class="text-danger">*</span></label>
+                            {{ form.method }}
+                            {% if form.method.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.method.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                            <small class="text-muted">
+                                <strong>FIFO:</strong> First In, First Out — oldest stock consumed first.<br>
+                                <strong>LIFO:</strong> Last In, First Out — newest stock consumed first.<br>
+                                <strong>Weighted Average:</strong> Average cost of all stock.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check form-switch mt-2">
+                                <input type="checkbox" class="form-check-input" id="id_auto_recalculate" name="auto_recalculate" role="switch" {% if form.auto_recalculate.value %}checked{% endif %}>
+                                <label class="form-check-label" for="id_auto_recalculate">Auto-recalculate on changes</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i> Save Configuration
+                        </button>
+                        <a href="{% url 'inventory:valuation_dashboard' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if config.last_calculated_at %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Current Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Method:</strong> <span class="badge bg-primary-subtle text-primary">{{ config.get_method_display }}</span></p>
+                    <p class="mb-0"><strong>Last Calculated:</strong> {{ config.last_calculated_at|date:"M d, Y H:i" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
