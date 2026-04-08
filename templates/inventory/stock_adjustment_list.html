@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Adjustments{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Stock Adjustments</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Inventory Tracking</a></li>
+                    <li class="breadcrumb-item active">Stock Adjustments</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Adjustments</h5>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search adjustment # or product...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_type %}<input type="hidden" name="type" value="{{ current_type }}">{% endif %}
+                            {% if current_reason %}<input type="hidden" name="reason" value="{{ current_reason }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" action="">
+                            <select class="form-select" name="type" onchange="this.form.submit()">
+                                <option value="">All Types</option>
+                                {% for value, label in type_choices %}
+                                <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_reason %}<input type="hidden" name="reason" value="{{ current_reason }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" action="">
+                            <select class="form-select" name="reason" onchange="this.form.submit()">
+                                <option value="">All Reasons</option>
+                                {% for value, label in reason_choices %}
+                                <option value="{{ value }}" {% if current_reason == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_type %}<input type="hidden" name="type" value="{{ current_type }}">{% endif %}
+                        </form>
+                    </div>
+                    {% if q or current_type or current_reason %}
+                    <div class="col-md-1">
+                        <a href="{% url 'inventory:stock_adjustment_list' %}" class="btn btn-light w-100" data-bs-toggle="tooltip" title="Clear Filters">
+                            <i class="ri-filter-off-line"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Number</th>
+                                <th scope="col">Product</th>
+                                <th scope="col">Warehouse</th>
+                                <th scope="col">Type</th>
+                                <th scope="col" class="text-end">Quantity</th>
+                                <th scope="col">Reason</th>
+                                <th scope="col">Adjusted By</th>
+                                <th scope="col">Date</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for adj in adjustments %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'inventory:stock_adjustment_detail' adj.pk %}" class="fw-medium text-primary">
+                                        <code>{{ adj.adjustment_number }}</code>
+                                    </a>
+                                </td>
+                                <td>{{ adj.stock_level.product.name }}</td>
+                                <td>{{ adj.stock_level.warehouse.code }}</td>
+                                <td>
+                                    {% if adj.adjustment_type == 'increase' %}
+                                        <span class="badge bg-success-subtle text-success">{{ adj.get_adjustment_type_display }}</span>
+                                    {% elif adj.adjustment_type == 'decrease' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ adj.get_adjustment_type_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info">{{ adj.get_adjustment_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-medium">{{ adj.quantity }}</td>
+                                <td>{{ adj.get_reason_display }}</td>
+                                <td>{{ adj.adjusted_by.get_full_name|default:adj.adjusted_by.username|default:"—" }}</td>
+                                <td>{{ adj.created_at|date:"M d, Y" }}</td>
+                                <td class="text-center">
+                                    <a href="{% url 'inventory:stock_adjustment_detail' adj.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-scales-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No stock adjustments found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if adjustments.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Adjustment pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if adjustments.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ adjustments.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_reason %}&reason={{ current_reason }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-left-s-line"></i></span></li>
+                            {% endif %}
+                            {% for num in adjustments.paginator.page_range %}
+                            <li class="page-item {% if adjustments.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_reason %}&reason={{ current_reason }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            {% if adjustments.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ adjustments.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_reason %}&reason={{ current_reason }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-right-s-line"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
