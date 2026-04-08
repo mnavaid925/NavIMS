@@ -241,6 +241,49 @@
                 </ul>
             </li>
 
+            <!-- Inventory Tracking -->
+            <li class="menu-title"><span>Inventory Tracking</span></li>
+
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-bar-chart-box-line"></i>
+                    <span class="menu-text">Inventory Control</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'inventory:stock_level_list' %}">
+                            <span class="menu-text">Stock Levels</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'inventory:stock_adjustment_list' %}">
+                            <span class="menu-text">Stock Adjustments</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'inventory:stock_status_list' %}">
+                            <span class="menu-text">Stock Status</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'inventory:stock_status_transition_list' %}">
+                            <span class="menu-text">Status Transitions</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'inventory:valuation_dashboard' %}">
+                            <span class="menu-text">Inventory Valuation</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'inventory:reservation_list' %}">
+                            <span class="menu-text">Reservations</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
         </ul>
     </div>
 
