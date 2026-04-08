@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Valuation: {{ valuation.product.sku }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Valuation Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Inventory Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'inventory:valuation_dashboard' %}">Valuation</a></li>
+                    <li class="breadcrumb-item active">{{ valuation.product.sku }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Valuation Summary -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Valuation Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Product</th>
+                                <td>{{ valuation.product.name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">SKU</th>
+                                <td><code>{{ valuation.product.sku }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Warehouse</th>
+                                <td>{{ valuation.warehouse.code|default:"All Warehouses" }} {% if valuation.warehouse %}- {{ valuation.warehouse.name }}{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Method</th>
+                                <td>
+                                    {% if valuation.method == 'fifo' %}
+                                        <span class="badge bg-primary-subtle text-primary">FIFO</span>
+                                    {% elif valuation.method == 'lifo' %}
+                                        <span class="badge bg-info-subtle text-info">LIFO</span>
+                                    {% elif valuation.method == 'weighted_avg' %}
+                                        <span class="badge bg-success-subtle text-success">Weighted Average</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ valuation.get_method_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Valuation Date</th>
+                                <td>{{ valuation.valuation_date|date:"M d, Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Total Quantity</th>
+                                <td class="fw-medium">{{ valuation.total_quantity }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Unit Cost</th>
+                                <td class="fw-medium">${{ valuation.unit_cost|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Total Value</th>
+                                <td class="fw-medium fs-16 text-primary">${{ valuation.total_value|floatformat:2 }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost Layers -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Cost Layers</h5>
+            </div>
+            <div class="card-body">
+                {% if cost_layers %}
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Entry Date</th>
+                                <th class="text-end">Original Qty</th>
+                                <th class="text-end">Remaining Qty</th>
+                                <th class="text-end">Unit Cost</th>
+                                <th class="text-end">Layer Value</th>
+                                <th>Reference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in cost_layers %}
+                            <tr>
+                                <td>{{ entry.entry_date|date:"M d, Y" }}</td>
+                                <td class="text-end">{{ entry.quantity }}</td>
+                                <td class="text-end fw-medium">{{ entry.remaining_quantity }}</td>
+                                <td class="text-end">${{ entry.unit_cost|floatformat:2 }}</td>
+                                <td class="text-end fw-medium">${{ entry.total_value|floatformat:2 }}</td>
+                                <td>
+                                    {% if entry.reference_type %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ entry.reference_type }}</span>
+                                        {{ entry.reference_number }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="ri-stack-line fs-24 d-block mb-2"></i>
+                    <p class="mb-0">No cost layers available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'inventory:valuation_dashboard' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
