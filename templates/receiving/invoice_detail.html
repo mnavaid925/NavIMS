@@ -85,7 +85,7 @@
                             </tr>
                             <tr>
                                 <th class="text-muted">Created By</th>
-                                <td>{{ invoice.created_by.get_full_name|default:invoice.created_by.username|default:"—" }}</td>
+                                <td>{% if invoice.created_by %}{{ invoice.created_by.get_full_name|default:invoice.created_by.username }}{% else %}—{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Created</th>
