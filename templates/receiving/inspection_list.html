@@ -97,7 +97,7 @@
                                         <span class="badge bg-secondary-subtle text-secondary">{{ inspection.get_status_display }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ inspection.inspector.get_full_name|default:inspection.inspector.username|default:"--" }}</td>
+                                <td>{% if inspection.inspector %}{{ inspection.inspector.get_full_name|default:inspection.inspector.username }}{% else %}--{% endif %}</td>
                                 <td>{{ inspection.inspection_date|date:"M d, Y" }}</td>
                                 <td class="text-center">
                                     <span class="badge bg-success-subtle text-success">{{ inspection.total_accepted|default:0 }}</span>
