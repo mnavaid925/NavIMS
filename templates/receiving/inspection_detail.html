@@ -59,7 +59,7 @@
                             </tr>
                             <tr>
                                 <th class="text-muted">Inspector</th>
-                                <td>{{ inspection.inspector.get_full_name|default:inspection.inspector.username|default:"--" }}</td>
+                                <td>{% if inspection.inspector %}{{ inspection.inspector.get_full_name|default:inspection.inspector.username }}{% else %}--{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Inspection Date</th>
@@ -73,7 +73,7 @@
                             {% endif %}
                             <tr>
                                 <th class="text-muted">Created By</th>
-                                <td>{{ inspection.created_by.get_full_name|default:inspection.created_by.username|default:"--" }}</td>
+                                <td>{% if inspection.created_by %}{{ inspection.created_by.get_full_name|default:inspection.created_by.username }}{% else %}--{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Created</th>
