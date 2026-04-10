@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Transfer Approval Rules{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Transfer Approval Rules</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Stock Movements</a></li>
+                    <li class="breadcrumb-item active">Approval Rules</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Rules</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'stock_movements:approval_rule_create' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-add-line align-middle me-1"></i> Create Rule
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search rule name...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_active %}<input type="hidden" name="active" value="{{ current_active }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" action="">
+                            <select class="form-select" name="active" onchange="this.form.submit()">
+                                <option value="">All</option>
+                                <option value="yes" {% if current_active == 'yes' %}selected{% endif %}>Active</option>
+                                <option value="no" {% if current_active == 'no' %}selected{% endif %}>Inactive</option>
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                        </form>
+                    </div>
+                    {% if q or current_active %}
+                    <div class="col-md-1">
+                        <a href="{% url 'stock_movements:approval_rule_list' %}" class="btn btn-light w-100" data-bs-toggle="tooltip" title="Clear Filters">
+                            <i class="ri-filter-off-line"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col" class="text-center">Min Items</th>
+                                <th scope="col" class="text-center">Max Items</th>
+                                <th scope="col">Approver Role</th>
+                                <th scope="col" class="text-center">Requires Approval</th>
+                                <th scope="col" class="text-center">Active</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rule in rules %}
+                            <tr>
+                                <td class="fw-medium">{{ rule.name }}</td>
+                                <td class="text-center">{{ rule.min_items }}</td>
+                                <td class="text-center">{{ rule.max_items|default:"∞" }}</td>
+                                <td>{{ rule.approver_role|default:"—" }}</td>
+                                <td class="text-center">
+                                    {% if rule.requires_approval %}
+                                        <span class="badge bg-success-subtle text-success">Yes</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">No</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if rule.is_active %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'stock_movements:approval_rule_edit' rule.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        <form method="post" action="{% url 'stock_movements:approval_rule_delete' rule.pk %}" class="d-inline" onsubmit="return confirm('Delete this approval rule?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-shield-check-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No approval rules found</p>
+                                        <a href="{% url 'stock_movements:approval_rule_create' %}" class="btn btn-sm btn-primary mt-2">Create First Rule</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if rules.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Rule pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if rules.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ rules.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_active %}&active={{ current_active }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-left-s-line"></i></span></li>
+                            {% endif %}
+                            {% for num in rules.paginator.page_range %}
+                            <li class="page-item {% if rules.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_active %}&active={{ current_active }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            {% if rules.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ rules.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_active %}&active={{ current_active }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-right-s-line"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
