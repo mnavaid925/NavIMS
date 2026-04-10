@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Lot Traceability — {{ lot.lot_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Lot Traceability — {{ lot.lot_number }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Lot & Serial Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lot_tracking:lot_list' %}">Lots</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lot_tracking:lot_detail' lot.pk %}">{{ lot.lot_number }}</a></li>
+                    <li class="breadcrumb-item active">Trace</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Trace Timeline -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Traceability Timeline</h5>
+            </div>
+            <div class="card-body">
+                {% if trace_logs %}
+                <div class="timeline-list">
+                    {% for log in trace_logs %}
+                    <div class="card border shadow-none mb-3">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start">
+                                <div class="flex-shrink-0 me-3">
+                                    <div class="avatar-sm">
+                                        <span class="avatar-title rounded-circle
+                                            {% if log.event_type == 'received' %}bg-success
+                                            {% elif log.event_type == 'transferred' %}bg-info
+                                            {% elif log.event_type == 'adjusted' %}bg-warning
+                                            {% elif log.event_type == 'sold' %}bg-primary
+                                            {% elif log.event_type == 'returned' %}bg-info
+                                            {% elif log.event_type == 'recalled' %}bg-danger
+                                            {% elif log.event_type == 'scrapped' %}bg-secondary
+                                            {% elif log.event_type == 'expired' %}bg-danger
+                                            {% else %}bg-secondary
+                                            {% endif %}">
+                                            {% if log.event_type == 'received' %}
+                                                <i class="ri-inbox-archive-line fs-18 text-white"></i>
+                                            {% elif log.event_type == 'transferred' %}
+                                                <i class="ri-arrow-left-right-line fs-18 text-white"></i>
+                                            {% elif log.event_type == 'adjusted' %}
+                                                <i class="ri-equalizer-line fs-18 text-white"></i>
+                                            {% elif log.event_type == 'sold' %}
+                                                <i class="ri-shopping-cart-line fs-18 text-white"></i>
+                                            {% elif log.event_type == 'returned' %}
+                                                <i class="ri-reply-line fs-18 text-white"></i>
+                                            {% elif log.event_type == 'recalled' %}
+                                                <i class="ri-alarm-warning-line fs-18 text-white"></i>
+                                            {% elif log.event_type == 'scrapped' %}
+                                                <i class="ri-delete-bin-line fs-18 text-white"></i>
+                                            {% elif log.event_type == 'expired' %}
+                                                <i class="ri-time-line fs-18 text-white"></i>
+                                            {% else %}
+                                                <i class="ri-information-line fs-18 text-white"></i>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <h6 class="mb-0">
+                                            <code>{{ log.log_number }}</code>
+                                            {% if log.event_type == 'received' %}
+                                                <span class="badge bg-success-subtle text-success ms-1">{{ log.get_event_type_display }}</span>
+                                            {% elif log.event_type == 'transferred' %}
+                                                <span class="badge bg-info-subtle text-info ms-1">{{ log.get_event_type_display }}</span>
+                                            {% elif log.event_type == 'adjusted' %}
+                                                <span class="badge bg-warning-subtle text-warning ms-1">{{ log.get_event_type_display }}</span>
+                                            {% elif log.event_type == 'sold' %}
+                                                <span class="badge bg-primary-subtle text-primary ms-1">{{ log.get_event_type_display }}</span>
+                                            {% elif log.event_type == 'returned' %}
+                                                <span class="badge bg-info-subtle text-info ms-1">{{ log.get_event_type_display }}</span>
+                                            {% elif log.event_type == 'recalled' %}
+                                                <span class="badge bg-danger-subtle text-danger ms-1">{{ log.get_event_type_display }}</span>
+                                            {% elif log.event_type == 'scrapped' %}
+                                                <span class="badge bg-secondary-subtle text-secondary ms-1">{{ log.get_event_type_display }}</span>
+                                            {% elif log.event_type == 'expired' %}
+                                                <span class="badge bg-danger-subtle text-danger ms-1">{{ log.get_event_type_display }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary-subtle text-secondary ms-1">{{ log.get_event_type_display }}</span>
+                                            {% endif %}
+                                        </h6>
+                                        <small class="text-muted">{{ log.created_at|date:"M d, Y H:i" }}</small>
+                                    </div>
+                                    <div class="text-muted mb-1">
+                                        {% if log.from_warehouse %}
+                                            <span class="me-2"><strong>From:</strong> {{ log.from_warehouse.code }}</span>
+                                        {% endif %}
+                                        {% if log.to_warehouse %}
+                                            <span class="me-2"><strong>To:</strong> {{ log.to_warehouse.code }}</span>
+                                        {% endif %}
+                                        {% if log.quantity is not None %}
+                                            <span class="me-2"><strong>Qty:</strong> {{ log.quantity }}</span>
+                                        {% endif %}
+                                        {% if log.reference_number %}
+                                            <span class="me-2"><strong>Ref:</strong> {{ log.reference_number }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if log.performed_by %}
+                                    <small class="text-muted"><strong>By:</strong> {{ log.performed_by.get_full_name|default:log.performed_by.username }}</small>
+                                    {% endif %}
+                                    {% if log.notes %}
+                                    <p class="text-muted mb-0 mt-1">{{ log.notes }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="ri-route-line fs-24 d-block mb-2"></i>
+                    <p class="mb-0">No trace logs found for this lot</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Lot Summary Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Lot Summary</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-1"><strong>Lot Number:</strong> <code>{{ lot.lot_number }}</code></p>
+                <p class="mb-1"><strong>Product:</strong> {{ lot.product.name }}</p>
+                <p class="mb-1"><strong>Status:</strong>
+                    {% if lot.status == 'active' %}
+                        <span class="badge bg-success-subtle text-success">{{ lot.get_status_display }}</span>
+                    {% elif lot.status == 'quarantine' %}
+                        <span class="badge bg-warning-subtle text-warning">{{ lot.get_status_display }}</span>
+                    {% elif lot.status == 'expired' %}
+                        <span class="badge bg-danger-subtle text-danger">{{ lot.get_status_display }}</span>
+                    {% elif lot.status == 'consumed' %}
+                        <span class="badge bg-info-subtle text-info">{{ lot.get_status_display }}</span>
+                    {% elif lot.status == 'recalled' %}
+                        <span class="badge bg-danger-subtle text-danger">{{ lot.get_status_display }}</span>
+                    {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary">{{ lot.get_status_display }}</span>
+                    {% endif %}
+                </p>
+                <p class="mb-0"><strong>Quantity:</strong> {{ lot.quantity }} ({{ lot.available_quantity }} available)</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'lot_tracking:lot_detail' lot.pk %}" class="btn btn-soft-primary">
+                        <i class="ri-eye-line align-middle me-1"></i> View Lot Details
+                    </a>
+                    <a href="{% url 'lot_tracking:lot_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
