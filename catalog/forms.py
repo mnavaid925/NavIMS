@@ -1,6 +1,13 @@
 from django import forms
 from django.forms import inlineformset_factory
+from django.core.validators import FileExtensionValidator
+from django.core.exceptions import ValidationError
 from .models import Category, Product, ProductAttribute, ProductImage, ProductDocument
+
+ALLOWED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']
+ALLOWED_DOCUMENT_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'rtf', 'odt']
+MAX_IMAGE_SIZE_MB = 5
+MAX_DOCUMENT_SIZE_MB = 20
 
 
 class CategoryForm(forms.ModelForm):
@@ -26,6 +33,14 @@ class CategoryForm(forms.ModelForm):
             }),
         }
 
+    def _get_descendant_ids(self, category):
+        """Recursively collect all descendant IDs to prevent circular hierarchy."""
+        ids = []
+        for child in Category.objects.filter(parent=category):
+            ids.append(child.pk)
+            ids.extend(self._get_descendant_ids(child))
+        return ids
+
     def __init__(self, *args, tenant=None, **kwargs):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
@@ -33,9 +48,9 @@ class CategoryForm(forms.ModelForm):
             # Filter parent choices to same tenant, exclude self to prevent circular refs
             parent_qs = Category.objects.filter(tenant=tenant, is_active=True)
             if self.instance and self.instance.pk:
-                parent_qs = parent_qs.exclude(pk=self.instance.pk)
-                # Also exclude own children to prevent circular hierarchy
-                parent_qs = parent_qs.exclude(parent=self.instance)
+                # Exclude self and ALL descendants to prevent circular hierarchy
+                exclude_ids = [self.instance.pk] + self._get_descendant_ids(self.instance)
+                parent_qs = parent_qs.exclude(pk__in=exclude_ids)
             # Only allow departments and categories as parents (max 3 levels)
             parent_qs = parent_qs.filter(level__in=['department', 'category'])
             self.fields['parent'].queryset = parent_qs
@@ -152,6 +167,30 @@ class ProductForm(forms.ModelForm):
             self.fields['category'].required = False
             self.fields['category'].empty_label = '— Select Category —'
 
+    def clean(self):
+        cleaned_data = super().clean()
+        purchase_cost = cleaned_data.get('purchase_cost')
+        retail_price = cleaned_data.get('retail_price')
+        wholesale_price = cleaned_data.get('wholesale_price')
+        markup = cleaned_data.get('markup_percentage')
+
+        # Auto-calculate markup if purchase cost and retail price are provided
+        if purchase_cost and retail_price and purchase_cost > 0:
+            expected_markup = ((retail_price - purchase_cost) / purchase_cost) * 100
+            # If markup was left at default (0) or blank, auto-fill it
+            if not markup:
+                cleaned_data['markup_percentage'] = round(expected_markup, 2)
+
+        # Warn if wholesale is higher than retail
+        if wholesale_price and retail_price and wholesale_price > retail_price:
+            self.add_error('wholesale_price', 'Wholesale price should not exceed retail price.')
+
+        # Warn if purchase cost is higher than retail
+        if purchase_cost and retail_price and purchase_cost > retail_price:
+            self.add_error('purchase_cost', 'Purchase cost exceeds retail price — negative margin.')
+
+        return cleaned_data
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.tenant:
@@ -212,6 +251,18 @@ class ProductImageForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['image'].validators.append(
+            FileExtensionValidator(allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
+        )
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image and image.size > MAX_IMAGE_SIZE_MB * 1024 * 1024:
+            raise ValidationError(f'Image file size must be under {MAX_IMAGE_SIZE_MB} MB.')
+        return image
+
 
 class ProductDocumentForm(forms.ModelForm):
     class Meta:
@@ -229,3 +280,15 @@ class ProductDocumentForm(forms.ModelForm):
                 'class': 'form-select',
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['file'].validators.append(
+            FileExtensionValidator(allowed_extensions=ALLOWED_DOCUMENT_EXTENSIONS)
+        )
+
+    def clean_file(self):
+        file = self.cleaned_data.get('file')
+        if file and file.size > MAX_DOCUMENT_SIZE_MB * 1024 * 1024:
+            raise ValidationError(f'Document file size must be under {MAX_DOCUMENT_SIZE_MB} MB.')
+        return file
