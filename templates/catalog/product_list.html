@@ -164,18 +164,10 @@
                             </li>
                             {% endif %}
 
-                            {% for num in products.paginator.get_elided_page_range(products.number) %}
-                            {% if num == products.paginator.ELLIPSIS %}
-                            <li class="page-item disabled">
-                                <span class="page-link">&hellip;</span>
-                            </li>
-                            {% else %}
+                            {% for num in products.paginator.page_range %}
                             <li class="page-item {% if products.number == num %}active{% endif %}">
-                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}">
-                                    {{ num }}
-                                </a>
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}">{{ num }}</a>
                             </li>
-                            {% endif %}
                             {% endfor %}
 
                             {% if products.has_next %}
