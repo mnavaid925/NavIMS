@@ -14,8 +14,8 @@
     <div class="sidebar-menu">
         <ul class="nav-list" id="navbar-nav">
 
-            <!-- Menu -->
-            <li class="menu-title"><span>Menu</span></li>
+            <!-- ─── Overview ─── -->
+            <li class="menu-title"><span>Overview</span></li>
 
             <li class="nav-item">
                 <a class="menu-link" href="{% url 'dashboard' %}">
@@ -24,88 +24,35 @@
                 </a>
             </li>
 
-            <!-- Administration -->
-            <li class="menu-title"><span>Administration</span></li>
+            <!-- ─── Catalog & Procurement ─── -->
+            <li class="menu-title"><span>Catalog & Procurement</span></li>
 
+            <!-- Module 1: Product & Catalog Management -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-building-4-line"></i>
-                    <span class="menu-text">Tenants</span>
-                    <i class="ri-arrow-right-s-line menu-arrow"></i>
-                </a>
-                <ul class="sub-menu">
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'administration:tenant_list' %}">
-                            <span class="menu-text">All Tenants</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'administration:subscription_list' %}">
-                            <span class="menu-text">Subscriptions</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            <li class="nav-item has-submenu">
-                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-group-line"></i>
-                    <span class="menu-text">User Management</span>
-                    <i class="ri-arrow-right-s-line menu-arrow"></i>
-                </a>
-                <ul class="sub-menu">
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'accounts:user_list' %}">
-                            <span class="menu-text">Users</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'administration:role_list' %}">
-                            <span class="menu-text">Roles & Permissions</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'accounts:user_invite' %}">
-                            <span class="menu-text">User Invites</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="menu-link" href="{% url 'administration:settings' %}">
-                    <i class="ri-settings-3-line"></i>
-                    <span class="menu-text">Settings</span>
-                </a>
-            </li>
-
-            <!-- Inventory -->
-            <li class="menu-title"><span>Inventory</span></li>
-
-            <li class="nav-item has-submenu">
-                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-shopping-bag-line"></i>
-                    <span class="menu-text">Product Catalog</span>
+                    <i class="ri-shopping-bag-3-line"></i>
+                    <span class="menu-text">Product & Catalog</span>
                     <i class="ri-arrow-right-s-line menu-arrow"></i>
                 </a>
                 <ul class="sub-menu">
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'catalog:product_list' %}">
-                            <span class="menu-text">Products</span>
+                            <span class="menu-text">SKU Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'catalog:category_list' %}">
-                            <span class="menu-text">Categories</span>
+                            <span class="menu-text">Product Categorization</span>
                         </a>
                     </li>
                 </ul>
             </li>
 
+            <!-- Module 2: Vendor / Supplier Management -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-store-2-line"></i>
-                    <span class="menu-text">Vendors</span>
+                    <i class="ri-truck-line"></i>
+                    <span class="menu-text">Vendor Management</span>
                     <i class="ri-arrow-right-s-line menu-arrow"></i>
                 </a>
                 <ul class="sub-menu">
@@ -132,9 +79,7 @@
                 </ul>
             </li>
 
-            <!-- Purchasing -->
-            <li class="menu-title"><span>Purchasing</span></li>
-
+            <!-- Module 3: Purchase Order Management -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-file-list-3-line"></i>
@@ -144,7 +89,7 @@
                 <ul class="sub-menu">
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'purchase_orders:po_list' %}">
-                            <span class="menu-text">All Orders</span>
+                            <span class="menu-text">PO Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -154,7 +99,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'purchase_orders:approval_list' %}">
-                            <span class="menu-text">Pending Approvals</span>
+                            <span class="menu-text">Approval Workflows</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -165,9 +110,10 @@
                 </ul>
             </li>
 
-            <!-- Receiving & Putaway -->
-            <li class="menu-title"><span>Receiving</span></li>
+            <!-- ─── Warehouse Operations ─── -->
+            <li class="menu-title"><span>Warehouse Operations</span></li>
 
+            <!-- Module 4: Receiving & Putaway -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-inbox-archive-line"></i>
@@ -181,23 +127,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="menu-link" href="{% url 'receiving:invoice_list' %}">
-                            <span class="menu-text">Vendor Invoices</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="menu-link" href="{% url 'receiving:match_list' %}">
                             <span class="menu-text">Three-Way Matching</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'receiving:inspection_list' %}">
-                            <span class="menu-text">Quality Inspections</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'receiving:location_list' %}">
-                            <span class="menu-text">Warehouse Locations</span>
+                            <span class="menu-text">Quality Inspection</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -205,22 +141,30 @@
                             <span class="menu-text">Putaway Tasks</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'receiving:invoice_list' %}">
+                            <span class="menu-text">Vendor Invoices</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'receiving:location_list' %}">
+                            <span class="menu-text">Warehouse Locations</span>
+                        </a>
+                    </li>
                 </ul>
             </li>
 
-            <!-- Warehousing -->
-            <li class="menu-title"><span>Warehousing</span></li>
-
+            <!-- Module 5: Warehousing & Bin Management -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-building-2-line"></i>
-                    <span class="menu-text">Warehousing</span>
+                    <span class="menu-text">Warehousing & Bins</span>
                     <i class="ri-arrow-right-s-line menu-arrow"></i>
                 </a>
                 <ul class="sub-menu">
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'warehousing:warehouse_list' %}">
-                            <span class="menu-text">Warehouses</span>
+                            <span class="menu-text">Warehouse Structure</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -230,7 +174,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'warehousing:bin_list' %}">
-                            <span class="menu-text">Bins</span>
+                            <span class="menu-text">Bin Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -241,34 +185,25 @@
                 </ul>
             </li>
 
-            <!-- Inventory Tracking -->
-            <li class="menu-title"><span>Inventory Tracking</span></li>
+            <!-- ─── Inventory Management ─── -->
+            <li class="menu-title"><span>Inventory Management</span></li>
 
+            <!-- Module 6: Inventory Tracking & Control -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-bar-chart-box-line"></i>
-                    <span class="menu-text">Inventory Control</span>
+                    <span class="menu-text">Tracking & Control</span>
                     <i class="ri-arrow-right-s-line menu-arrow"></i>
                 </a>
                 <ul class="sub-menu">
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'inventory:stock_level_list' %}">
-                            <span class="menu-text">Stock Levels</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'inventory:stock_adjustment_list' %}">
-                            <span class="menu-text">Stock Adjustments</span>
+                            <span class="menu-text">Real-Time Stock Levels</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'inventory:stock_status_list' %}">
                             <span class="menu-text">Stock Status</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'inventory:stock_status_transition_list' %}">
-                            <span class="menu-text">Status Transitions</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -281,16 +216,24 @@
                             <span class="menu-text">Reservations</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'inventory:stock_adjustment_list' %}">
+                            <span class="menu-text">Stock Adjustments</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'inventory:stock_status_transition_list' %}">
+                            <span class="menu-text">Status Transitions</span>
+                        </a>
+                    </li>
                 </ul>
             </li>
 
-            <!-- Stock Movements -->
-            <li class="menu-title"><span>Stock Movements</span></li>
-
+            <!-- Module 7: Stock Movement & Transfers -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-arrow-left-right-line"></i>
-                    <span class="menu-text">Transfers</span>
+                    <span class="menu-text">Movement & Transfers</span>
                     <i class="ri-arrow-right-s-line menu-arrow"></i>
                 </a>
                 <ul class="sub-menu">
@@ -306,7 +249,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="menu-link" href="{% url 'stock_movements:pending_approval_list' %}">
-                            <span class="menu-text">Pending Approvals</span>
+                            <span class="menu-text">Transfer Approvals</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -320,6 +263,62 @@
                         </a>
                     </li>
                 </ul>
+            </li>
+
+            <!-- ─── System ─── -->
+            <li class="menu-title"><span>System</span></li>
+
+            <!-- Module 20 (partial): System Administration -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-building-4-line"></i>
+                    <span class="menu-text">Tenants</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'administration:tenant_list' %}">
+                            <span class="menu-text">All Tenants</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'administration:subscription_list' %}">
+                            <span class="menu-text">Subscriptions</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-shield-user-line"></i>
+                    <span class="menu-text">Users & Access</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'accounts:user_list' %}">
+                            <span class="menu-text">Users</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'administration:role_list' %}">
+                            <span class="menu-text">Roles & Permissions</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'accounts:user_invite' %}">
+                            <span class="menu-text">User Invites</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="nav-item">
+                <a class="menu-link" href="{% url 'administration:settings' %}">
+                    <i class="ri-settings-3-line"></i>
+                    <span class="menu-text">Settings</span>
+                </a>
             </li>
 
         </ul>
