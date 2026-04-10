@@ -133,7 +133,7 @@
                             {% endif %}
                             <tr>
                                 <th class="text-muted">Reserved By</th>
-                                <td>{{ reservation.reserved_by.get_full_name|default:reservation.reserved_by.username|default:"—" }}</td>
+                                <td>{% if reservation.reserved_by %}{{ reservation.reserved_by.get_full_name|default:reservation.reserved_by.username }}{% else %}—{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Created</th>
