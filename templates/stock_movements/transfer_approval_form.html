@@ -56,7 +56,7 @@
                             </tr>
                             <tr>
                                 <th class="text-muted">Requested By</th>
-                                <td>{{ transfer.requested_by.get_full_name|default:transfer.requested_by.username }}</td>
+                                <td>{% if transfer.requested_by %}{{ transfer.requested_by.get_full_name|default:transfer.requested_by.username }}{% else %}—{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Date</th>
