@@ -15,6 +15,7 @@ urlpatterns = [
     path('warehousing/', include('warehousing.urls')),
     path('inventory/', include('inventory.urls')),
     path('stock-movements/', include('stock_movements.urls')),
+    path('lot-tracking/', include('lot_tracking.urls')),
 ]
 
 if settings.DEBUG:
