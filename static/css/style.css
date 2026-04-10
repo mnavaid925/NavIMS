@@ -440,7 +440,7 @@ a:hover {
     height: var(--topbar-height);
     display: flex;
     align-items: center;
-    padding: 0 20px;
+    padding: 0 12px;
     flex-shrink: 0;
 }
 
@@ -467,7 +467,7 @@ a:hover {
 }
 
 .sidebar-profile {
-    padding: 14px 16px;
+    padding: 14px 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     flex-shrink: 0;
     margin-top: auto;
@@ -527,7 +527,7 @@ a:hover {
 }
 
 .menu-title {
-    padding: 16px 14px 6px;
+    padding: 16px 10px 6px 8px;
     font-size: 0.625rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -555,7 +555,7 @@ a:hover {
 .menu-link {
     display: flex;
     align-items: center;
-    padding: 8px 14px;
+    padding: 8px 10px 8px 8px;
     color: var(--sidebar-menu-color);
     font-size: 0.8125rem;
     font-weight: 500;
@@ -654,7 +654,7 @@ a:hover {
 .sub-menu {
     list-style: none;
     padding: 0;
-    margin: 0 0 0 26px;
+    margin: 0 0 0 22px;
     overflow: hidden;
     max-height: 0;
     transition: max-height 0.3s ease;
@@ -666,7 +666,7 @@ a:hover {
 }
 
 .sub-menu .menu-link {
-    padding: 6px 14px 6px 12px;
+    padding: 6px 10px 6px 10px;
     font-size: 0.785rem;
     font-weight: 500;
     border-radius: 0;
@@ -995,7 +995,7 @@ a:hover {
 }
 
 [data-sidebar-size="hover"] .app-menu:hover .sidebar-brand {
-    padding: 0 20px;
+    padding: 0 12px;
     justify-content: flex-start;
 }
 
@@ -1019,7 +1019,7 @@ a:hover {
 
 [data-sidebar-size="hover"] .app-menu:hover .menu-link {
     justify-content: flex-start;
-    padding: 9px 20px;
+    padding: 8px 10px 8px 8px;
 }
 
 [data-sidebar-size="hover"] .app-menu:hover .menu-link .menu-text,
@@ -1953,7 +1953,7 @@ a:hover {
     }
 
     [data-layout="horizontal"] .menu-link {
-        padding: 9px 20px;
+        padding: 8px 10px 8px 8px;
     }
 
     [data-layout="horizontal"] .sub-menu {
