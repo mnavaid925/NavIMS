@@ -115,7 +115,7 @@
                             {% endif %}
                             <tr>
                                 <th class="text-muted">Received By</th>
-                                <td>{{ grn.received_by.get_full_name|default:grn.received_by.username|default:"—" }}</td>
+                                <td>{% if grn.received_by %}{{ grn.received_by.get_full_name|default:grn.received_by.username }}{% else %}—{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Created</th>
@@ -216,7 +216,7 @@
                                         <span class="badge bg-secondary-subtle text-secondary">{{ inspection.get_status_display }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ inspection.inspector.get_full_name|default:inspection.inspector.username|default:"—" }}</td>
+                                <td>{% if inspection.inspector %}{{ inspection.inspector.get_full_name|default:inspection.inspector.username }}{% else %}—{% endif %}</td>
                                 <td>{{ inspection.inspection_date|date:"M d, Y"|default:"—" }}</td>
                             </tr>
                             {% endfor %}
