@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Lot & Serial Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lot_tracking:traceability_list' %}">Traceability</a></li>
+                    <li class="breadcrumb-item active">Create</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                        <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_lot" class="form-label">Lot</label>
+                            {{ form.lot }}
+                            {% if form.lot.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.lot.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_serial_number" class="form-label">Serial Number</label>
+                            {{ form.serial_number }}
+                            {% if form.serial_number.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.serial_number.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_event_type" class="form-label">Event Type <span class="text-danger">*</span></label>
+                            {{ form.event_type }}
+                            {% if form.event_type.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.event_type.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                            {{ form.quantity }}
+                            {% if form.quantity.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.quantity.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_from_warehouse" class="form-label">From Warehouse</label>
+                            {{ form.from_warehouse }}
+                            {% if form.from_warehouse.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.from_warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_to_warehouse" class="form-label">To Warehouse</label>
+                            {{ form.to_warehouse }}
+                            {% if form.to_warehouse.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.to_warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_reference_type" class="form-label">Reference Type</label>
+                            {{ form.reference_type }}
+                            {% if form.reference_type.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.reference_type.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_reference_number" class="form-label">Reference Number</label>
+                            {{ form.reference_number }}
+                            {% if form.reference_number.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.reference_number.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_notes" class="form-label">Notes</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                        <div class="invalid-feedback d-block">{% for error in form.notes.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i> Save
+                        </button>
+                        <a href="{% url 'lot_tracking:traceability_list' %}" class="btn btn-light">
+                            <i class="ri-arrow-left-line align-middle me-1"></i> Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
