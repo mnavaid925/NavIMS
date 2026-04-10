@@ -147,7 +147,7 @@
                                 <td>{{ po.order_date|date:"M d, Y" }}</td>
                                 <td>{{ po.expected_delivery_date|date:"M d, Y"|default:"—" }}</td>
                                 <td class="text-end fw-medium">${{ po.grand_total|floatformat:2 }}</td>
-                                <td>{{ po.created_by.get_full_name|default:po.created_by.username|default:"—" }}</td>
+                                <td>{% if po.created_by %}{{ po.created_by.get_full_name|default:po.created_by.username }}{% else %}—{% endif %}</td>
                                 <td class="text-center">
                                     <div class="d-flex gap-1 justify-content-center">
                                         <a href="{% url 'purchase_orders:po_detail' po.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
