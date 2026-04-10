@@ -43,6 +43,7 @@ Here is the text extracted from the image:
 * Point at logs, errors, failing tests – then resolve them
 * Zero context switching required from the user
 * Go fix failing CI tests without being told how
+* Use the monitor tool 
 
 ---
 
