@@ -127,6 +127,28 @@ a:hover {
     transition: left var(--transition-speed) ease, background-color var(--transition-speed);
 }
 
+/* Topbar brand — hidden by default (sidebar shows the brand).
+   Shown on mobile where sidebar is off-canvas. */
+.navbar-brand-box {
+    display: none;
+}
+
+.navbar-brand-box .logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.navbar-brand-box .logo-sm {
+    display: none;
+}
+
+.navbar-brand-box .logo-lg {
+    display: inline;
+}
+
 .topbar-icon {
     width: 36px;
     height: 36px;
@@ -1882,6 +1904,12 @@ a:hover {
 
     .navbar-header {
         left: 0;
+    }
+
+    .navbar-brand-box {
+        display: flex;
+        align-items: center;
+        margin-right: 4px;
     }
 
     .main-content {
