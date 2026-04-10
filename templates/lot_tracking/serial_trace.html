@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Serial Traceability — {{ serial.serial_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Serial Traceability — <code>{{ serial.serial_number }}</code></h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Lot & Serial Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lot_tracking:serial_list' %}">Serials</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lot_tracking:serial_detail' serial.pk %}">{{ serial.serial_number }}</a></li>
+                    <li class="breadcrumb-item active">Trace</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Timeline -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Trace History</h5>
+            </div>
+            <div class="card-body">
+                {% for log in logs %}
+                <div class="d-flex mb-4 {% if not forloop.last %}border-bottom pb-4{% endif %}">
+                    <div class="flex-shrink-0 me-3">
+                        <div class="avatar-sm">
+                            {% if log.event_type == 'received' %}
+                            <span class="avatar-title bg-success-subtle text-success rounded-circle fs-5">
+                                <i class="ri-inbox-line"></i>
+                            </span>
+                            {% elif log.event_type == 'transferred' %}
+                            <span class="avatar-title bg-info-subtle text-info rounded-circle fs-5">
+                                <i class="ri-swap-line"></i>
+                            </span>
+                            {% elif log.event_type == 'adjusted' %}
+                            <span class="avatar-title bg-warning-subtle text-warning rounded-circle fs-5">
+                                <i class="ri-edit-line"></i>
+                            </span>
+                            {% elif log.event_type == 'sold' %}
+                            <span class="avatar-title bg-primary-subtle text-primary rounded-circle fs-5">
+                                <i class="ri-shopping-cart-line"></i>
+                            </span>
+                            {% elif log.event_type == 'returned' %}
+                            <span class="avatar-title bg-secondary-subtle text-secondary rounded-circle fs-5">
+                                <i class="ri-arrow-go-back-line"></i>
+                            </span>
+                            {% elif log.event_type == 'recalled' or log.event_type == 'scrapped' or log.event_type == 'expired' %}
+                            <span class="avatar-title bg-danger-subtle text-danger rounded-circle fs-5">
+                                <i class="ri-alarm-warning-line"></i>
+                            </span>
+                            {% else %}
+                            <span class="avatar-title bg-secondary-subtle text-secondary rounded-circle fs-5">
+                                <i class="ri-file-list-line"></i>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center mb-1">
+                            <code class="me-2">{{ log.log_number }}</code>
+                            {% if log.event_type == 'received' %}
+                                <span class="badge bg-success-subtle text-success">{{ log.get_event_type_display }}</span>
+                            {% elif log.event_type == 'transferred' %}
+                                <span class="badge bg-info-subtle text-info">{{ log.get_event_type_display }}</span>
+                            {% elif log.event_type == 'adjusted' %}
+                                <span class="badge bg-warning-subtle text-warning">{{ log.get_event_type_display }}</span>
+                            {% elif log.event_type == 'sold' %}
+                                <span class="badge bg-primary-subtle text-primary">{{ log.get_event_type_display }}</span>
+                            {% elif log.event_type == 'returned' %}
+                                <span class="badge bg-secondary-subtle text-secondary">{{ log.get_event_type_display }}</span>
+                            {% elif log.event_type == 'recalled' or log.event_type == 'scrapped' or log.event_type == 'expired' %}
+                                <span class="badge bg-danger-subtle text-danger">{{ log.get_event_type_display }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">{{ log.get_event_type_display }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="mb-1">
+                            {% if log.from_warehouse %}
+                                <span class="text-muted">From:</span> {{ log.from_warehouse.code }}
+                            {% endif %}
+                            {% if log.to_warehouse %}
+                                <span class="text-muted ms-2">To:</span> {{ log.to_warehouse.code }}
+                            {% endif %}
+                            {% if log.quantity %}
+                                <span class="text-muted ms-2">Qty:</span> {{ log.quantity }}
+                            {% endif %}
+                        </p>
+                        {% if log.reference_number %}
+                        <p class="mb-1">
+                            <span class="text-muted">Ref:</span> {{ log.reference_type|default:"" }} {{ log.reference_number }}
+                        </p>
+                        {% endif %}
+                        <p class="mb-0 text-muted fs-12">
+                            {% if log.performed_by %}
+                                <i class="ri-user-line me-1"></i> {{ log.performed_by.get_full_name|default:log.performed_by.username }} &middot;
+                            {% endif %}
+                            <i class="ri-time-line me-1"></i> {{ log.created_at|date:"M d, Y H:i" }}
+                        </p>
+                        {% if log.notes %}
+                        <p class="text-muted mb-0 mt-1 fst-italic">{{ log.notes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-4">
+                    <div class="text-muted">
+                        <i class="ri-route-line fs-24 d-block mb-2"></i>
+                        <p class="mb-0">No trace logs found for this serial number</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Serial Summary -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Serial Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 140px;">Serial Number</th>
+                                <td class="fw-medium"><code>{{ serial.serial_number }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Product</th>
+                                <td>{{ serial.product.name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Lot</th>
+                                <td>
+                                    {% if serial.lot %}
+                                        <a href="{% url 'lot_tracking:lot_detail' serial.lot.pk %}">{{ serial.lot.lot_number }}</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Status</th>
+                                <td>
+                                    {% if serial.status == 'active' %}
+                                        <span class="badge bg-success-subtle text-success">{{ serial.get_status_display }}</span>
+                                    {% elif serial.status == 'sold' %}
+                                        <span class="badge bg-primary-subtle text-primary">{{ serial.get_status_display }}</span>
+                                    {% elif serial.status == 'recalled' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ serial.get_status_display }}</span>
+                                    {% elif serial.status == 'scrapped' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ serial.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ serial.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Warehouse</th>
+                                <td>{% if serial.warehouse %}{{ serial.warehouse.code }} - {{ serial.warehouse.name }}{% else %}—{% endif %}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
