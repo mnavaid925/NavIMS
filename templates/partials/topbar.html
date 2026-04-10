@@ -14,20 +14,14 @@
                 </a>
             </div>
 
-            <button type="button" class="btn btn-sm px-3 fs-16 header-item vertical-menu-btn topnav-hamburger" id="topnav-hamburger-icon">
-                <span class="hamburger-icon"><span></span><span></span><span></span></span>
+            <button type="button" class="header-item" data-toggle="sidebar" id="topnav-hamburger-icon" style="border: none; background: none; cursor: pointer;">
+                <span class="hamburger-icon"><span></span></span>
             </button>
 
             <form class="app-search d-none d-md-flex">
                 <div class="position-relative">
                     <input type="text" class="form-control" placeholder="Search..." autocomplete="off" id="search-options">
-                    <span class="ri-search-line search-widget-icon"></span>
-                    <span class="ri-close-line search-widget-icon search-widget-icon-close d-none" id="search-close-options"></span>
-                </div>
-                <div class="dropdown-menu dropdown-menu-lg" id="search-dropdown">
-                    <div data-simplebar style="max-height: 320px;">
-                        <div class="notification-list"></div>
-                    </div>
+                    <i class="ri-search-line search-icon"></i>
                 </div>
             </form>
         </div>
