@@ -106,7 +106,7 @@
                                     </a>
                                 </td>
                                 <td>{{ comm.contact_person|default:"—" }}</td>
-                                <td>{{ comm.communicated_by.get_full_name|default:comm.communicated_by.username|default:"—" }}</td>
+                                <td>{% if comm.communicated_by %}{{ comm.communicated_by.get_full_name|default:comm.communicated_by.username }}{% else %}—{% endif %}</td>
                                 <td class="text-center">
                                     <div class="d-flex gap-1 justify-content-center">
                                         <a href="{% url 'vendors:communication_edit' comm.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
