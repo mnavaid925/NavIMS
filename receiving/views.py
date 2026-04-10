@@ -472,9 +472,12 @@ def match_detail_view(request, pk):
     po_items = po.items.all().select_related('product')
     grn_items = grn.items.all().select_related('po_item', 'product')
 
+    # Build lookup dict to avoid N+1 queries
+    grn_item_by_po = {item.po_item_id: item for item in grn_items}
+
     comparison = []
     for po_item in po_items:
-        grn_item = grn_items.filter(po_item=po_item).first()
+        grn_item = grn_item_by_po.get(po_item.pk)
         comparison.append({
             'product': po_item.product,
             'po_qty': po_item.quantity,
@@ -503,7 +506,7 @@ def match_resolve_view(request, pk):
         messages.warning(request, 'Only pending or discrepancy matches can be resolved.')
         return redirect('receiving:match_detail', pk=match.pk)
 
-    notes = request.POST.get('notes', '')
+    notes = request.POST.get('resolution_notes', '')
     match.status = 'resolved'
     match.resolved_by = request.user
     match.resolved_at = timezone.now()
