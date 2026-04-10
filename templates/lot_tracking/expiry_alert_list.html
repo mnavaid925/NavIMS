@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Expiry Alerts{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Expiry Alerts</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Lot & Serial Tracking</a></li>
+                    <li class="breadcrumb-item active">Expiry Alerts</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Alerts</h5>
+            </div>
+            <div class="card-body">
+                <!-- Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <form method="get" action="">
+                            <select class="form-select" name="type" onchange="this.form.submit()">
+                                <option value="">All Types</option>
+                                {% for value, label in type_choices %}
+                                <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if current_acknowledged %}<input type="hidden" name="acknowledged" value="{{ current_acknowledged }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="">
+                            <select class="form-select" name="acknowledged" onchange="this.form.submit()">
+                                <option value="">All</option>
+                                <option value="yes" {% if current_acknowledged == 'yes' %}selected{% endif %}>Acknowledged</option>
+                                <option value="no" {% if current_acknowledged == 'no' %}selected{% endif %}>Not Acknowledged</option>
+                            </select>
+                            {% if current_type %}<input type="hidden" name="type" value="{{ current_type }}">{% endif %}
+                        </form>
+                    </div>
+                    {% if current_type or current_acknowledged %}
+                    <div class="col-md-1">
+                        <a href="{% url 'lot_tracking:expiry_alert_list' %}" class="btn btn-light w-100" data-bs-toggle="tooltip" title="Clear Filters">
+                            <i class="ri-filter-off-line"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Lot</th>
+                                <th scope="col">Product</th>
+                                <th scope="col">Alert Type</th>
+                                <th scope="col">Alert Date</th>
+                                <th scope="col" class="text-center">Days Before Expiry</th>
+                                <th scope="col" class="text-center">Acknowledged</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in alerts %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'lot_tracking:lot_detail' alert.lot.pk %}" class="fw-medium text-primary">
+                                        <code>{{ alert.lot.lot_number }}</code>
+                                    </a>
+                                </td>
+                                <td>{{ alert.lot.product.name }}</td>
+                                <td>
+                                    {% if alert.alert_type == 'approaching' %}
+                                        <span class="badge bg-warning-subtle text-warning">{{ alert.get_alert_type_display }}</span>
+                                    {% elif alert.alert_type == 'expired' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ alert.get_alert_type_display }}</span>
+                                    {% elif alert.alert_type == 'recalled' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ alert.get_alert_type_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ alert.get_alert_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ alert.alert_date|date:"M d, Y" }}</td>
+                                <td class="text-center">{{ alert.days_before_expiry }}</td>
+                                <td class="text-center">
+                                    {% if alert.acknowledged %}
+                                        <span class="badge bg-success-subtle text-success">Yes</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger">No</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        {% if not alert.acknowledged %}
+                                        <a href="{% url 'lot_tracking:expiry_acknowledge' alert.pk %}" class="btn btn-sm btn-soft-success" data-bs-toggle="tooltip" title="Acknowledge">
+                                            <i class="ri-check-line"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-notification-off-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No expiry alerts found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if alerts.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Alert pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if alerts.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ alerts.previous_page_number }}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_acknowledged %}&acknowledged={{ current_acknowledged }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-left-s-line"></i></span></li>
+                            {% endif %}
+                            {% for num in alerts.paginator.page_range %}
+                            <li class="page-item {% if alerts.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_acknowledged %}&acknowledged={{ current_acknowledged }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            {% if alerts.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ alerts.next_page_number }}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_acknowledged %}&acknowledged={{ current_acknowledged }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-right-s-line"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
