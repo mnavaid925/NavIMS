@@ -527,7 +527,7 @@ a:hover {
 }
 
 .menu-title {
-    padding: 18px 20px 8px;
+    padding: 18px 16px 8px;
     font-size: 0.625rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -548,23 +548,23 @@ a:hover {
 
 .nav-item {
     list-style: none;
-    margin: 1px 8px;
+    margin: 1px 6px;
     padding: 0;
 }
 
 .menu-link {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
+    padding: 8px 10px;
     color: var(--sidebar-menu-color);
     font-size: 0.8125rem;
     font-weight: 500;
-    border-radius: 8px;
+    border-radius: 6px;
     transition: all var(--transition-speed);
     position: relative;
     white-space: nowrap;
     text-decoration: none;
-    gap: 10px;
+    gap: 8px;
 }
 
 .menu-link .menu-icon,
@@ -628,7 +628,7 @@ a:hover {
 .menu-link.active::before {
     content: '';
     position: absolute;
-    left: -8px;
+    left: -6px;
     top: 50%;
     transform: translateY(-50%);
     width: 3px;
@@ -654,7 +654,7 @@ a:hover {
 .sub-menu {
     list-style: none;
     padding: 0;
-    margin: 0 0 0 16px;
+    margin: 0 0 0 14px;
     overflow: hidden;
     max-height: 0;
     transition: max-height 0.3s ease;
@@ -666,7 +666,7 @@ a:hover {
 }
 
 .sub-menu .menu-link {
-    padding: 6px 12px 6px 18px;
+    padding: 6px 10px 6px 14px;
     font-size: 0.785rem;
     font-weight: 500;
     border-radius: 0 6px 6px 0;
@@ -847,7 +847,7 @@ a:hover {
 }
 
 [data-sidebar-size="compact"] .nav-item {
-    margin: 1px 4px;
+    margin: 1px 3px;
 }
 
 [data-sidebar-size="compact"] .menu-title {
@@ -894,7 +894,7 @@ a:hover {
 }
 
 [data-sidebar-size="small"] .nav-item {
-    margin: 1px 4px;
+    margin: 1px 3px;
 }
 
 [data-sidebar-size="small"] .menu-link {
