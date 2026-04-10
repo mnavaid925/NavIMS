@@ -107,7 +107,7 @@
                                 </td>
                                 <td class="text-end fw-medium">{{ adj.quantity }}</td>
                                 <td>{{ adj.get_reason_display }}</td>
-                                <td>{{ adj.adjusted_by.get_full_name|default:adj.adjusted_by.username|default:"—" }}</td>
+                                <td>{% if adj.adjusted_by %}{{ adj.adjusted_by.get_full_name|default:adj.adjusted_by.username }}{% else %}—{% endif %}</td>
                                 <td>{{ adj.created_at|date:"M d, Y" }}</td>
                                 <td class="text-center">
                                     <a href="{% url 'inventory:stock_adjustment_detail' adj.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
