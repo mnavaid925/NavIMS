@@ -149,25 +149,10 @@ a:hover {
     display: inline;
 }
 
-.topbar-icon {
-    width: 36px;
-    height: 36px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    color: var(--topbar-color);
-    transition: all var(--transition-speed);
-}
-
-.topbar-icon:hover {
-    background-color: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary);
-}
-
-.hamburger-icon {
-    width: 36px;
-    height: 36px;
+/* Hamburger toggle button */
+.topbar-hamburger {
+    width: 40px;
+    height: 40px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -178,11 +163,20 @@ a:hover {
     background: none;
     border: none;
     padding: 0;
+    flex-shrink: 0;
 }
 
-.hamburger-icon:hover {
+.topbar-hamburger:hover {
     background-color: rgba(var(--primary-rgb), 0.1);
     color: var(--primary);
+}
+
+.hamburger-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
 }
 
 .hamburger-icon span {
@@ -218,7 +212,7 @@ a:hover {
     display: flex;
     align-items: center;
     height: var(--topbar-height);
-    padding: 0 8px;
+    padding: 0 4px;
 }
 
 .btn-icon {
@@ -278,6 +272,7 @@ a:hover {
 .app-search {
     position: relative;
     max-width: 320px;
+    margin-left: 8px;
 }
 
 .app-search .form-control {
@@ -376,7 +371,7 @@ a:hover {
 }
 
 [data-topbar="dark"] .topbar-icon,
-[data-topbar="dark"] .hamburger-icon,
+[data-topbar="dark"] .topbar-hamburger,
 [data-topbar="dark"] .btn-icon,
 [data-topbar="dark"] .btn-topbar {
     color: #cbd5e1;
@@ -394,14 +389,14 @@ a:hover {
 }
 
 [data-topbar="colored"] .topbar-icon,
-[data-topbar="colored"] .hamburger-icon,
+[data-topbar="colored"] .topbar-hamburger,
 [data-topbar="colored"] .btn-icon,
 [data-topbar="colored"] .btn-topbar {
     color: rgba(255, 255, 255, 0.85);
 }
 
 [data-topbar="colored"] .topbar-icon:hover,
-[data-topbar="colored"] .hamburger-icon:hover,
+[data-topbar="colored"] .topbar-hamburger:hover,
 [data-topbar="colored"] .btn-icon:hover,
 [data-topbar="colored"] .btn-topbar:hover {
     background-color: rgba(255, 255, 255, 0.15);
