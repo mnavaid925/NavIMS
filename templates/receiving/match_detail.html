@@ -77,7 +77,7 @@
                             </tr>
                             <tr>
                                 <th class="text-muted">Created By</th>
-                                <td>{{ match.created_by.get_full_name|default:match.created_by.username|default:"--" }}</td>
+                                <td>{% if match.created_by %}{{ match.created_by.get_full_name|default:match.created_by.username }}{% else %}--{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Created</th>
