@@ -527,7 +527,7 @@ a:hover {
 }
 
 .menu-title {
-    padding: 18px 16px 8px;
+    padding: 16px 14px 6px;
     font-size: 0.625rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -548,18 +548,18 @@ a:hover {
 
 .nav-item {
     list-style: none;
-    margin: 1px 6px;
+    margin: 1px 0;
     padding: 0;
 }
 
 .menu-link {
     display: flex;
     align-items: center;
-    padding: 8px 10px;
+    padding: 8px 14px;
     color: var(--sidebar-menu-color);
     font-size: 0.8125rem;
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: 0;
     transition: all var(--transition-speed);
     position: relative;
     white-space: nowrap;
@@ -628,7 +628,7 @@ a:hover {
 .menu-link.active::before {
     content: '';
     position: absolute;
-    left: -6px;
+    left: 0;
     top: 50%;
     transform: translateY(-50%);
     width: 3px;
@@ -654,7 +654,7 @@ a:hover {
 .sub-menu {
     list-style: none;
     padding: 0;
-    margin: 0 0 0 14px;
+    margin: 0 0 0 26px;
     overflow: hidden;
     max-height: 0;
     transition: max-height 0.3s ease;
@@ -666,21 +666,21 @@ a:hover {
 }
 
 .sub-menu .menu-link {
-    padding: 6px 10px 6px 14px;
+    padding: 6px 14px 6px 12px;
     font-size: 0.785rem;
     font-weight: 500;
-    border-radius: 0 6px 6px 0;
+    border-radius: 0;
     color: rgba(148, 163, 184, 0.75);
 }
 
 .sub-menu .menu-link::before {
     content: '';
-    width: 4px;
-    height: 4px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
     background-color: rgba(148, 163, 184, 0.3);
     position: absolute;
-    left: -2px;
+    left: -3px;
     top: 50%;
     transform: translateY(-50%);
     transition: all var(--transition-speed);
@@ -688,16 +688,12 @@ a:hover {
 
 .sub-menu .menu-link:hover {
     color: var(--sidebar-menu-active-color);
-    background-color: rgba(var(--primary-rgb), 0.06);
 }
 
 .sub-menu .menu-link:hover::before,
 .sub-menu .menu-link.active::before {
     background-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
-    width: 5px;
-    height: 5px;
-    left: -3px;
 }
 
 .sub-menu .menu-link.active {
@@ -847,7 +843,7 @@ a:hover {
 }
 
 [data-sidebar-size="compact"] .nav-item {
-    margin: 1px 3px;
+    margin: 1px 0;
 }
 
 [data-sidebar-size="compact"] .menu-title {
@@ -894,7 +890,7 @@ a:hover {
 }
 
 [data-sidebar-size="small"] .nav-item {
-    margin: 1px 3px;
+    margin: 1px 0;
 }
 
 [data-sidebar-size="small"] .menu-link {
@@ -928,7 +924,7 @@ a:hover {
 [data-sidebar-size="small"] .nav-item.active > .menu-link::before,
 [data-sidebar-size="small"] .menu-link.active::before {
     height: 100%;
-    left: -4px;
+    left: 0;
 }
 
 /* Sidebar Size: Hover (70px expanding on hover) */
