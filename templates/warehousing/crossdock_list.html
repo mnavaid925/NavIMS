@@ -135,7 +135,7 @@
                                 </td>
                                 <td>{{ order.scheduled_arrival|date:"M d, Y H:i"|default:"—" }}</td>
                                 <td>{{ order.dock_door|default:"—" }}</td>
-                                <td>{{ order.created_by.get_full_name|default:order.created_by.username|default:"—" }}</td>
+                                <td>{% if order.created_by %}{{ order.created_by.get_full_name|default:order.created_by.username }}{% else %}—{% endif %}</td>
                                 <td class="text-center">
                                     <div class="d-flex gap-1 justify-content-center">
                                         <a href="{% url 'warehousing:crossdock_detail' order.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
