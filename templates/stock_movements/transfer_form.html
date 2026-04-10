@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Stock Movements</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stock_movements:transfer_list' %}">Transfers</a></li>
+                    <li class="breadcrumb-item active">{% if transfer %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Transfer Details -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Transfer Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_transfer_type" class="form-label">Transfer Type <span class="text-danger">*</span></label>
+                            {{ form.transfer_type }}
+                            {% if form.transfer_type.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.transfer_type.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_priority" class="form-label">Priority</label>
+                            {{ form.priority }}
+                            {% if form.priority.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.priority.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_source_warehouse" class="form-label">Source Warehouse <span class="text-danger">*</span></label>
+                            {{ form.source_warehouse }}
+                            {% if form.source_warehouse.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.source_warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3" id="dest-warehouse-group">
+                            <label for="id_destination_warehouse" class="form-label">Destination Warehouse</label>
+                            {{ form.destination_warehouse }}
+                            {% if form.destination_warehouse.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.destination_warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row" id="bin-group">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_source_bin" class="form-label">Source Bin</label>
+                            {{ form.source_bin }}
+                            {% if form.source_bin.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.source_bin.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_destination_bin" class="form-label">Destination Bin</label>
+                            {{ form.destination_bin }}
+                            {% if form.destination_bin.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.destination_bin.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.notes.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transfer Items -->
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <h5 class="card-title mb-0 flex-grow-1">Transfer Items</h5>
+                    <div class="flex-shrink-0">
+                        <button type="button" class="btn btn-soft-primary btn-sm" id="add-item-btn">
+                            <i class="ri-add-line align-middle me-1"></i> Add Item
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-borderless align-middle mb-0" id="items-table">
+                            <thead class="text-muted table-light">
+                                <tr>
+                                    <th scope="col" style="width: 45%;">Product</th>
+                                    <th scope="col" style="width: 20%;">Quantity</th>
+                                    <th scope="col" style="width: 25%;">Notes</th>
+                                    <th scope="col" style="width: 10%;" class="text-center">Remove</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-body">
+                                {% if items %}
+                                    {% for item in items %}
+                                    <tr class="item-row">
+                                        <td>
+                                            <select name="item_product" class="form-select" required>
+                                                <option value="">— Select Product —</option>
+                                                {% for p in item_form.fields.product.queryset %}
+                                                <option value="{{ p.pk }}" {% if p.pk == item.product_id %}selected{% endif %}>{{ p.sku }} - {{ p.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
+                                        <td><input type="number" name="item_quantity" class="form-control" min="1" value="{{ item.quantity }}" required></td>
+                                        <td><input type="text" name="item_notes" class="form-control" value="{{ item.notes }}"></td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-soft-danger remove-item-btn"><i class="ri-delete-bin-line"></i></button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr class="item-row">
+                                        <td>
+                                            <select name="item_product" class="form-select" required>
+                                                <option value="">— Select Product —</option>
+                                                {% for p in item_form.fields.product.queryset %}
+                                                <option value="{{ p.pk }}">{{ p.sku }} - {{ p.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
+                                        <td><input type="number" name="item_quantity" class="form-control" min="1" value="1" required></td>
+                                        <td><input type="text" name="item_notes" class="form-control" placeholder="Notes"></td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-soft-danger remove-item-btn"><i class="ri-delete-bin-line"></i></button>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if transfer %}Update Transfer{% else %}Create Transfer{% endif %}
+                        </button>
+                        <a href="{% url 'stock_movements:transfer_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if transfer %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Transfer Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Number:</strong> <code>{{ transfer.transfer_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong>
+                        {% if transfer.status == 'draft' %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ transfer.get_status_display }}</span>
+                        {% elif transfer.status == 'pending_approval' %}
+                            <span class="badge bg-warning-subtle text-warning">{{ transfer.get_status_display }}</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0"><strong>Created:</strong> {{ transfer.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add item row
+    document.getElementById('add-item-btn').addEventListener('click', function() {
+        var tbody = document.getElementById('items-body');
+        var firstRow = tbody.querySelector('.item-row');
+        var newRow = firstRow.cloneNode(true);
+        // Reset values
+        newRow.querySelector('select[name="item_product"]').value = '';
+        newRow.querySelector('input[name="item_quantity"]').value = '1';
+        newRow.querySelector('input[name="item_notes"]').value = '';
+        tbody.appendChild(newRow);
+        attachRemoveHandlers();
+    });
+
+    function attachRemoveHandlers() {
+        document.querySelectorAll('.remove-item-btn').forEach(function(btn) {
+            btn.onclick = function() {
+                var rows = document.querySelectorAll('.item-row');
+                if (rows.length > 1) {
+                    this.closest('.item-row').remove();
+                }
+            };
+        });
+    }
+    attachRemoveHandlers();
+});
+</script>
+{% endblock %}
