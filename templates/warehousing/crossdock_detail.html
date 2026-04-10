@@ -145,7 +145,7 @@
                             {% endif %}
                             <tr>
                                 <th class="text-muted">Created By</th>
-                                <td>{{ order.created_by.get_full_name|default:order.created_by.username|default:"—" }}</td>
+                                <td>{% if order.created_by %}{{ order.created_by.get_full_name|default:order.created_by.username }}{% else %}—{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Created</th>
