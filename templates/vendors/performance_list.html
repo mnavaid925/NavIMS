@@ -86,7 +86,7 @@
                                 <td><strong>{{ perf.overall_score }}/5</strong></td>
                                 <td>{{ perf.on_time_delivery_rate }}%</td>
                                 <td>{{ perf.defect_rate }}%</td>
-                                <td>{{ perf.reviewed_by.get_full_name|default:perf.reviewed_by.username|default:"—" }}</td>
+                                <td>{% if perf.reviewed_by %}{{ perf.reviewed_by.get_full_name|default:perf.reviewed_by.username }}{% else %}—{% endif %}</td>
                                 <td class="text-center">
                                     <div class="d-flex gap-1 justify-content-center">
                                         <a href="{% url 'vendors:performance_edit' perf.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
