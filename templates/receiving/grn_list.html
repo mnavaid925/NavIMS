@@ -141,7 +141,7 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ grn.received_date|date:"M d, Y" }}</td>
-                                <td>{{ grn.received_by.get_full_name|default:grn.received_by.username|default:"—" }}</td>
+                                <td>{% if grn.received_by %}{{ grn.received_by.get_full_name|default:grn.received_by.username }}{% else %}—{% endif %}</td>
                                 <td class="text-center">
                                     <div class="d-flex gap-1 justify-content-center">
                                         <a href="{% url 'receiving:grn_detail' grn.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
