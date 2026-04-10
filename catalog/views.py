@@ -21,8 +21,17 @@ from .forms import (
 @login_required
 def category_list_view(request):
     tenant = request.tenant
-    queryset = Category.objects.filter(tenant=tenant).annotate(
-        product_count=Count('products'),
+    queryset = Category.objects.filter(tenant=tenant).select_related(
+        'parent__parent',
+    ).annotate(
+        # Count products in this category + child categories + grandchild categories
+        product_count=Count(
+            'products', distinct=True,
+        ) + Count(
+            'children__products', distinct=True,
+        ) + Count(
+            'children__children__products', distinct=True,
+        ),
     )
 
     # Search
@@ -121,6 +130,27 @@ def category_delete_view(request, pk):
         return redirect('catalog:category_list')
 
     category = get_object_or_404(Category, pk=pk, tenant=tenant)
+
+    # Prevent deletion if category has children
+    child_count = Category.objects.filter(tenant=tenant, parent=category).count()
+    if child_count > 0:
+        messages.error(
+            request,
+            f'Cannot delete "{category.name}" — it has {child_count} child '
+            f'categor{"ies" if child_count != 1 else "y"}. Delete or reassign them first.',
+        )
+        return redirect('catalog:category_detail', pk=category.pk)
+
+    # Prevent deletion if category has products
+    product_count = Product.objects.filter(tenant=tenant, category=category).count()
+    if product_count > 0:
+        messages.error(
+            request,
+            f'Cannot delete "{category.name}" — it has {product_count} '
+            f'product{"s" if product_count != 1 else ""}. Reassign them first.',
+        )
+        return redirect('catalog:category_detail', pk=category.pk)
+
     category_name = category.name
     category.delete()
     messages.success(request, f'Category "{category_name}" deleted successfully.')
@@ -143,9 +173,10 @@ def product_list_view(request):
             Q(name__icontains=q) | Q(sku__icontains=q) | Q(barcode__icontains=q)
         )
 
-    # Filter by status
+    # Filter by status (validate against known choices)
     status = request.GET.get('status', '')
-    if status:
+    valid_statuses = [choice[0] for choice in Product.STATUS_CHOICES]
+    if status and status in valid_statuses:
         queryset = queryset.filter(status=status)
 
     # Filter by category
@@ -161,7 +192,7 @@ def product_list_view(request):
         'products': products,
         'q': q,
         'status_choices': Product.STATUS_CHOICES,
-        'categories': Category.objects.filter(tenant=tenant, is_active=True),
+        'categories': Category.objects.filter(tenant=tenant, is_active=True).select_related('parent__parent'),
         'current_status': status,
         'current_category': category_id,
     }
@@ -287,6 +318,10 @@ def product_image_upload_view(request, pk):
             image.product = product
             image.save()
             messages.success(request, 'Image uploaded successfully.')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'Image upload error: {error}')
 
     return redirect('catalog:product_detail', pk=product.pk)
 
@@ -322,6 +357,10 @@ def product_document_upload_view(request, pk):
             doc.product = product
             doc.save()
             messages.success(request, 'Document uploaded successfully.')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'Document upload error: {error}')
 
     return redirect('catalog:product_detail', pk=product.pk)
 
