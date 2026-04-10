@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Lot & Serial Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lot_tracking:serial_list' %}">Serials</a></li>
+                    <li class="breadcrumb-item active">{% if serial %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Serial Details -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Serial Number Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="id_serial_number" class="form-label">Serial Number <span class="text-danger">*</span></label>
+                            {{ form.serial_number }}
+                            {% if form.serial_number.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.serial_number.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_product" class="form-label">Product <span class="text-danger">*</span></label>
+                            {{ form.product }}
+                            {% if form.product.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.product.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_lot" class="form-label">Lot / Batch</label>
+                            {{ form.lot }}
+                            {% if form.lot.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.lot.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_warehouse" class="form-label">Warehouse</label>
+                            {{ form.warehouse }}
+                            {% if form.warehouse.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_purchase_date" class="form-label">Purchase Date</label>
+                            {{ form.purchase_date }}
+                            {% if form.purchase_date.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.purchase_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_warranty_expiry" class="form-label">Warranty Expiry</label>
+                            {{ form.warranty_expiry }}
+                            {% if form.warranty_expiry.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.warranty_expiry.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.notes.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if serial %}Update Serial{% else %}Register Serial{% endif %}
+                        </button>
+                        <a href="{% url 'lot_tracking:serial_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if serial %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Serial Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Serial:</strong> <code>{{ serial.serial_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong>
+                        {% if serial.status == 'available' %}
+                            <span class="badge bg-success-subtle text-success">{{ serial.get_status_display }}</span>
+                        {% elif serial.status == 'allocated' %}
+                            <span class="badge bg-warning-subtle text-warning">{{ serial.get_status_display }}</span>
+                        {% elif serial.status == 'sold' %}
+                            <span class="badge bg-info-subtle text-info">{{ serial.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ serial.get_status_display }}</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0"><strong>Created:</strong> {{ serial.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
