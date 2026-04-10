@@ -129,7 +129,7 @@
                             {% endif %}
                             <tr>
                                 <th class="text-muted">Created By</th>
-                                <td>{{ po.created_by.get_full_name|default:po.created_by.username|default:"—" }}</td>
+                                <td>{% if po.created_by %}{{ po.created_by.get_full_name|default:po.created_by.username }}{% else %}—{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Created</th>
@@ -258,7 +258,7 @@
                                         —
                                     {% endif %}
                                 </td>
-                                <td>{{ dispatch.sent_by.get_full_name|default:dispatch.sent_by.username|default:"—" }}</td>
+                                <td>{% if dispatch.sent_by %}{{ dispatch.sent_by.get_full_name|default:dispatch.sent_by.username }}{% else %}—{% endif %}</td>
                                 <td>{{ dispatch.notes|default:"—" }}</td>
                             </tr>
                             {% endfor %}
@@ -294,7 +294,7 @@
                         <tbody>
                             {% for approval in approvals %}
                             <tr>
-                                <td class="fw-medium">{{ approval.approver.get_full_name|default:approval.approver.username }}</td>
+                                <td class="fw-medium">{% if approval.approver %}{{ approval.approver.get_full_name|default:approval.approver.username }}{% else %}—{% endif %}</td>
                                 <td>
                                     {% if approval.decision == 'approved' %}
                                         <span class="badge bg-success-subtle text-success">Approved</span>
