@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'warehousing',
     'inventory',
     'stock_movements',
+    'lot_tracking',
 ]
 
 MIDDLEWARE = [
