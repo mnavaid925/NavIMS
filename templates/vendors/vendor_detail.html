@@ -199,7 +199,7 @@
                                 <td><strong>{{ perf.overall_score }}/5</strong></td>
                                 <td>{{ perf.on_time_delivery_rate }}%</td>
                                 <td>{{ perf.defect_rate }}%</td>
-                                <td>{{ perf.reviewed_by.get_full_name|default:perf.reviewed_by.username|default:"—" }}</td>
+                                <td>{% if perf.reviewed_by %}{{ perf.reviewed_by.get_full_name|default:perf.reviewed_by.username }}{% else %}—{% endif %}</td>
                                 <td class="text-center">
                                     <form method="post" action="{% url 'vendors:vendor_performance_delete' vendor.pk perf.pk %}" class="d-inline" onsubmit="return confirm('Delete this performance review?');">
                                         {% csrf_token %}
@@ -424,7 +424,7 @@
                                 </td>
                                 <td class="fw-medium">{{ comm.subject }}</td>
                                 <td>{{ comm.contact_person|default:"—" }}</td>
-                                <td>{{ comm.communicated_by.get_full_name|default:comm.communicated_by.username|default:"—" }}</td>
+                                <td>{% if comm.communicated_by %}{{ comm.communicated_by.get_full_name|default:comm.communicated_by.username }}{% else %}—{% endif %}</td>
                                 <td class="text-center">
                                     <form method="post" action="{% url 'vendors:vendor_communication_delete' vendor.pk comm.pk %}" class="d-inline" onsubmit="return confirm('Delete this communication entry?');">
                                         {% csrf_token %}
