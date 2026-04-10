@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Lot & Serial Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lot_tracking:lot_list' %}">Lots</a></li>
+                    <li class="breadcrumb-item active">{% if lot %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Lot Details -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Lot Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_product" class="form-label">Product <span class="text-danger">*</span></label>
+                            {{ form.product }}
+                            {% if form.product.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.product.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_warehouse" class="form-label">Warehouse <span class="text-danger">*</span></label>
+                            {{ form.warehouse }}
+                            {% if form.warehouse.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_grn" class="form-label">Goods Receipt Note</label>
+                            {{ form.grn }}
+                            {% if form.grn.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.grn.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                            {{ form.quantity }}
+                            {% if form.quantity.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.quantity.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_manufacturing_date" class="form-label">Manufacturing Date</label>
+                            {{ form.manufacturing_date }}
+                            {% if form.manufacturing_date.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.manufacturing_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_expiry_date" class="form-label">Expiry Date</label>
+                            {{ form.expiry_date }}
+                            {% if form.expiry_date.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.expiry_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_supplier_batch_number" class="form-label">Supplier Batch Number</label>
+                            {{ form.supplier_batch_number }}
+                            {% if form.supplier_batch_number.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.supplier_batch_number.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.notes.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if lot %}Update Lot{% else %}Create Lot{% endif %}
+                        </button>
+                        <a href="{% url 'lot_tracking:lot_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if lot %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Lot Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Number:</strong> <code>{{ lot.lot_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong>
+                        {% if lot.status == 'active' %}
+                            <span class="badge bg-success-subtle text-success">{{ lot.get_status_display }}</span>
+                        {% elif lot.status == 'quarantine' %}
+                            <span class="badge bg-warning-subtle text-warning">{{ lot.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ lot.get_status_display }}</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0"><strong>Created:</strong> {{ lot.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
