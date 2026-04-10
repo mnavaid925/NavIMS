@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Approve Transfer: {{ transfer.transfer_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Review & Approve Transfer</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Stock Movements</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stock_movements:pending_approval_list' %}">Pending Approvals</a></li>
+                    <li class="breadcrumb-item active">{{ transfer.transfer_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Transfer Summary -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Transfer Summary — <code>{{ transfer.transfer_number }}</code></h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Type</th>
+                                <td>{{ transfer.get_transfer_type_display }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Priority</th>
+                                <td>
+                                    {% if transfer.priority == 'urgent' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ transfer.get_priority_display }}</span>
+                                    {% elif transfer.priority == 'high' %}
+                                        <span class="badge bg-warning-subtle text-warning">{{ transfer.get_priority_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info">{{ transfer.get_priority_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Source</th>
+                                <td>{{ transfer.source_warehouse.code }} - {{ transfer.source_warehouse.name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Destination</th>
+                                <td>{{ transfer.destination_warehouse.code|default:"Same warehouse" }} {% if transfer.destination_warehouse %}- {{ transfer.destination_warehouse.name }}{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Requested By</th>
+                                <td>{{ transfer.requested_by.get_full_name|default:transfer.requested_by.username }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Date</th>
+                                <td>{{ transfer.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            {% if transfer.notes %}
+                            <tr>
+                                <th class="text-muted">Notes</th>
+                                <td>{{ transfer.notes }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transfer Items -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Transfer Items ({{ items.count }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Product</th>
+                                <th scope="col">SKU</th>
+                                <th scope="col" class="text-end">Quantity</th>
+                                <th scope="col">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td class="fw-medium">{{ item.product.name }}</td>
+                                <td><code>{{ item.product.sku }}</code></td>
+                                <td class="text-end">{{ item.quantity }}</td>
+                                <td>{{ item.notes|default:"—" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Decision -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Your Decision</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_decision" class="form-label">Decision <span class="text-danger">*</span></label>
+                        {{ form.decision }}
+                        {% if form.decision.errors %}
+                        <div class="invalid-feedback d-block">{% for error in form.decision.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_comments" class="form-label">Comments</label>
+                        {{ form.comments }}
+                        {% if form.comments.errors %}
+                        <div class="invalid-feedback d-block">{% for error in form.comments.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" onclick="return confirm('Submit your decision?');">
+                            <i class="ri-check-line align-middle me-1"></i> Submit Decision
+                        </button>
+                        <a href="{% url 'stock_movements:pending_approval_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
