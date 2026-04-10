@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Receive Transfer: {{ transfer.transfer_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Receive Transfer Items</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Stock Movements</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stock_movements:transfer_list' %}">Transfers</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stock_movements:transfer_detail' transfer.pk %}">{{ transfer.transfer_number }}</a></li>
+                    <li class="breadcrumb-item active">Receive</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Items to Receive — <code>{{ transfer.transfer_number }}</code></h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-borderless table-centered align-middle mb-0">
+                            <thead class="text-muted table-light">
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Product</th>
+                                    <th scope="col">SKU</th>
+                                    <th scope="col" class="text-end">Expected</th>
+                                    <th scope="col" class="text-end">Previously Received</th>
+                                    <th scope="col" style="width: 150px;">Received Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td class="fw-medium">{{ item.product.name }}</td>
+                                    <td><code>{{ item.product.sku }}</code></td>
+                                    <td class="text-end">{{ item.quantity }}</td>
+                                    <td class="text-end">{{ item.received_quantity }}</td>
+                                    <td>
+                                        <input type="number" name="received_qty_{{ item.pk }}" class="form-control form-control-sm"
+                                            min="0" max="{{ item.quantity }}" value="{{ item.received_quantity }}">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-inbox-archive-line align-middle me-1"></i> Update Received Quantities
+                        </button>
+                        <a href="{% url 'stock_movements:transfer_detail' transfer.pk %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Transfer Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Number:</strong> <code>{{ transfer.transfer_number }}</code></p>
+                    <p class="mb-1"><strong>From:</strong> {{ transfer.source_warehouse.code }}</p>
+                    <p class="mb-1"><strong>To:</strong> {{ transfer.destination_warehouse.code|default:transfer.source_warehouse.code }}</p>
+                    <p class="mb-0"><strong>Status:</strong> <span class="badge bg-info-subtle text-info">{{ transfer.get_status_display }}</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
