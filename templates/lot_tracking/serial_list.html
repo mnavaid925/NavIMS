@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Serial Numbers{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Serial Numbers</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Lot & Serial Tracking</a></li>
+                    <li class="breadcrumb-item active">Serials</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Serial Numbers</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'lot_tracking:serial_create' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-add-line align-middle me-1"></i> Register Serial
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search serial #, product...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                            {% if current_warehouse %}<input type="hidden" name="warehouse" value="{{ current_warehouse }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" action="">
+                            <select class="form-select" name="status" onchange="this.form.submit()">
+                                <option value="">All Statuses</option>
+                                {% for value, label in status_choices %}
+                                <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_warehouse %}<input type="hidden" name="warehouse" value="{{ current_warehouse }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" action="">
+                            <select class="form-select" name="warehouse" onchange="this.form.submit()">
+                                <option value="">All Warehouses</option>
+                                {% for wh in warehouses %}
+                                <option value="{{ wh.pk }}" {% if current_warehouse == wh.pk|stringformat:"d" %}selected{% endif %}>{{ wh.code }} - {{ wh.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                            {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                        </form>
+                    </div>
+                    {% if q or current_status or current_warehouse %}
+                    <div class="col-md-1">
+                        <a href="{% url 'lot_tracking:serial_list' %}" class="btn btn-light w-100" data-bs-toggle="tooltip" title="Clear Filters">
+                            <i class="ri-filter-off-line"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Serial Number</th>
+                                <th scope="col">Product</th>
+                                <th scope="col">Lot</th>
+                                <th scope="col">Warehouse</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Warranty</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sn in serials %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'lot_tracking:serial_detail' sn.pk %}" class="fw-medium text-primary">
+                                        <code>{{ sn.serial_number }}</code>
+                                    </a>
+                                </td>
+                                <td>{{ sn.product.name }}</td>
+                                <td>
+                                    {% if sn.lot %}
+                                        <a href="{% url 'lot_tracking:lot_detail' sn.lot.pk %}" class="text-primary"><code>{{ sn.lot.lot_number }}</code></a>
+                                    {% else %}
+                                        <span class="text-muted">&mdash;</span>
+                                    {% endif %}
+                                </td>
+                                <td>{% if sn.warehouse %}{{ sn.warehouse.code }}{% else %}&mdash;{% endif %}</td>
+                                <td>
+                                    {% if sn.status == 'available' %}
+                                        <span class="badge bg-success-subtle text-success">{{ sn.get_status_display }}</span>
+                                    {% elif sn.status == 'allocated' %}
+                                        <span class="badge bg-warning-subtle text-warning">{{ sn.get_status_display }}</span>
+                                    {% elif sn.status == 'sold' %}
+                                        <span class="badge bg-info-subtle text-info">{{ sn.get_status_display }}</span>
+                                    {% elif sn.status == 'returned' %}
+                                        <span class="badge bg-primary-subtle text-primary">{{ sn.get_status_display }}</span>
+                                    {% elif sn.status == 'damaged' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ sn.get_status_display }}</span>
+                                    {% elif sn.status == 'scrapped' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ sn.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ sn.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sn.warranty_expiry %}
+                                        {{ sn.warranty_expiry|date:"M d, Y" }}
+                                        {% if sn.is_warranty_expired %}
+                                            <span class="badge bg-danger-subtle text-danger ms-1">Expired</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">&mdash;</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'lot_tracking:serial_detail' sn.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        <a href="{% url 'lot_tracking:serial_edit' sn.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        {% if sn.status == 'available' %}
+                                        <form method="post" action="{% url 'lot_tracking:serial_delete' sn.pk %}" class="d-inline" onsubmit="return confirm('Delete this serial number?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-barcode-box-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No serial numbers found</p>
+                                        <a href="{% url 'lot_tracking:serial_create' %}" class="btn btn-sm btn-primary mt-2">Register First Serial</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if serials.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Serial pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if serials.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ serials.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_warehouse %}&warehouse={{ current_warehouse }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-left-s-line"></i></span></li>
+                            {% endif %}
+                            {% for num in serials.paginator.page_range %}
+                            <li class="page-item {% if serials.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_warehouse %}&warehouse={{ current_warehouse }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            {% if serials.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ serials.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_warehouse %}&warehouse={{ current_warehouse }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-right-s-line"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
