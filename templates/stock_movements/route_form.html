@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Stock Movements</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stock_movements:route_list' %}">Routes</a></li>
+                    <li class="breadcrumb-item active">{% if route %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Route Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="id_name" class="form-label">Route Name <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.name.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_source_warehouse" class="form-label">Source Warehouse <span class="text-danger">*</span></label>
+                            {{ form.source_warehouse }}
+                            {% if form.source_warehouse.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.source_warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_destination_warehouse" class="form-label">Destination Warehouse <span class="text-danger">*</span></label>
+                            {{ form.destination_warehouse }}
+                            {% if form.destination_warehouse.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.destination_warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_transit_method" class="form-label">Transit Method <span class="text-danger">*</span></label>
+                            {{ form.transit_method }}
+                            {% if form.transit_method.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.transit_method.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_estimated_duration_hours" class="form-label">Duration (hours) <span class="text-danger">*</span></label>
+                            {{ form.estimated_duration_hours }}
+                            {% if form.estimated_duration_hours.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.estimated_duration_hours.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_distance_km" class="form-label">Distance (km)</label>
+                            {{ form.distance_km }}
+                            {% if form.distance_km.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.distance_km.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="id_instructions" class="form-label">Instructions</label>
+                            {{ form.instructions }}
+                            {% if form.instructions.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.instructions.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check form-switch">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="id_is_active">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if route %}Update Route{% else %}Create Route{% endif %}
+                        </button>
+                        <a href="{% url 'stock_movements:route_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if route %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Route Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Name:</strong> {{ route.name }}</p>
+                    <p class="mb-1"><strong>Status:</strong>
+                        {% if route.is_active %}
+                            <span class="badge bg-success-subtle text-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger">Inactive</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0"><strong>Created:</strong> {{ route.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
