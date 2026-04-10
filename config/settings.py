@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'receiving',
     'warehousing',
     'inventory',
+    'stock_movements',
 ]
 
 MIDDLEWARE = [
