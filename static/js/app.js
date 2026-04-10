@@ -234,7 +234,7 @@
 
     Sidebar.prototype._bindToggleButtons = function () {
         var self = this;
-        var toggleBtns = document.querySelectorAll("[data-toggle='sidebar'], .hamburger-icon");
+        var toggleBtns = document.querySelectorAll("[data-toggle='sidebar'], .topbar-hamburger");
         toggleBtns.forEach(function (btn) {
             btn.addEventListener("click", function (e) {
                 e.preventDefault();
