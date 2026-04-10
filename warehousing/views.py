@@ -116,6 +116,16 @@ def warehouse_delete_view(request, pk):
         return redirect('warehousing:warehouse_list')
 
     warehouse = get_object_or_404(Warehouse, pk=pk, tenant=tenant)
+
+    zone_count = warehouse.zones.count()
+    if zone_count > 0:
+        messages.error(
+            request,
+            f'Cannot delete "{warehouse.name}" — it has {zone_count} zone{"s" if zone_count != 1 else ""}. '
+            f'Delete or reassign them first.',
+        )
+        return redirect('warehousing:warehouse_detail', pk=warehouse.pk)
+
     name = warehouse.name
     warehouse.delete()
     messages.success(request, f'Warehouse "{name}" deleted successfully.')
@@ -249,6 +259,22 @@ def zone_delete_view(request, pk):
         return redirect('warehousing:zone_list')
 
     zone = get_object_or_404(Zone, pk=pk, tenant=tenant)
+
+    aisle_count = zone.aisles.count()
+    bin_count = zone.bins.count()
+    if aisle_count > 0 or bin_count > 0:
+        parts = []
+        if aisle_count > 0:
+            parts.append(f'{aisle_count} aisle{"s" if aisle_count != 1 else ""}')
+        if bin_count > 0:
+            parts.append(f'{bin_count} bin{"s" if bin_count != 1 else ""}')
+        messages.error(
+            request,
+            f'Cannot delete "{zone.name}" — it has {" and ".join(parts)}. '
+            f'Delete or reassign them first.',
+        )
+        return redirect('warehousing:zone_detail', pk=zone.pk)
+
     name = zone.name
     zone.delete()
     messages.success(request, f'Zone "{name}" deleted successfully.')
@@ -355,6 +381,16 @@ def aisle_delete_view(request, pk):
         return redirect('warehousing:aisle_list')
 
     aisle = get_object_or_404(Aisle, pk=pk, tenant=tenant)
+
+    rack_count = aisle.racks.count()
+    if rack_count > 0:
+        messages.error(
+            request,
+            f'Cannot delete "{aisle.name}" — it has {rack_count} rack{"s" if rack_count != 1 else ""}. '
+            f'Delete or reassign them first.',
+        )
+        return redirect('warehousing:aisle_detail', pk=aisle.pk)
+
     name = aisle.name
     aisle.delete()
     messages.success(request, f'Aisle "{name}" deleted successfully.')
@@ -461,6 +497,16 @@ def rack_delete_view(request, pk):
         return redirect('warehousing:rack_list')
 
     rack = get_object_or_404(Rack, pk=pk, tenant=tenant)
+
+    bin_count = rack.bins.count()
+    if bin_count > 0:
+        messages.error(
+            request,
+            f'Cannot delete "{rack.name}" — it has {bin_count} bin{"s" if bin_count != 1 else ""}. '
+            f'Delete or reassign them first.',
+        )
+        return redirect('warehousing:rack_detail', pk=rack.pk)
+
     name = rack.name
     rack.delete()
     messages.success(request, f'Rack "{name}" deleted successfully.')
@@ -581,6 +627,15 @@ def bin_delete_view(request, pk):
         return redirect('warehousing:bin_list')
 
     bin_obj = get_object_or_404(Bin, pk=pk, tenant=tenant)
+
+    if bin_obj.is_occupied:
+        messages.error(
+            request,
+            f'Cannot delete "{bin_obj.name}" — it is currently occupied. '
+            f'Empty the bin before deleting.',
+        )
+        return redirect('warehousing:bin_detail', pk=bin_obj.pk)
+
     name = bin_obj.name
     bin_obj.delete()
     messages.success(request, f'Bin "{name}" deleted successfully.')
