@@ -38,8 +38,8 @@ class Category(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
+        # Regenerate slug whenever the name changes
+        self.slug = slugify(self.name)
         # Auto-compute level based on parent depth
         if self.parent is None:
             self.level = 'department'
