@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Acknowledge Expiry Alert{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Acknowledge Expiry Alert</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Lot & Serial Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lot_tracking:expiry_alert_list' %}">Expiry Alerts</a></li>
+                    <li class="breadcrumb-item active">Acknowledge</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Alert Details -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Alert Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive mb-4">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Lot</th>
+                                <td>
+                                    <a href="{% url 'lot_tracking:lot_detail' alert.lot.pk %}">
+                                        <code>{{ alert.lot.lot_number }}</code>
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Product</th>
+                                <td>{{ alert.lot.product.name }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Alert Type</th>
+                                <td>
+                                    {% if alert.alert_type == 'approaching' %}
+                                        <span class="badge bg-warning-subtle text-warning">{{ alert.get_alert_type_display }}</span>
+                                    {% elif alert.alert_type == 'expired' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ alert.get_alert_type_display }}</span>
+                                    {% elif alert.alert_type == 'recalled' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ alert.get_alert_type_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ alert.get_alert_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Alert Date</th>
+                                <td>{{ alert.alert_date|date:"M d, Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Days Before Expiry</th>
+                                <td>{{ alert.days_before_expiry }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Expiry Date</th>
+                                <td>{{ alert.lot.expiry_date|date:"M d, Y" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Acknowledge Form -->
+                <form method="post" action="">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                        <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label for="id_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" id="id_notes" rows="4" placeholder="Add any notes about this acknowledgement...">{{ form.notes.value|default:"" }}</textarea>
+                        {% if form.notes.errors %}
+                        <div class="invalid-feedback d-block">{% for error in form.notes.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <form method="post" action="">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100" onclick="return confirm('Acknowledge this expiry alert?');">
+                            <i class="ri-check-line align-middle me-1"></i> Acknowledge
+                        </button>
+                    </form>
+                    <a href="{% url 'lot_tracking:expiry_alert_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
