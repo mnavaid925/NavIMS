@@ -14,6 +14,7 @@ urlpatterns = [
     path('receiving/', include('receiving.urls')),
     path('warehousing/', include('warehousing.urls')),
     path('inventory/', include('inventory.urls')),
+    path('stock-movements/', include('stock_movements.urls')),
 ]
 
 if settings.DEBUG:
