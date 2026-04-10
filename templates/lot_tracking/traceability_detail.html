@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Traceability Log Details — {{ log.log_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Traceability Log Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Lot & Serial Tracking</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lot_tracking:traceability_list' %}">Traceability</a></li>
+                    <li class="breadcrumb-item active">{{ log.log_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Log Information — <code>{{ log.log_number }}</code></h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Log Number</th>
+                                <td class="fw-medium"><code>{{ log.log_number }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Lot</th>
+                                <td>
+                                    {% if log.lot %}
+                                        <a href="{% url 'lot_tracking:lot_detail' log.lot.pk %}">{{ log.lot.lot_number }}</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Serial Number</th>
+                                <td>
+                                    {% if log.serial_number %}
+                                        <a href="{% url 'lot_tracking:serial_detail' log.serial_number.pk %}">{{ log.serial_number.serial_number }}</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Event Type</th>
+                                <td>
+                                    {% if log.event_type == 'received' %}
+                                        <span class="badge bg-success-subtle text-success">{{ log.get_event_type_display }}</span>
+                                    {% elif log.event_type == 'transferred' %}
+                                        <span class="badge bg-info-subtle text-info">{{ log.get_event_type_display }}</span>
+                                    {% elif log.event_type == 'adjusted' %}
+                                        <span class="badge bg-warning-subtle text-warning">{{ log.get_event_type_display }}</span>
+                                    {% elif log.event_type == 'sold' %}
+                                        <span class="badge bg-primary-subtle text-primary">{{ log.get_event_type_display }}</span>
+                                    {% elif log.event_type == 'returned' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ log.get_event_type_display }}</span>
+                                    {% elif log.event_type == 'recalled' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ log.get_event_type_display }}</span>
+                                    {% elif log.event_type == 'scrapped' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ log.get_event_type_display }}</span>
+                                    {% elif log.event_type == 'expired' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ log.get_event_type_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ log.get_event_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">From Warehouse</th>
+                                <td>{% if log.from_warehouse %}{{ log.from_warehouse.code }} - {{ log.from_warehouse.name }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">To Warehouse</th>
+                                <td>{% if log.to_warehouse %}{{ log.to_warehouse.code }} - {{ log.to_warehouse.name }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Quantity</th>
+                                <td class="fw-medium">{{ log.quantity }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Reference Type</th>
+                                <td>{% if log.reference_type %}{{ log.reference_type }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Reference Number</th>
+                                <td>{% if log.reference_number %}{{ log.reference_number }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Performed By</th>
+                                <td>
+                                    {% if log.performed_by %}
+                                        {{ log.performed_by.get_full_name|default:log.performed_by.username }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Notes</th>
+                                <td>{% if log.notes %}{{ log.notes|linebreaksbr }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Created</th>
+                                <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'lot_tracking:traceability_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
