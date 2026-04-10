@@ -151,6 +151,26 @@ NavIMS/
 │       └── commands/
 │           └── seed_inventory.py   # Inventory seeder with demo data
 │
+├── stock_movements/            # Module 8: Stock Movement & Transfers
+│   ├── models.py               # StockTransfer, StockTransferItem, TransferApprovalRule, TransferApproval, TransferRoute
+│   ├── forms.py                # Transfer, TransferItem, ApprovalRule, Approval, Route forms
+│   ├── views.py                # Transfers CRUD, approval workflow, routes, receiving (18 views)
+│   ├── urls.py                 # Stock movements URL routes
+│   ├── admin.py                # Admin registration with transfer item inline
+│   └── management/
+│       └── commands/
+│           └── seed_stock_movements.py  # Stock movements seeder with demo data
+│
+├── lot_tracking/               # Module 9: Lot & Serial Number Tracking
+│   ├── models.py               # LotBatch, SerialNumber, ExpiryAlert, TraceabilityLog
+│   ├── forms.py                # LotBatch, SerialNumber, ExpiryAcknowledge, TraceabilityLog forms
+│   ├── views.py                # Lots, serials, expiry dashboard, traceability (20 views)
+│   ├── urls.py                 # Lot tracking URL routes
+│   ├── admin.py                # Admin registration for all 4 models
+│   └── management/
+│       └── commands/
+│           └── seed_lot_tracking.py  # Lot tracking seeder with demo data
+│
 ├── dashboard/                  # Dashboard app
 │   ├── views.py                # Dashboard view with stats
 │   └── urls.py                 # Dashboard URL route
@@ -230,22 +250,49 @@ NavIMS/
 │   │   ├── crossdock_list.html # Cross-dock order listing
 │   │   ├── crossdock_form.html # Cross-dock create/edit
 │   │   └── crossdock_detail.html   # Cross-dock details with timeline
-│   └── inventory/
-│       ├── stock_level_list.html       # Stock levels with warehouse & low-stock filters
-│       ├── stock_level_detail.html     # Stock level details with quantity breakdown
-│       ├── stock_adjust_form.html      # Stock adjustment form
-│       ├── stock_adjustment_list.html  # Adjustment history with type & reason filters
-│       ├── stock_adjustment_detail.html# Adjustment details
-│       ├── stock_status_list.html      # Stock status with status & warehouse filters
-│       ├── stock_status_detail.html    # Status details with transition history
-│       ├── stock_status_transition_form.html  # Status transition form
-│       ├── stock_status_transition_list.html  # Transition history list
-│       ├── valuation_dashboard.html    # Valuation dashboard with summary cards
-│       ├── valuation_detail.html       # Product valuation with cost layers
-│       ├── valuation_config_form.html  # Valuation method configuration
-│       ├── reservation_list.html       # Reservations with status & warehouse filters
-│       ├── reservation_form.html       # Reservation create/edit
-│       └── reservation_detail.html     # Reservation details with status timeline
+│   ├── inventory/
+│   │   ├── stock_level_list.html       # Stock levels with warehouse & low-stock filters
+│   │   ├── stock_level_detail.html     # Stock level details with quantity breakdown
+│   │   ├── stock_adjust_form.html      # Stock adjustment form
+│   │   ├── stock_adjustment_list.html  # Adjustment history with type & reason filters
+│   │   ├── stock_adjustment_detail.html# Adjustment details
+│   │   ├── stock_status_list.html      # Stock status with status & warehouse filters
+│   │   ├── stock_status_detail.html    # Status details with transition history
+│   │   ├── stock_status_transition_form.html  # Status transition form
+│   │   ├── stock_status_transition_list.html  # Transition history list
+│   │   ├── valuation_dashboard.html    # Valuation dashboard with summary cards
+│   │   ├── valuation_detail.html       # Product valuation with cost layers
+│   │   ├── valuation_config_form.html  # Valuation method configuration
+│   │   ├── reservation_list.html       # Reservations with status & warehouse filters
+│   │   ├── reservation_form.html       # Reservation create/edit
+│   │   └── reservation_detail.html     # Reservation details with status timeline
+│   ├── stock_movements/
+│   │   ├── transfer_list.html          # Transfer listing with status/type/warehouse filters
+│   │   ├── transfer_form.html          # Transfer create/edit with dynamic line items
+│   │   ├── transfer_detail.html        # Transfer details with status timeline & actions
+│   │   ├── transfer_receive_form.html  # Receive items with quantity inputs
+│   │   ├── approval_rule_list.html     # Approval rules management
+│   │   ├── approval_rule_form.html     # Approval rule create/edit
+│   │   ├── pending_approval_list.html  # Pending transfer approvals
+│   │   ├── transfer_approval_form.html # Approve/reject transfer form
+│   │   ├── route_list.html             # Transfer routes with method/active filters
+│   │   ├── route_form.html             # Route create/edit
+│   │   └── route_detail.html           # Route details with related transfers
+│   └── lot_tracking/
+│       ├── lot_list.html               # Lot/batch listing with status/warehouse filters
+│       ├── lot_form.html               # Lot create/edit with product, warehouse, GRN
+│       ├── lot_detail.html             # Lot details with serials, trace logs, expiry alerts
+│       ├── lot_trace.html              # Forward/backward lot traceability timeline
+│       ├── serial_list.html            # Serial number listing with status/warehouse filters
+│       ├── serial_form.html            # Serial number register/edit
+│       ├── serial_detail.html          # Serial details with trace history
+│       ├── serial_trace.html           # Serial number full trace timeline
+│       ├── expiry_dashboard.html       # Expiry management dashboard with stat cards
+│       ├── expiry_alert_list.html      # Expiry alerts with type/acknowledged filters
+│       ├── expiry_acknowledge_form.html# Acknowledge expiry alert
+│       ├── traceability_list.html      # Full traceability audit log with filters
+│       ├── traceability_detail.html    # Traceability log entry details
+│       └── traceability_form.html      # Manual traceability log entry
 │
 ├── static/                     # Static assets
 │   ├── css/
@@ -307,6 +354,8 @@ NavIMS/
    python manage.py seed_receiving
    python manage.py seed_warehousing
    python manage.py seed_inventory
+   python manage.py seed_stock_movements
+   python manage.py seed_lot_tracking
    ```
 
    To reset and re-seed:
@@ -318,6 +367,8 @@ NavIMS/
    python manage.py seed_receiving --flush
    python manage.py seed_warehousing --flush
    python manage.py seed_inventory --flush
+   python manage.py seed_stock_movements --flush
+   python manage.py seed_lot_tracking --flush
    ```
 
 ---
@@ -380,6 +431,15 @@ The seed command creates the following demo accounts:
 - 16 inventory valuations per tenant
 - 4 inventory reservations per tenant across statuses
 - 1 valuation configuration per tenant (weighted average default)
+- 3 transfer approval rules per tenant (small/medium/large)
+- 3 transfer routes per tenant (primary/return/express)
+- 6 stock transfers per tenant across all statuses (draft through completed)
+- ~17 transfer items per tenant
+- 4 transfer approval records per tenant
+- 8 lot/batches per tenant (active, quarantine, expired, consumed, recalled)
+- 12 serial numbers per tenant across all statuses
+- 5 expiry alerts per tenant (approaching, expired, recalled)
+- 10 traceability logs per tenant (received, transferred, sold, etc.)
 
 ---
 
@@ -461,12 +521,31 @@ The seed command creates the following demo accounts:
 | Valuation Configuration  | Tenant-level setting for valuation method             |
 | Inventory Reservations   | Lock stock for sales orders or jobs with status workflow (Pending > Confirmed > Released) |
 
+### Module 8: Stock Movement & Transfers (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Inter-Warehouse Transfers| Move stock between different physical warehouses      |
+| Intra-Warehouse Transfers| Move stock between bins/zones within the same warehouse |
+| Transfer Approval Workflow| Configurable rules with approve/reject decisions     |
+| Transfer Routing         | Predefined routes with transit method, duration, distance |
+| Transfer Receiving       | Receive items with partial quantity support            |
+| Status Workflow          | Draft → Pending Approval → Approved → In Transit → Completed |
+
+### Module 9: Lot & Serial Number Tracking (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Lot/Batch Generation     | Auto-generated LOT numbers with GRN traceability      |
+| Serial Number Tracking   | 1-to-1 item tracking with warranty and status workflow |
+| Shelf-Life & Expiry      | Expiry dashboard, approaching/expired alerts, FEFO support |
+| Traceability & Genealogy | Full forward/backward trace logs for lots and serials |
+| Expiry Alerts            | Configurable alerts with acknowledge workflow         |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 8  | Stock Movement & Transfers      | Inter/intra-warehouse transfers                |
-| 9  | Lot & Serial Number Tracking    | Batch/serial tracking, expiry management       |
 | 10 | Order Management & Fulfillment  | Sales orders, pick-pack-ship, wave planning    |
 | 11 | Returns Management (RMA)        | Return authorization, inspection, disposition  |
 | 12 | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
