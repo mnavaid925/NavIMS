@@ -117,7 +117,7 @@
                             </tr>
                             <tr>
                                 <th class="text-muted">Assigned To</th>
-                                <td>{{ task.assigned_to.get_full_name|default:task.assigned_to.username|default:"—" }}</td>
+                                <td>{% if task.assigned_to %}{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}{% else %}—{% endif %}</td>
                             </tr>
                             {% if task.completed_at %}
                             <tr>
@@ -133,7 +133,7 @@
                             {% endif %}
                             <tr>
                                 <th class="text-muted">Created By</th>
-                                <td>{{ task.created_by.get_full_name|default:task.created_by.username|default:"—" }}</td>
+                                <td>{% if task.created_by %}{{ task.created_by.get_full_name|default:task.created_by.username }}{% else %}—{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Created</th>
