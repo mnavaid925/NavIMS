@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Transfer Approvals{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Pending Transfer Approvals</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Stock Movements</a></li>
+                    <li class="breadcrumb-item active">Pending Approvals</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Transfers Awaiting Approval</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Number</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">From</th>
+                                <th scope="col">To</th>
+                                <th scope="col" class="text-center">Items</th>
+                                <th scope="col">Priority</th>
+                                <th scope="col">Requested By</th>
+                                <th scope="col">Date</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in transfers %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'stock_movements:transfer_detail' t.pk %}" class="fw-medium text-primary">
+                                        <code>{{ t.transfer_number }}</code>
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if t.transfer_type == 'inter_warehouse' %}
+                                        <span class="badge bg-primary-subtle text-primary">{{ t.get_transfer_type_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info">{{ t.get_transfer_type_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ t.source_warehouse.code }}</td>
+                                <td>{{ t.destination_warehouse.code|default:"—" }}</td>
+                                <td class="text-center fw-medium">{{ t.total_items }}</td>
+                                <td>
+                                    {% if t.priority == 'urgent' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ t.get_priority_display }}</span>
+                                    {% elif t.priority == 'high' %}
+                                        <span class="badge bg-warning-subtle text-warning">{{ t.get_priority_display }}</span>
+                                    {% elif t.priority == 'normal' %}
+                                        <span class="badge bg-info-subtle text-info">{{ t.get_priority_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ t.get_priority_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ t.requested_by.get_full_name|default:t.requested_by.username|default:"—" }}</td>
+                                <td>{{ t.created_at|date:"M d, Y" }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'stock_movements:transfer_approve' t.pk %}" class="btn btn-sm btn-soft-success" data-bs-toggle="tooltip" title="Review & Approve">
+                                            <i class="ri-check-double-line"></i>
+                                        </a>
+                                        <a href="{% url 'stock_movements:transfer_detail' t.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-check-double-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No transfers pending approval</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if transfers.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Approval pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if transfers.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ transfers.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-left-s-line"></i></span></li>
+                            {% endif %}
+                            {% for num in transfers.paginator.page_range %}
+                            <li class="page-item {% if transfers.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            {% if transfers.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ transfers.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-right-s-line"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
