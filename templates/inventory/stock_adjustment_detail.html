@@ -69,7 +69,7 @@
                             {% endif %}
                             <tr>
                                 <th class="text-muted">Adjusted By</th>
-                                <td>{{ adjustment.adjusted_by.get_full_name|default:adjustment.adjusted_by.username|default:"—" }}</td>
+                                <td>{% if adjustment.adjusted_by %}{{ adjustment.adjusted_by.get_full_name|default:adjustment.adjusted_by.username }}{% else %}—{% endif %}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Date</th>
