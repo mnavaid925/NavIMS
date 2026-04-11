@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Carriers{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Carriers</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Orders</a></li>
+                    <li class="breadcrumb-item active">Carriers</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Carriers</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'orders:carrier_create' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-add-line align-middle me-1"></i> Add Carrier
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by name, code, or email...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_active %}<input type="hidden" name="active" value="{{ current_active }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="">
+                            <select class="form-select" name="active" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                <option value="active" {% if current_active == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if current_active == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                        </form>
+                    </div>
+                    {% if q or current_active %}
+                    <div class="col-md-1">
+                        <a href="{% url 'orders:carrier_list' %}" class="btn btn-light w-100" data-bs-toggle="tooltip" title="Clear Filters">
+                            <i class="ri-filter-off-line"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col">Code</th>
+                                <th scope="col">Contact Email</th>
+                                <th scope="col">Phone</th>
+                                <th scope="col">Status</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in carriers %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'orders:carrier_detail' c.pk %}" class="fw-medium text-primary">
+                                        {{ c.name }}
+                                    </a>
+                                </td>
+                                <td><code>{{ c.code|default:"—" }}</code></td>
+                                <td>
+                                    {% if c.contact_email %}
+                                        <a href="mailto:{{ c.contact_email }}">{{ c.contact_email }}</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>{{ c.contact_phone|default:"—" }}</td>
+                                <td>
+                                    {% if c.is_active %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'orders:carrier_detail' c.pk %}" class="btn btn-sm btn-soft-primary" data-bs-toggle="tooltip" title="View">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        <a href="{% url 'orders:carrier_edit' c.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        <form method="post" action="{% url 'orders:carrier_delete' c.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this carrier?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-truck-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No carriers found</p>
+                                        <a href="{% url 'orders:carrier_create' %}" class="btn btn-sm btn-primary mt-2">Add Your First Carrier</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if carriers.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Carrier pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if carriers.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ carriers.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_active %}&active={{ current_active }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-left-s-line"></i></span></li>
+                            {% endif %}
+                            {% for num in carriers.paginator.page_range %}
+                            <li class="page-item {% if carriers.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_active %}&active={{ current_active }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            {% if carriers.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ carriers.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_active %}&active={{ current_active }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-right-s-line"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
