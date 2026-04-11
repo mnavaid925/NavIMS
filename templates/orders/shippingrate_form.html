@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Orders</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'orders:shippingrate_list' %}">Shipping Rates</a></li>
+                    <li class="breadcrumb-item active">{% if rate %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Shipping Rate Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_carrier" class="form-label">Carrier <span class="text-danger">*</span></label>
+                            {{ form.carrier }}
+                            {% if form.carrier.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.carrier.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_service_level" class="form-label">Service Level <span class="text-danger">*</span></label>
+                            {{ form.service_level }}
+                            {% if form.service_level.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.service_level.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_origin_region" class="form-label">Origin Region</label>
+                            {{ form.origin_region }}
+                            {% if form.origin_region.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.origin_region.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_destination_region" class="form-label">Destination Region</label>
+                            {{ form.destination_region }}
+                            {% if form.destination_region.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.destination_region.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_base_cost" class="form-label">Base Cost <span class="text-danger">*</span></label>
+                            {{ form.base_cost }}
+                            {% if form.base_cost.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.base_cost.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_cost_per_kg" class="form-label">Cost per kg</label>
+                            {{ form.cost_per_kg }}
+                            {% if form.cost_per_kg.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.cost_per_kg.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_estimated_transit_days" class="form-label">Estimated Transit Days</label>
+                            {{ form.estimated_transit_days }}
+                            {% if form.estimated_transit_days.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.estimated_transit_days.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="id_is_active" name="is_active" {% if form.is_active.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_is_active">Active</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if rate %}Update Rate{% else %}Create Rate{% endif %}
+                        </button>
+                        <a href="{% url 'orders:shippingrate_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if rate %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Rate Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Carrier:</strong> {{ rate.carrier.name }}</p>
+                    <p class="mb-1"><strong>Service:</strong> {{ rate.service_level }}</p>
+                    <p class="mb-1"><strong>Status:</strong>
+                        {% if rate.is_active %}
+                            <span class="badge bg-success-subtle text-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0"><strong>Created:</strong> {{ rate.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
