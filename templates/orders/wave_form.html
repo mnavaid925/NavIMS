@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Orders</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'orders:wave_list' %}">Wave Planning</a></li>
+                    <li class="breadcrumb-item active">{% if wave %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Wave Plan Details -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Wave Plan Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_warehouse" class="form-label">Warehouse <span class="text-danger">*</span></label>
+                            {{ form.warehouse }}
+                            {% if form.warehouse.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_priority" class="form-label">Priority</label>
+                            {{ form.priority }}
+                            {% if form.priority.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.priority.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_order_date_from" class="form-label">Order Date From</label>
+                            {{ form.order_date_from }}
+                            {% if form.order_date_from.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.order_date_from.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_order_date_to" class="form-label">Order Date To</label>
+                            {{ form.order_date_to }}
+                            {% if form.order_date_to.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.order_date_to.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.notes.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Select Orders -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Select Orders</h5>
+                </div>
+                <div class="card-body">
+                    {% if order_form.orders.field.queryset.exists %}
+                    <div class="table-responsive">
+                        <table class="table table-borderless table-centered align-middle mb-0">
+                            <thead class="text-muted table-light">
+                                <tr>
+                                    <th scope="col" style="width: 40px;">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAll">
+                                        </div>
+                                    </th>
+                                    <th scope="col">Order Number</th>
+                                    <th scope="col">Customer</th>
+                                    <th scope="col">Order Date</th>
+                                    <th scope="col" class="text-end">Grand Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in order_form.orders.field.queryset %}
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input order-checkbox" type="checkbox" name="orders" value="{{ order.pk }}"
+                                                {% if order.pk in order_form.orders.value %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    <td><code>{{ order.order_number }}</code></td>
+                                    <td>{{ order.customer_name|default:"—" }}</td>
+                                    <td>{{ order.order_date|date:"M d, Y" }}</td>
+                                    <td class="text-end">{{ order.grand_total|default:"0.00" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if order_form.orders.errors %}
+                    <div class="invalid-feedback d-block">{% for error in order_form.orders.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="ri-shopping-bag-line fs-24 d-block mb-2"></i>
+                        <p class="mb-0">No confirmed orders available.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if wave %}Update Wave Plan{% else %}Create Wave Plan{% endif %}
+                        </button>
+                        <a href="{% url 'orders:wave_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if wave %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Wave Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Number:</strong> <code>{{ wave.wave_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong>
+                        {% if wave.status == 'draft' %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ wave.get_status_display }}</span>
+                        {% elif wave.status == 'released' %}
+                            <span class="badge bg-info-subtle text-info">{{ wave.get_status_display }}</span>
+                        {% elif wave.status == 'in_progress' %}
+                            <span class="badge bg-primary-subtle text-primary">{{ wave.get_status_display }}</span>
+                        {% elif wave.status == 'completed' %}
+                            <span class="badge bg-success-subtle text-success">{{ wave.get_status_display }}</span>
+                        {% elif wave.status == 'cancelled' %}
+                            <span class="badge bg-danger-subtle text-danger">{{ wave.get_status_display }}</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0"><strong>Created:</strong> {{ wave.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var selectAll = document.getElementById('selectAll');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            var checkboxes = document.querySelectorAll('.order-checkbox');
+            checkboxes.forEach(function(cb) {
+                cb.checked = selectAll.checked;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
