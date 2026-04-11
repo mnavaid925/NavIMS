@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Shipping Rates{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Shipping Rates</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Orders</a></li>
+                    <li class="breadcrumb-item active">Shipping Rates</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Shipping Rates</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'orders:shippingrate_create' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-add-line align-middle me-1"></i> Add Shipping Rate
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Search & Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <form method="get" action="">
+                            <div class="search-box">
+                                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by service level, region...">
+                                <i class="ri-search-line search-icon"></i>
+                            </div>
+                            {% if current_carrier %}<input type="hidden" name="carrier" value="{{ current_carrier }}">{% endif %}
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" action="">
+                            <select class="form-select" name="carrier" onchange="this.form.submit()">
+                                <option value="">All Carriers</option>
+                                {% for c in carriers %}
+                                <option value="{{ c.pk }}" {% if current_carrier == c.pk|stringformat:"d" %}selected{% endif %}>{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                        </form>
+                    </div>
+                    {% if q or current_carrier %}
+                    <div class="col-md-1">
+                        <a href="{% url 'orders:shippingrate_list' %}" class="btn btn-light w-100" data-bs-toggle="tooltip" title="Clear Filters">
+                            <i class="ri-filter-off-line"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Table -->
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Carrier</th>
+                                <th scope="col">Service Level</th>
+                                <th scope="col" class="text-end">Base Cost</th>
+                                <th scope="col" class="text-end">Cost/kg</th>
+                                <th scope="col" class="text-center">Transit Days</th>
+                                <th scope="col">Active</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in rates %}
+                            <tr>
+                                <td>
+                                    {% if r.carrier %}
+                                        <a href="{% url 'orders:carrier_detail' r.carrier.pk %}" class="text-primary">{{ r.carrier.name }}</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td class="fw-medium">{{ r.service_level }}</td>
+                                <td class="text-end">{{ r.base_cost }}</td>
+                                <td class="text-end">{{ r.cost_per_kg|default:"—" }}</td>
+                                <td class="text-center">{{ r.estimated_transit_days|default:"—" }}</td>
+                                <td>
+                                    {% if r.is_active %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'orders:shippingrate_edit' r.pk %}" class="btn btn-sm btn-soft-warning" data-bs-toggle="tooltip" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        <form method="post" action="{% url 'orders:shippingrate_delete' r.pk %}" class="d-inline" onsubmit="return confirm('Delete this shipping rate?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" data-bs-toggle="tooltip" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-price-tag-3-line fs-24 d-block mb-2"></i>
+                                        <p class="mb-0">No shipping rates found</p>
+                                        <a href="{% url 'orders:shippingrate_create' %}" class="btn btn-sm btn-primary mt-2">Add Your First Rate</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if rates.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav aria-label="Shipping rate pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if rates.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ rates.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_carrier %}&carrier={{ current_carrier }}{% endif %}">
+                                    <i class="ri-arrow-left-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-left-s-line"></i></span></li>
+                            {% endif %}
+                            {% for num in rates.paginator.page_range %}
+                            <li class="page-item {% if rates.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_carrier %}&carrier={{ current_carrier }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            {% if rates.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ rates.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_carrier %}&carrier={{ current_carrier }}{% endif %}">
+                                    <i class="ri-arrow-right-s-line"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="ri-arrow-right-s-line"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
