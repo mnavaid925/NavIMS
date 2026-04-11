@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Orders</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'orders:so_list' %}">Sales Orders</a></li>
+                    <li class="breadcrumb-item active">{% if so %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Customer Information -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_customer_name" class="form-label">Customer Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control {% if form.customer_name.errors %}is-invalid{% endif %}" id="id_customer_name" name="customer_name" value="{{ form.customer_name.value|default:'' }}" required>
+                            {% if form.customer_name.errors %}
+                            <div class="invalid-feedback">{% for error in form.customer_name.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_customer_email" class="form-label">Customer Email</label>
+                            <input type="email" class="form-control {% if form.customer_email.errors %}is-invalid{% endif %}" id="id_customer_email" name="customer_email" value="{{ form.customer_email.value|default:'' }}">
+                            {% if form.customer_email.errors %}
+                            <div class="invalid-feedback">{% for error in form.customer_email.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_customer_phone" class="form-label">Customer Phone</label>
+                            <input type="text" class="form-control {% if form.customer_phone.errors %}is-invalid{% endif %}" id="id_customer_phone" name="customer_phone" value="{{ form.customer_phone.value|default:'' }}">
+                            {% if form.customer_phone.errors %}
+                            <div class="invalid-feedback">{% for error in form.customer_phone.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_shipping_address" class="form-label">Shipping Address</label>
+                            <textarea class="form-control {% if form.shipping_address.errors %}is-invalid{% endif %}" id="id_shipping_address" name="shipping_address" rows="2" placeholder="Enter shipping address (optional)">{{ form.shipping_address.value|default:'' }}</textarea>
+                            {% if form.shipping_address.errors %}
+                            <div class="invalid-feedback">{% for error in form.shipping_address.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-0">
+                            <label for="id_billing_address" class="form-label">Billing Address</label>
+                            <textarea class="form-control {% if form.billing_address.errors %}is-invalid{% endif %}" id="id_billing_address" name="billing_address" rows="2" placeholder="Enter billing address (optional)">{{ form.billing_address.value|default:'' }}</textarea>
+                            {% if form.billing_address.errors %}
+                            <div class="invalid-feedback">{% for error in form.billing_address.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Details -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Order Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="id_order_date" class="form-label">Order Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control {% if form.order_date.errors %}is-invalid{% endif %}" id="id_order_date" name="order_date" value="{{ form.order_date.value|default:'' }}" required>
+                            {% if form.order_date.errors %}
+                            <div class="invalid-feedback">{% for error in form.order_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_required_date" class="form-label">Required Date</label>
+                            <input type="date" class="form-control {% if form.required_date.errors %}is-invalid{% endif %}" id="id_required_date" name="required_date" value="{{ form.required_date.value|default:'' }}">
+                            {% if form.required_date.errors %}
+                            <div class="invalid-feedback">{% for error in form.required_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_warehouse" class="form-label">Warehouse <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.warehouse.errors %}is-invalid{% endif %}" id="id_warehouse" name="warehouse" required>
+                                <option value="">-- Select Warehouse --</option>
+                                {% for choice in form.warehouse.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.warehouse.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.warehouse.errors %}
+                            <div class="invalid-feedback">{% for error in form.warehouse.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_priority" class="form-label">Priority</label>
+                            <select class="form-select {% if form.priority.errors %}is-invalid{% endif %}" id="id_priority" name="priority">
+                                {% for value, label in form.priority.field.choices %}
+                                <option value="{{ value }}" {% if form.priority.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.priority.errors %}
+                            <div class="invalid-feedback">{% for error in form.priority.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-0">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="id_notes" name="notes" rows="2" placeholder="Additional notes (optional)">{{ form.notes.value|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Line Items -->
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <h5 class="card-title mb-0 flex-grow-1">Line Items</h5>
+                    <div class="flex-shrink-0">
+                        <button type="button" class="btn btn-sm btn-soft-primary" id="add-item-btn">
+                            <i class="ri-add-line align-middle me-1"></i> Add Item
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {{ formset.management_form }}
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0" id="items-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="min-width: 200px;">Product <span class="text-danger">*</span></th>
+                                    <th style="min-width: 150px;">Description</th>
+                                    <th style="width: 90px;">Qty <span class="text-danger">*</span></th>
+                                    <th style="width: 110px;">Unit Price <span class="text-danger">*</span></th>
+                                    <th style="width: 90px;">Tax %</th>
+                                    <th style="width: 110px;">Discount</th>
+                                    <th style="width: 50px;">Del</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-body">
+                                {% for item_form in formset %}
+                                <tr class="item-row {% if item_form.DELETE.value %}d-none{% endif %}">
+                                    <td>
+                                        {{ item_form.id }}
+                                        <select name="{{ item_form.product.html_name }}" class="form-select form-select-sm" id="{{ item_form.product.id_for_label }}">
+                                            <option value="">-- Select Product --</option>
+                                            {% for choice in item_form.fields.product.queryset %}
+                                            <option value="{{ choice.pk }}" {% if item_form.product.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.name }} ({{ choice.sku }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="{{ item_form.description.html_name }}" class="form-control form-control-sm" value="{{ item_form.description.value|default:'' }}" placeholder="Description">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="{{ item_form.quantity.html_name }}" class="form-control form-control-sm" value="{{ item_form.quantity.value|default:'1' }}" min="1">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="{{ item_form.unit_price.html_name }}" class="form-control form-control-sm" value="{{ item_form.unit_price.value|default:'0' }}" step="0.01" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="{{ item_form.tax_rate.html_name }}" class="form-control form-control-sm" value="{{ item_form.tax_rate.value|default:'0' }}" step="0.01" min="0" max="100">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="{{ item_form.discount.html_name }}" class="form-control form-control-sm" value="{{ item_form.discount.value|default:'0' }}" step="0.01" min="0">
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item_form.instance.pk %}
+                                        <div class="form-check d-flex justify-content-center">
+                                            <input type="checkbox" name="{{ item_form.DELETE.html_name }}" class="form-check-input delete-checkbox" id="{{ item_form.DELETE.id_for_label }}" {% if item_form.DELETE.value %}checked{% endif %}>
+                                        </div>
+                                        {% else %}
+                                        <button type="button" class="btn btn-sm btn-soft-danger remove-row-btn">
+                                            <i class="ri-close-line"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if so %}Update Sales Order{% else %}Create Sales Order{% endif %}
+                        </button>
+                        <a href="{% url 'orders:so_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if so %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">SO Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Order Number:</strong> <code>{{ so.order_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong> {{ so.get_status_display }}</p>
+                    <p class="mb-0"><strong>Created:</strong> {{ so.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-item-btn');
+    const tbody = document.getElementById('items-body');
+    const totalFormsInput = document.querySelector('[name="items-TOTAL_FORMS"]');
+
+    addBtn.addEventListener('click', function() {
+        const formCount = parseInt(totalFormsInput.value);
+        const lastRow = tbody.querySelector('.item-row:last-child');
+        if (!lastRow) return;
+
+        const newRow = lastRow.cloneNode(true);
+        newRow.classList.remove('d-none');
+
+        // Update form indices
+        newRow.innerHTML = newRow.innerHTML.replace(
+            new RegExp('items-\\d+', 'g'),
+            'items-' + formCount
+        );
+
+        // Clear values
+        newRow.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(input) {
+            if (input.name.includes('quantity')) {
+                input.value = '1';
+            } else if (input.name.includes('unit_price') || input.name.includes('tax_rate') || input.name.includes('discount')) {
+                input.value = '0';
+            } else {
+                input.value = '';
+            }
+        });
+        newRow.querySelectorAll('select').forEach(function(select) {
+            select.selectedIndex = 0;
+        });
+
+        // Ensure remove button for new rows
+        const delCell = newRow.querySelector('td:last-child');
+        delCell.innerHTML = '<button type="button" class="btn btn-sm btn-soft-danger remove-row-btn"><i class="ri-close-line"></i></button>';
+
+        // Remove hidden id field value (new item)
+        const idInput = newRow.querySelector('input[name$="-id"]');
+        if (idInput) idInput.value = '';
+
+        tbody.appendChild(newRow);
+        totalFormsInput.value = formCount + 1;
+
+        attachRemoveHandlers();
+    });
+
+    function attachRemoveHandlers() {
+        document.querySelectorAll('.remove-row-btn').forEach(function(btn) {
+            btn.onclick = function() {
+                btn.closest('tr').remove();
+            };
+        });
+
+        document.querySelectorAll('.delete-checkbox').forEach(function(cb) {
+            cb.onchange = function() {
+                cb.closest('tr').classList.toggle('d-none', cb.checked);
+            };
+        });
+    }
+
+    attachRemoveHandlers();
+});
+</script>
+{% endblock %}
