@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Orders</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'orders:shipment_list' %}">Shipments</a></li>
+                    <li class="breadcrumb-item active">{% if sh %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Shipment Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_sales_order" class="form-label">Sales Order <span class="text-danger">*</span></label>
+                            {{ form.sales_order }}
+                            {% if form.sales_order.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.sales_order.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_packing_list" class="form-label">Packing List</label>
+                            {{ form.packing_list }}
+                            {% if form.packing_list.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.packing_list.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_carrier" class="form-label">Carrier</label>
+                            {{ form.carrier }}
+                            {% if form.carrier.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.carrier.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_service_level" class="form-label">Service Level</label>
+                            {{ form.service_level }}
+                            {% if form.service_level.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.service_level.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_tracking_number" class="form-label">Tracking Number</label>
+                            {{ form.tracking_number }}
+                            {% if form.tracking_number.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.tracking_number.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_estimated_delivery_date" class="form-label">Estimated Delivery Date</label>
+                            {{ form.estimated_delivery_date }}
+                            {% if form.estimated_delivery_date.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.estimated_delivery_date.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_shipping_cost" class="form-label">Shipping Cost</label>
+                            {{ form.shipping_cost }}
+                            {% if form.shipping_cost.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.shipping_cost.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">{% for error in form.notes.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if sh %}Update Shipment{% else %}Create Shipment{% endif %}
+                        </button>
+                        <a href="{% url 'orders:shipment_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if sh %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Shipment Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Number:</strong> <code>{{ sh.shipment_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong>
+                        {% if sh.status == 'pending' %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ sh.get_status_display }}</span>
+                        {% elif sh.status == 'dispatched' %}
+                            <span class="badge bg-primary-subtle text-primary">{{ sh.get_status_display }}</span>
+                        {% elif sh.status == 'in_transit' %}
+                            <span class="badge bg-warning-subtle text-warning">{{ sh.get_status_display }}</span>
+                        {% elif sh.status == 'delivered' %}
+                            <span class="badge bg-success-subtle text-success">{{ sh.get_status_display }}</span>
+                        {% elif sh.status == 'cancelled' %}
+                            <span class="badge bg-danger-subtle text-danger">{{ sh.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ sh.get_status_display }}</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0"><strong>Created:</strong> {{ sh.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
