@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Shipment: {{ sh.shipment_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Shipment Details</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Orders</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'orders:shipment_list' %}">Shipments</a></li>
+                    <li class="breadcrumb-item active">{{ sh.shipment_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Shipment Information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Shipment Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 200px;">Shipment Number</th>
+                                <td class="fw-medium"><code>{{ sh.shipment_number }}</code></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Sales Order</th>
+                                <td>
+                                    {% if sh.sales_order %}
+                                        <a href="{% url 'orders:so_detail' sh.sales_order.pk %}" class="text-primary">{{ sh.sales_order.order_number }}</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Packing List</th>
+                                <td>{{ sh.packing_list|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Carrier</th>
+                                <td>
+                                    {% if sh.carrier %}
+                                        <a href="{% url 'orders:carrier_detail' sh.carrier.pk %}" class="text-primary">{{ sh.carrier.name }}</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Service Level</th>
+                                <td>{{ sh.service_level|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Tracking Number</th>
+                                <td>{{ sh.tracking_number|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Status</th>
+                                <td>
+                                    {% if sh.status == 'pending' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ sh.get_status_display }}</span>
+                                    {% elif sh.status == 'dispatched' %}
+                                        <span class="badge bg-primary-subtle text-primary">{{ sh.get_status_display }}</span>
+                                    {% elif sh.status == 'in_transit' %}
+                                        <span class="badge bg-warning-subtle text-warning">{{ sh.get_status_display }}</span>
+                                    {% elif sh.status == 'delivered' %}
+                                        <span class="badge bg-success-subtle text-success">{{ sh.get_status_display }}</span>
+                                    {% elif sh.status == 'cancelled' %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ sh.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ sh.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Shipped Date</th>
+                                <td>{% if sh.shipped_date %}{{ sh.shipped_date|date:"M d, Y" }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Estimated Delivery</th>
+                                <td>{% if sh.estimated_delivery_date %}{{ sh.estimated_delivery_date|date:"M d, Y" }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Actual Delivery</th>
+                                <td>{% if sh.actual_delivery_date %}{{ sh.actual_delivery_date|date:"M d, Y" }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Shipping Cost</th>
+                                <td>{% if sh.shipping_cost %}{{ sh.shipping_cost }}{% else %}—{% endif %}</td>
+                            </tr>
+                            {% if sh.notes %}
+                            <tr>
+                                <th class="text-muted">Notes</th>
+                                <td>{{ sh.notes }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th class="text-muted">Shipped By</th>
+                                <td>{% if sh.shipped_by %}{{ sh.shipped_by.get_full_name|default:sh.shipped_by.username }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Created</th>
+                                <td>{{ sh.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Updated</th>
+                                <td>{{ sh.updated_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tracking Events -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Tracking Events</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th scope="col">Date</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Location</th>
+                                <th scope="col">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in tracking_events %}
+                            <tr>
+                                <td>{{ event.event_date|date:"M d, Y H:i" }}</td>
+                                <td><span class="badge bg-info-subtle text-info">{{ event.status }}</span></td>
+                                <td>{{ event.location|default:"—" }}</td>
+                                <td>{{ event.description|default:"—" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">No tracking events</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Add Tracking Event Form -->
+                {% if sh.status != 'delivered' and sh.status != 'cancelled' %}
+                <hr>
+                <h6 class="mb-3">Add Tracking Event</h6>
+                <form method="post" action="{% url 'orders:shipment_add_tracking' sh.pk %}">
+                    {% csrf_token %}
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label for="id_tracking_status" class="form-label">Status</label>
+                            {{ tracking_form.status }}
+                        </div>
+                        <div class="col-md-3">
+                            <label for="id_tracking_location" class="form-label">Location</label>
+                            {{ tracking_form.location }}
+                        </div>
+                        <div class="col-md-3">
+                            <label for="id_tracking_description" class="form-label">Description</label>
+                            {{ tracking_form.description }}
+                        </div>
+                        <div class="col-md-2">
+                            <label for="id_tracking_event_date" class="form-label">Event Date</label>
+                            {{ tracking_form.event_date }}
+                        </div>
+                        <div class="col-md-1">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ri-add-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if sh.status == 'pending' %}
+                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'dispatched' %}" onsubmit="return confirm('Dispatch this shipment?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ri-truck-line align-middle me-1"></i> Dispatch
+                        </button>
+                    </form>
+                    <a href="{% url 'orders:shipment_edit' sh.pk %}" class="btn btn-soft-primary">
+                        <i class="ri-pencil-line align-middle me-1"></i> Edit
+                    </a>
+                    <form method="post" action="{% url 'orders:shipment_delete' sh.pk %}" onsubmit="return confirm('Permanently delete this shipment?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            <i class="ri-delete-bin-line align-middle me-1"></i> Delete
+                        </button>
+                    </form>
+                    {% elif sh.status == 'dispatched' %}
+                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'in_transit' %}" onsubmit="return confirm('Mark as In Transit?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-warning w-100">
+                            <i class="ri-roadster-line align-middle me-1"></i> Mark In Transit
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'delivered' %}" onsubmit="return confirm('Mark as Delivered?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="ri-checkbox-circle-line align-middle me-1"></i> Mark Delivered
+                        </button>
+                    </form>
+                    {% elif sh.status == 'in_transit' %}
+                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'delivered' %}" onsubmit="return confirm('Mark as Delivered?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="ri-checkbox-circle-line align-middle me-1"></i> Mark Delivered
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if sh.status != 'cancelled' and sh.status != 'delivered' %}
+                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'cancelled' %}" onsubmit="return confirm('Cancel this shipment?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-soft-danger w-100">
+                            <i class="ri-close-line align-middle me-1"></i> Cancel
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <a href="{% url 'orders:shipment_list' %}" class="btn btn-light">
+                        <i class="ri-arrow-left-line align-middle me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
