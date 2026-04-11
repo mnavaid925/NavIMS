@@ -171,6 +171,16 @@ NavIMS/
 │       └── commands/
 │           └── seed_lot_tracking.py  # Lot tracking seeder with demo data
 │
+├── orders/                     # Module 10: Order Management & Fulfillment
+│   ├── models.py               # Carrier, ShippingRate, SalesOrder, SalesOrderItem, WavePlan, WaveOrderAssignment, PickList, PickListItem, PackingList, Shipment, ShipmentTracking
+│   ├── forms.py                # SalesOrder, SalesOrderItem formset, PickList, PickListItem formset, PackingList, Shipment, ShipmentTracking, WavePlan, WaveOrderSelection, Carrier, ShippingRate forms
+│   ├── views.py                # Full CRUD for all entities + status transitions + inventory integration (58 views)
+│   ├── urls.py                 # Orders URL routes
+│   ├── admin.py                # Admin registration for all 11 models
+│   └── management/
+│       └── commands/
+│           └── seed_orders.py  # Orders seeder with demo data
+│
 ├── dashboard/                  # Dashboard app
 │   ├── views.py                # Dashboard view with stats
 │   └── urls.py                 # Dashboard URL route
@@ -278,21 +288,42 @@ NavIMS/
 │   │   ├── route_list.html             # Transfer routes with method/active filters
 │   │   ├── route_form.html             # Route create/edit
 │   │   └── route_detail.html           # Route details with related transfers
-│   └── lot_tracking/
-│       ├── lot_list.html               # Lot/batch listing with status/warehouse filters
-│       ├── lot_form.html               # Lot create/edit with product, warehouse, GRN
-│       ├── lot_detail.html             # Lot details with serials, trace logs, expiry alerts
-│       ├── lot_trace.html              # Forward/backward lot traceability timeline
-│       ├── serial_list.html            # Serial number listing with status/warehouse filters
-│       ├── serial_form.html            # Serial number register/edit
-│       ├── serial_detail.html          # Serial details with trace history
-│       ├── serial_trace.html           # Serial number full trace timeline
-│       ├── expiry_dashboard.html       # Expiry management dashboard with stat cards
-│       ├── expiry_alert_list.html      # Expiry alerts with type/acknowledged filters
-│       ├── expiry_acknowledge_form.html# Acknowledge expiry alert
-│       ├── traceability_list.html      # Full traceability audit log with filters
-│       ├── traceability_detail.html    # Traceability log entry details
-│       └── traceability_form.html      # Manual traceability log entry
+│   ├── lot_tracking/
+│   │   ├── lot_list.html               # Lot/batch listing with status/warehouse filters
+│   │   ├── lot_form.html               # Lot create/edit with product, warehouse, GRN
+│   │   ├── lot_detail.html             # Lot details with serials, trace logs, expiry alerts
+│   │   ├── lot_trace.html              # Forward/backward lot traceability timeline
+│   │   ├── serial_list.html            # Serial number listing with status/warehouse filters
+│   │   ├── serial_form.html            # Serial number register/edit
+│   │   ├── serial_detail.html          # Serial details with trace history
+│   │   ├── serial_trace.html           # Serial number full trace timeline
+│   │   ├── expiry_dashboard.html       # Expiry management dashboard with stat cards
+│   │   ├── expiry_alert_list.html      # Expiry alerts with type/acknowledged filters
+│   │   ├── expiry_acknowledge_form.html# Acknowledge expiry alert
+│   │   ├── traceability_list.html      # Full traceability audit log with filters
+│   │   ├── traceability_detail.html    # Traceability log entry details
+│   │   └── traceability_form.html      # Manual traceability log entry
+│   └── orders/
+│       ├── so_list.html                # Sales order listing with status/warehouse/date filters
+│       ├── so_form.html                # Sales order create/edit with inline line item formset
+│       ├── so_detail.html              # Sales order details with timeline, items, pick/pack/ship sections
+│       ├── picklist_list.html          # Pick list listing with status/warehouse filters
+│       ├── picklist_form.html          # Pick list create/edit with item formset
+│       ├── picklist_detail.html        # Pick list details with items and assign/start/complete actions
+│       ├── packinglist_list.html       # Packing list listing with status filters
+│       ├── packinglist_form.html       # Packing list create/edit with dimensions
+│       ├── packinglist_detail.html     # Packing list details with picked items
+│       ├── shipment_list.html          # Shipment listing with status/carrier filters
+│       ├── shipment_form.html          # Shipment create/edit
+│       ├── shipment_detail.html        # Shipment details with tracking events timeline
+│       ├── wave_list.html              # Wave plan listing with status/warehouse filters
+│       ├── wave_form.html              # Wave plan create/edit with order multi-select
+│       ├── wave_detail.html            # Wave plan details with assigned orders and pick lists
+│       ├── carrier_list.html           # Carrier listing with active/inactive filter
+│       ├── carrier_form.html           # Carrier create/edit
+│       ├── carrier_detail.html         # Carrier details with rates and shipments
+│       ├── shippingrate_list.html      # Shipping rate listing with carrier filter
+│       └── shippingrate_form.html      # Shipping rate create/edit
 │
 ├── static/                     # Static assets
 │   ├── css/
@@ -356,6 +387,7 @@ NavIMS/
    python manage.py seed_inventory
    python manage.py seed_stock_movements
    python manage.py seed_lot_tracking
+   python manage.py seed_orders
    ```
 
    To reset and re-seed:
@@ -369,6 +401,7 @@ NavIMS/
    python manage.py seed_inventory --flush
    python manage.py seed_stock_movements --flush
    python manage.py seed_lot_tracking --flush
+   python manage.py seed_orders --flush
    ```
 
 ---
@@ -440,6 +473,14 @@ The seed command creates the following demo accounts:
 - 12 serial numbers per tenant across all statuses
 - 5 expiry alerts per tenant (approaching, expired, recalled)
 - 10 traceability logs per tenant (received, transferred, sold, etc.)
+- 4 shipping carriers per tenant (FedEx, UPS, DHL, USPS)
+- 6 shipping rates per tenant across carriers and service levels
+- 8 sales orders per tenant across all statuses (draft through delivered)
+- ~16 sales order line items per tenant with pricing, tax, and discounts
+- 1 wave plan per tenant with 4 assigned orders
+- 5 pick lists per tenant with items (in_progress and completed)
+- 3 packing lists per tenant (completed with dimensions)
+- 2 shipments per tenant with tracking events (dispatched and delivered)
 
 ---
 
@@ -542,11 +583,25 @@ The seed command creates the following demo accounts:
 | Traceability & Genealogy | Full forward/backward trace logs for lots and serials |
 | Expiry Alerts            | Configurable alerts with acknowledge workflow         |
 
+### Module 10: Order Management & Fulfillment (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Sales Order Processing   | Manual order entry with auto-generated SO numbers, customer info, line items with pricing/tax/discount |
+| Order Status Workflow    | Draft → Confirmed → In Fulfillment → Picked → Packed → Shipped → Delivered → Closed (+ Cancelled, On Hold) |
+| Pick List Management     | Generate pick lists from orders, assign pickers, track picked quantities per bin location |
+| Packing Verification     | Create packing lists from completed picks, record dimensions, weight, packaging type |
+| Shipment Dispatch        | Create shipments with carrier, tracking number, shipping cost, dispatch and delivery tracking |
+| Shipment Tracking        | Manual tracking event entry with status, location, and timestamp timeline |
+| Wave Planning            | Group multiple orders into waves for efficient warehouse picking, generate consolidated pick lists |
+| Carrier Management       | Carrier directory with contact info and API endpoint placeholders for future integration |
+| Shipping Rates           | Rate configuration per carrier/service level with base cost, per-kg cost, and transit days |
+| Inventory Integration    | Auto-reserve stock on order confirmation, release on cancellation, decrement on delivery |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 10 | Order Management & Fulfillment  | Sales orders, pick-pack-ship, wave planning    |
 | 11 | Returns Management (RMA)        | Return authorization, inspection, disposition  |
 | 12 | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
 | 13 | Multi-Location Management       | Location hierarchy, global stock visibility    |
