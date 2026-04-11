@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Orders</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'orders:packinglist_list' %}">Packing Lists</a></li>
+                    <li class="breadcrumb-item active">{% if pl %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Packing List Info</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_pick_list" class="form-label">Pick List <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.pick_list.errors %}is-invalid{% endif %}" id="id_pick_list" name="pick_list" required>
+                                <option value="">— Select Pick List —</option>
+                                {% for choice in form.pick_list.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.pick_list.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.pick_number }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.pick_list.errors %}
+                            <div class="invalid-feedback">{% for error in form.pick_list.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_sales_order" class="form-label">Sales Order</label>
+                            <select class="form-select {% if form.sales_order.errors %}is-invalid{% endif %}" id="id_sales_order" name="sales_order">
+                                <option value="">— Select Sales Order —</option>
+                                {% for choice in form.sales_order.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.sales_order.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.sales_order.errors %}
+                            <div class="invalid-feedback">{% for error in form.sales_order.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_packaging_type" class="form-label">Packaging Type</label>
+                            <input type="text" class="form-control {% if form.packaging_type.errors %}is-invalid{% endif %}" id="id_packaging_type" name="packaging_type" value="{{ form.packaging_type.value|default:'' }}" placeholder="e.g. Box, Pallet, Envelope">
+                            {% if form.packaging_type.errors %}
+                            <div class="invalid-feedback">{% for error in form.packaging_type.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_total_weight" class="form-label">Total Weight</label>
+                            <input type="number" class="form-control {% if form.total_weight.errors %}is-invalid{% endif %}" id="id_total_weight" name="total_weight" value="{{ form.total_weight.value|default:'' }}" step="0.01" min="0" placeholder="kg">
+                            {% if form.total_weight.errors %}
+                            <div class="invalid-feedback">{% for error in form.total_weight.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_length" class="form-label">Length</label>
+                            <input type="number" class="form-control {% if form.length.errors %}is-invalid{% endif %}" id="id_length" name="length" value="{{ form.length.value|default:'' }}" step="0.01" min="0" placeholder="cm">
+                            {% if form.length.errors %}
+                            <div class="invalid-feedback">{% for error in form.length.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_width" class="form-label">Width</label>
+                            <input type="number" class="form-control {% if form.width.errors %}is-invalid{% endif %}" id="id_width" name="width" value="{{ form.width.value|default:'' }}" step="0.01" min="0" placeholder="cm">
+                            {% if form.width.errors %}
+                            <div class="invalid-feedback">{% for error in form.width.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_height" class="form-label">Height</label>
+                            <input type="number" class="form-control {% if form.height.errors %}is-invalid{% endif %}" id="id_height" name="height" value="{{ form.height.value|default:'' }}" step="0.01" min="0" placeholder="cm">
+                            {% if form.height.errors %}
+                            <div class="invalid-feedback">{% for error in form.height.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label for="id_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="id_notes" name="notes" rows="2" placeholder="Additional notes (optional)">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line align-middle me-1"></i>
+                            {% if pl %}Update Packing List{% else %}Create Packing List{% endif %}
+                        </button>
+                        <a href="{% url 'orders:packinglist_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+            {% if pl %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Packing List Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Packing Number:</strong> <code>{{ pl.packing_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong> {{ pl.get_status_display }}</p>
+                    <p class="mb-0"><strong>Created:</strong> {{ pl.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
