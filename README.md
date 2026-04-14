@@ -171,6 +171,16 @@ NavIMS/
 │       └── commands/
 │           └── seed_lot_tracking.py  # Lot tracking seeder with demo data
 │
+├── returns/                    # Module 11: Returns Management (RMA)
+│   ├── models.py               # ReturnAuthorization, ReturnAuthorizationItem, ReturnInspection, ReturnInspectionItem, Disposition, DispositionItem, RefundCredit
+│   ├── forms.py                # RMA, RMA item formset, Inspection, Inspection item formset, Disposition, Disposition item formset, RefundCredit forms
+│   ├── views.py                # Full CRUD for RMA, Inspection, Disposition, Refund + status transitions + restock/scrap inventory integration
+│   ├── urls.py                 # Returns URL routes
+│   ├── admin.py                # Admin registration with inlines
+│   └── management/
+│       └── commands/
+│           └── seed_returns.py # Returns seeder with demo data
+│
 ├── orders/                     # Module 10: Order Management & Fulfillment
 │   ├── models.py               # Carrier, ShippingRate, SalesOrder, SalesOrderItem, WavePlan, WaveOrderAssignment, PickList, PickListItem, PackingList, Shipment, ShipmentTracking
 │   ├── forms.py                # SalesOrder, SalesOrderItem formset, PickList, PickListItem formset, PackingList, Shipment, ShipmentTracking, WavePlan, WaveOrderSelection, Carrier, ShippingRate forms
@@ -388,6 +398,7 @@ NavIMS/
    python manage.py seed_stock_movements
    python manage.py seed_lot_tracking
    python manage.py seed_orders
+   python manage.py seed_returns
    ```
 
    To reset and re-seed:
@@ -402,6 +413,7 @@ NavIMS/
    python manage.py seed_stock_movements --flush
    python manage.py seed_lot_tracking --flush
    python manage.py seed_orders --flush
+   python manage.py seed_returns --flush
    ```
 
 ---
@@ -481,6 +493,11 @@ The seed command creates the following demo accounts:
 - 5 pick lists per tenant with items (in_progress and completed)
 - 3 packing lists per tenant (completed with dimensions)
 - 2 shipments per tenant with tracking events (dispatched and delivered)
+- 5 RMAs per tenant across all statuses (draft through closed)
+- ~10 RMA line items per tenant linked to sales order items
+- 2 return inspections per tenant with per-item condition and restockable flags
+- 2 dispositions per tenant with decisions (restock/repair/scrap/liquidate)
+- 2 refund/credit records per tenant across types and methods
 
 ---
 
@@ -598,11 +615,20 @@ The seed command creates the following demo accounts:
 | Shipping Rates           | Rate configuration per carrier/service level with base cost, per-kg cost, and transit days |
 | Inventory Integration    | Auto-reserve stock on order confirmation, release on cancellation, decrement on delivery |
 
+### Module 11: Returns Management (RMA) (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Return Merchandise Authorization | Create and track RMAs linked to sales orders with reason, customer details, requested/expected dates, status workflow (Draft → Pending → Approved → Received → Closed) |
+| Return Inspection        | Inspection tickets per RMA with inspector assignment, per-item condition (Good/Minor/Major Damage/Missing Parts/Defective), qty passed/failed, restockable flag, overall result |
+| Disposition Routing      | Decide per-return disposition (Restock, Repair, Liquidate, Scrap, Return to Vendor) with warehouse and destination bin; processing auto-creates inventory adjustments |
+| Credit/Refund Processing | Refunds and credit notes with type (Refund/Credit Note/Store Credit/Exchange), method, amount, reference number, status workflow |
+| Inventory Integration    | Restock disposition increases stock-on-hand and creates StockAdjustment; scrap disposition decreases stock with damage reason |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 11 | Returns Management (RMA)        | Return authorization, inspection, disposition  |
 | 12 | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
 | 13 | Multi-Location Management       | Location hierarchy, global stock visibility    |
 | 14 | Inventory Forecasting & Planning| Demand forecasting, reorder points, safety stock|
