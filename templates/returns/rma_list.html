@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Return Authorizations{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Return Authorizations (RMA)</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Returns</a></li>
+                    <li class="breadcrumb-item active">RMA</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All RMAs</h5>
+                <div class="flex-shrink-0">
+                    <a href="{% url 'returns:rma_create' %}" class="btn btn-primary btn-sm">
+                        <i class="ri-add-line align-middle me-1"></i> Create RMA
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="search-box">
+                            <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by RMA # or customer...">
+                            <i class="ri-search-line search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="status" onchange="this.form.submit()">
+                            <option value="">All Statuses</option>
+                            {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="reason" onchange="this.form.submit()">
+                            <option value="">All Reasons</option>
+                            {% for value, label in reason_choices %}
+                            <option value="{{ value }}" {% if current_reason == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="warehouse" onchange="this.form.submit()">
+                            <option value="">All Warehouses</option>
+                            {% for w in warehouses %}
+                            <option value="{{ w.pk }}" {% if current_warehouse == w.pk|stringformat:"d" %}selected{% endif %}>{{ w.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary w-100"><i class="ri-search-line"></i></button>
+                    </div>
+                    <div class="col-md-1">
+                        <a href="{% url 'returns:rma_list' %}" class="btn btn-light w-100" title="Clear"><i class="ri-filter-off-line"></i></a>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>RMA #</th>
+                                <th>Sales Order</th>
+                                <th>Customer</th>
+                                <th>Reason</th>
+                                <th>Requested</th>
+                                <th>Warehouse</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rma in rmas %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'returns:rma_detail' rma.pk %}" class="fw-medium text-primary">
+                                        {{ rma.rma_number }}
+                                    </a>
+                                </td>
+                                <td><code>{{ rma.sales_order.order_number }}</code></td>
+                                <td>{{ rma.customer_name }}</td>
+                                <td>{{ rma.get_reason_display }}</td>
+                                <td>{{ rma.requested_date|date:"M d, Y" }}</td>
+                                <td>{{ rma.warehouse.name }}</td>
+                                <td>
+                                    {% if rma.status == 'draft' %}<span class="badge bg-secondary-subtle text-secondary">Draft</span>
+                                    {% elif rma.status == 'pending' %}<span class="badge bg-warning-subtle text-warning">Pending</span>
+                                    {% elif rma.status == 'approved' %}<span class="badge bg-info-subtle text-info">Approved</span>
+                                    {% elif rma.status == 'rejected' %}<span class="badge bg-danger-subtle text-danger">Rejected</span>
+                                    {% elif rma.status == 'received' %}<span class="badge bg-primary-subtle text-primary">Received</span>
+                                    {% elif rma.status == 'closed' %}<span class="badge bg-success-subtle text-success">Closed</span>
+                                    {% elif rma.status == 'cancelled' %}<span class="badge bg-dark-subtle text-dark">Cancelled</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'returns:rma_detail' rma.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                                        {% if rma.status == 'draft' %}
+                                        <a href="{% url 'returns:rma_edit' rma.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                                        <form method="post" action="{% url 'returns:rma_delete' rma.pk %}" class="d-inline" onsubmit="return confirm('Delete this RMA?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="8" class="text-center py-4 text-muted">
+                                <i class="ri-arrow-go-back-line fs-24 d-block mb-2"></i>
+                                <p class="mb-0">No RMAs found</p>
+                                <a href="{% url 'returns:rma_create' %}" class="btn btn-sm btn-primary mt-2">Create Your First RMA</a>
+                            </td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if rmas.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if rmas.has_previous %}
+                            <li class="page-item"><a class="page-link" href="?page={{ rmas.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}"><i class="ri-arrow-left-s-line"></i></a></li>
+                            {% endif %}
+                            {% for num in rmas.paginator.page_range %}
+                            <li class="page-item {% if rmas.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}">{{ num }}</a></li>
+                            {% endfor %}
+                            {% if rmas.has_next %}
+                            <li class="page-item"><a class="page-link" href="?page={{ rmas.next_page_number }}{% if q %}&q={{ q }}{% endif %}"><i class="ri-arrow-right-s-line"></i></a></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
