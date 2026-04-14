@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Count {{ count.count_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Count {{ count.count_number }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stocktaking:count_list' %}">Stock Counts</a></li>
+                    <li class="breadcrumb-item active">{{ count.count_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Count #:</strong> <code>{{ count.count_number }}</code></p>
+                        <p class="mb-1"><strong>Type:</strong> {{ count.get_type_display }}</p>
+                        <p class="mb-1"><strong>Warehouse:</strong> {{ count.warehouse.name }}</p>
+                        <p class="mb-1"><strong>Zone:</strong> {{ count.zone.name|default:"All Zones" }}</p>
+                        <p class="mb-1"><strong>Blind Count:</strong> {% if count.blind_count %}<span class="badge bg-warning-subtle text-warning">Yes</span>{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Scheduled:</strong> {{ count.scheduled_date|date:"M d, Y" }}</p>
+                        <p class="mb-1"><strong>Started:</strong> {{ count.started_at|date:"M d, Y H:i"|default:"—" }}</p>
+                        <p class="mb-1"><strong>Completed:</strong> {{ count.completed_at|date:"M d, Y H:i"|default:"—" }}</p>
+                        <p class="mb-1"><strong>Assigned To:</strong> {{ count.assigned_to.get_full_name|default:count.assigned_to.username|default:"—" }}</p>
+                        <p class="mb-1"><strong>Counted By:</strong> {{ count.counted_by.get_full_name|default:count.counted_by.username|default:"—" }}</p>
+                    </div>
+                </div>
+                {% if count.notes %}<p class="mb-0 mt-2"><strong>Notes:</strong> {{ count.notes }}</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Count Items ({{ count.counted_items }}/{{ count.total_items }} counted)</h5>
+                {% if count.status != 'adjusted' and count.status != 'cancelled' %}
+                <a href="{% url 'stocktaking:count_sheet' count.pk %}" class="btn btn-sm btn-primary"><i class="ri-pencil-line me-1"></i>Open Count Sheet</a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-nowrap align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-end">System Qty</th>
+                                <th class="text-end">Counted Qty</th>
+                                <th class="text-end">Variance</th>
+                                <th class="text-end">Variance Value</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr class="{% if item.has_variance %}table-warning{% endif %}">
+                                <td>{{ item.product.name }} <small class="text-muted">({{ item.product.sku }})</small></td>
+                                <td class="text-end">{{ item.system_qty }}</td>
+                                <td class="text-end">{% if item.counted_qty is not None %}{{ item.counted_qty }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                                <td class="text-end">
+                                    {% if item.variance is not None %}
+                                        {% if item.variance > 0 %}<span class="text-success">+{{ item.variance }}</span>
+                                        {% elif item.variance < 0 %}<span class="text-danger">{{ item.variance }}</span>
+                                        {% else %}<span class="text-muted">0</span>{% endif %}
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td class="text-end">{{ item.variance_value|default:"—" }}</td>
+                                <td>{{ item.get_reason_code_display|default:"—" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="6" class="text-center text-muted py-3">No items</td></tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if count.counted_items %}
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="4" class="text-end">Total Variance Value:</th>
+                                <th class="text-end">{{ count.total_variance_value }}</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% if variance_adjustments %}
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Variance Adjustments</h5></div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for adj in variance_adjustments %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <a href="{% url 'stocktaking:adjustment_detail' adj.pk %}">{{ adj.adjustment_number }}</a>
+                        <span>{{ adj.get_status_display }} — {{ adj.total_variance_value }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Status</h5></div>
+            <div class="card-body">
+                <h4>
+                    {% if count.status == 'draft' %}<span class="badge bg-secondary-subtle text-secondary">Draft</span>
+                    {% elif count.status == 'in_progress' %}<span class="badge bg-info-subtle text-info">In Progress</span>
+                    {% elif count.status == 'counted' %}<span class="badge bg-primary-subtle text-primary">Counted</span>
+                    {% elif count.status == 'reviewed' %}<span class="badge bg-warning-subtle text-warning">Reviewed</span>
+                    {% elif count.status == 'adjusted' %}<span class="badge bg-success-subtle text-success">Adjusted</span>
+                    {% elif count.status == 'cancelled' %}<span class="badge bg-dark-subtle text-dark">Cancelled</span>
+                    {% endif %}
+                </h4>
+                <p class="mb-1 small text-muted">Items: {{ count.counted_items }}/{{ count.total_items }} counted</p>
+                <p class="mb-0 small text-muted">Variance Items: {{ count.variance_items }}</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if count.status == 'draft' %}
+                    <a href="{% url 'stocktaking:count_edit' count.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+                    <a href="{% url 'stocktaking:count_sheet' count.pk %}" class="btn btn-primary"><i class="ri-play-line me-1"></i>Start Counting</a>
+                    {% endif %}
+                    {% if count.status == 'in_progress' %}
+                    <a href="{% url 'stocktaking:count_sheet' count.pk %}" class="btn btn-primary"><i class="ri-edit-line me-1"></i>Continue Counting</a>
+                    {% endif %}
+                    {% if count.status == 'counted' %}
+                    <form method="post" action="{% url 'stocktaking:count_review' count.pk %}">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-check-double-line me-1"></i>Mark Reviewed</button></form>
+                    {% endif %}
+                    {% if count.status == 'reviewed' %}
+                    <a href="{% url 'stocktaking:adjustment_create' %}" class="btn btn-primary"><i class="ri-edit-2-line me-1"></i>Create Variance Adjustment</a>
+                    {% endif %}
+                    {% if count.status != 'adjusted' and count.status != 'cancelled' %}
+                    <form method="post" action="{% url 'stocktaking:count_cancel' count.pk %}" onsubmit="return confirm('Cancel this count?');">{% csrf_token %}<button class="btn btn-soft-danger w-100">Cancel Count</button></form>
+                    {% endif %}
+                    {% if count.status == 'draft' %}
+                    <form method="post" action="{% url 'stocktaking:count_delete' count.pk %}" onsubmit="return confirm('Delete?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+                    {% endif %}
+                    <a href="{% url 'stocktaking:count_list' %}" class="btn btn-light">Back to List</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
