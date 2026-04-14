@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stocktaking:count_list' %}">Stock Counts</a></li>
+                    <li class="breadcrumb-item active">{% if count %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Count Details</h5></div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Type <span class="text-danger">*</span></label>
+                            <select name="type" class="form-select" required>
+                                {% for v, l in form.type.field.choices %}<option value="{{ v }}" {% if form.type.value == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Warehouse <span class="text-danger">*</span></label>
+                            <select name="warehouse" class="form-select" required>
+                                <option value="">— Select Warehouse —</option>
+                                {% for w in form.warehouse.field.queryset %}
+                                <option value="{{ w.pk }}" {% if form.warehouse.value|stringformat:"s" == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Zone</label>
+                            <select name="zone" class="form-select">
+                                <option value="">— All Zones —</option>
+                                {% for z in form.zone.field.queryset %}
+                                <option value="{{ z.pk }}" {% if form.zone.value|stringformat:"s" == z.pk|stringformat:"s" %}selected{% endif %}>{{ z.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Scheduled Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="scheduled_date" value="{{ form.scheduled_date.value|date:'Y-m-d'|default:'' }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Assigned To</label>
+                            <select name="assigned_to" class="form-select">
+                                <option value="">— Assign Counter —</option>
+                                {% for u in form.assigned_to.field.queryset %}
+                                <option value="{{ u.pk }}" {% if form.assigned_to.value|stringformat:"s" == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label d-block">Blind Count</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" name="blind_count" id="id_blind_count" {% if form.blind_count.value %}checked{% endif %}>
+                                <label class="form-check-label" for="id_blind_count">Hide system quantity from counters</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Cycle Count Schedule</label>
+                            <select name="schedule" class="form-select">
+                                <option value="">— None —</option>
+                                {% for s in form.schedule.field.queryset %}
+                                <option value="{{ s.pk }}" {% if form.schedule.value|stringformat:"s" == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Warehouse Freeze</label>
+                            <select name="freeze" class="form-select">
+                                <option value="">— None —</option>
+                                {% for f in form.freeze.field.queryset %}
+                                <option value="{{ f.pk }}" {% if form.freeze.value|stringformat:"s" == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.freeze_number }} — {{ f.warehouse.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="2">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if count %}Update Count{% else %}Create Count{% endif %}</button>
+                        <a href="{% url 'stocktaking:count_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                    {% if not count %}
+                    <hr>
+                    <p class="small text-muted mb-0"><i class="ri-information-line me-1"></i>When you create the count, items will be auto-populated from current stock levels in the selected warehouse.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
