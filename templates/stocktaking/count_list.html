@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Counts{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Stock Counts</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Stocktaking</a></li>
+                    <li class="breadcrumb-item active">Stock Counts</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Stock Counts</h5>
+                <a href="{% url 'stocktaking:count_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>New Count</a>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="search-box">
+                            <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by count #...">
+                            <i class="ri-search-line search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="status" onchange="this.form.submit()">
+                            <option value="">All Statuses</option>
+                            {% for v, l in status_choices %}<option value="{{ v }}" {% if current_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="type" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            {% for v, l in type_choices %}<option value="{{ v }}" {% if current_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="warehouse" onchange="this.form.submit()">
+                            <option value="">All Warehouses</option>
+                            {% for w in warehouses %}<option value="{{ w.pk }}" {% if current_warehouse == w.pk|stringformat:"d" %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'stocktaking:count_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Count #</th>
+                                <th>Type</th>
+                                <th>Warehouse</th>
+                                <th>Zone</th>
+                                <th>Scheduled</th>
+                                <th>Blind</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in counts %}
+                            <tr>
+                                <td><a href="{% url 'stocktaking:count_detail' c.pk %}" class="fw-medium text-primary">{{ c.count_number }}</a></td>
+                                <td><span class="badge bg-info-subtle text-info">{{ c.get_type_display }}</span></td>
+                                <td>{{ c.warehouse.name }}</td>
+                                <td>{{ c.zone.name|default:"—" }}</td>
+                                <td>{{ c.scheduled_date|date:"M d, Y" }}</td>
+                                <td>{% if c.blind_count %}<i class="ri-eye-off-line text-warning"></i>{% else %}—{% endif %}</td>
+                                <td>
+                                    {% if c.status == 'draft' %}<span class="badge bg-secondary-subtle text-secondary">Draft</span>
+                                    {% elif c.status == 'in_progress' %}<span class="badge bg-info-subtle text-info">In Progress</span>
+                                    {% elif c.status == 'counted' %}<span class="badge bg-primary-subtle text-primary">Counted</span>
+                                    {% elif c.status == 'reviewed' %}<span class="badge bg-warning-subtle text-warning">Reviewed</span>
+                                    {% elif c.status == 'adjusted' %}<span class="badge bg-success-subtle text-success">Adjusted</span>
+                                    {% elif c.status == 'cancelled' %}<span class="badge bg-dark-subtle text-dark">Cancelled</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'stocktaking:count_detail' c.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                                        {% if c.status == 'draft' %}
+                                        <a href="{% url 'stocktaking:count_edit' c.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                                        <form method="post" action="{% url 'stocktaking:count_delete' c.pk %}" class="d-inline" onsubmit="return confirm('Delete?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger"><i class="ri-delete-bin-line"></i></button></form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="8" class="text-center py-4 text-muted"><i class="ri-clipboard-line fs-24 d-block mb-2"></i>No stock counts found</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if counts.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav><ul class="pagination pagination-sm mb-0">
+                        {% if counts.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ counts.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in counts.paginator.page_range %}<li class="page-item {% if counts.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+                        {% if counts.has_next %}<li class="page-item"><a class="page-link" href="?page={{ counts.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                    </ul></nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
