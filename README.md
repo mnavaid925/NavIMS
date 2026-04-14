@@ -171,6 +171,16 @@ NavIMS/
 │       └── commands/
 │           └── seed_lot_tracking.py  # Lot tracking seeder with demo data
 │
+├── stocktaking/                # Module 12: Stocktaking & Cycle Counting
+│   ├── models.py               # StocktakeFreeze, CycleCountSchedule, StockCount, StockCountItem, StockVarianceAdjustment
+│   ├── forms.py                # Freeze, Schedule, StockCount, StockCountItem, VarianceAdjustment forms
+│   ├── views.py                # Full CRUD for counts, schedules, freezes, adjustments + count sheet + inventory posting
+│   ├── urls.py                 # Stocktaking URL routes
+│   ├── admin.py                # Admin registration with inlines
+│   └── management/
+│       └── commands/
+│           └── seed_stocktaking.py  # Stocktaking seeder with demo data
+│
 ├── returns/                    # Module 11: Returns Management (RMA)
 │   ├── models.py               # ReturnAuthorization, ReturnAuthorizationItem, ReturnInspection, ReturnInspectionItem, Disposition, DispositionItem, RefundCredit
 │   ├── forms.py                # RMA, RMA item formset, Inspection, Inspection item formset, Disposition, Disposition item formset, RefundCredit forms
@@ -399,6 +409,7 @@ NavIMS/
    python manage.py seed_lot_tracking
    python manage.py seed_orders
    python manage.py seed_returns
+   python manage.py seed_stocktaking
    ```
 
    To reset and re-seed:
@@ -414,6 +425,7 @@ NavIMS/
    python manage.py seed_lot_tracking --flush
    python manage.py seed_orders --flush
    python manage.py seed_returns --flush
+   python manage.py seed_stocktaking --flush
    ```
 
 ---
@@ -498,6 +510,11 @@ The seed command creates the following demo accounts:
 - 2 return inspections per tenant with per-item condition and restockable flags
 - 2 dispositions per tenant with decisions (restock/repair/scrap/liquidate)
 - 2 refund/credit records per tenant across types and methods
+- 2 cycle count schedules per tenant (weekly Class A, monthly Class B)
+- 1 active warehouse freeze per tenant (year-end count)
+- 3 stock counts per tenant (draft cycle, in-progress blind cycle, adjusted full)
+- ~18 stock count items per tenant (6 per count)
+- 1 posted variance adjustment per tenant with real inventory posting
 
 ---
 
@@ -625,11 +642,22 @@ The seed command creates the following demo accounts:
 | Credit/Refund Processing | Refunds and credit notes with type (Refund/Credit Note/Store Credit/Exchange), method, amount, reference number, status workflow |
 | Inventory Integration    | Restock disposition increases stock-on-hand and creates StockAdjustment; scrap disposition decreases stock with damage reason |
 
+### Module 12: Stocktaking & Cycle Counting (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Full Physical Inventory  | Warehouse freeze tickets to block movements during a complete count; tied to full-type stock counts |
+| Cycle Count Scheduling   | Configurable recurring schedules (daily/weekly/monthly/quarterly) with ABC-class targeting and zone filters; "Run Now" generates a count document |
+| Stock Count Sheets       | Count document auto-populated from StockLevel snapshot; per-item counted qty entry, with variance and reason code per line |
+| Blind Counts             | Per-count flag that hides expected system quantities from counters to prevent bias |
+| Variance Analysis        | Aggregated variance qty and value per count with reason-code classification |
+| Adjustment Workflow      | Pending → Approved → Posted; posting creates `inventory.StockAdjustment` records and updates `StockLevel.on_hand` + `last_counted_at` |
+| Status Workflow          | Counts: Draft → In Progress → Counted → Reviewed → Adjusted; freezes: Active → Released |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 12 | Stocktaking & Cycle Counting    | Physical inventory, cycle counts, variance     |
 | 13 | Multi-Location Management       | Location hierarchy, global stock visibility    |
 | 14 | Inventory Forecasting & Planning| Demand forecasting, reorder points, safety stock|
 | 15 | Barcode & RFID Integration      | Label generation, scanner integration          |
