@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Returns</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'returns:rma_list' %}">RMA</a></li>
+                    <li class="breadcrumb-item active">{% if rma %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">{% for e in form.non_field_errors %}<p class="mb-0">{{ e }}</p>{% endfor %}</div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">RMA Details</h5></div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Sales Order <span class="text-danger">*</span></label>
+                            <select name="sales_order" class="form-select {% if form.sales_order.errors %}is-invalid{% endif %}" required>
+                                <option value="">— Select Sales Order —</option>
+                                {% for so in form.sales_order.field.queryset %}
+                                <option value="{{ so.pk }}" {% if form.sales_order.value|stringformat:"s" == so.pk|stringformat:"s" %}selected{% endif %}>{{ so.order_number }} — {{ so.customer_name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.sales_order.errors %}<div class="invalid-feedback">{{ form.sales_order.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Warehouse <span class="text-danger">*</span></label>
+                            <select name="warehouse" class="form-select" required>
+                                <option value="">— Select Warehouse —</option>
+                                {% for w in form.warehouse.field.queryset %}
+                                <option value="{{ w.pk }}" {% if form.warehouse.value|stringformat:"s" == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Customer Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="customer_name" value="{{ form.customer_name.value|default:'' }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Customer Email</label>
+                            <input type="email" class="form-control" name="customer_email" value="{{ form.customer_email.value|default:'' }}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Customer Phone</label>
+                            <input type="text" class="form-control" name="customer_phone" value="{{ form.customer_phone.value|default:'' }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Return Address</label>
+                        <textarea class="form-control" name="return_address" rows="2">{{ form.return_address.value|default:'' }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Reason <span class="text-danger">*</span></label>
+                            <select name="reason" class="form-select" required>
+                                {% for value, label in form.reason.field.choices %}
+                                <option value="{{ value }}" {% if form.reason.value == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Requested Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="requested_date" value="{{ form.requested_date.value|default:'' }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Expected Return Date</label>
+                            <input type="date" class="form-control" name="expected_return_date" value="{{ form.expected_return_date.value|default:'' }}">
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="2">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <h5 class="card-title mb-0 flex-grow-1">Return Items</h5>
+                    <button type="button" class="btn btn-sm btn-soft-primary" id="add-item-btn"><i class="ri-add-line me-1"></i>Add Item</button>
+                </div>
+                <div class="card-body">
+                    {{ formset.management_form }}
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0" id="items-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="min-width: 200px;">Product <span class="text-danger">*</span></th>
+                                    <th style="min-width: 150px;">Description</th>
+                                    <th style="width: 90px;">Qty <span class="text-danger">*</span></th>
+                                    <th style="width: 110px;">Unit Price</th>
+                                    <th style="min-width: 150px;">Reason Note</th>
+                                    <th style="width: 50px;">Del</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-body">
+                                {% for item_form in formset %}
+                                <tr class="item-row {% if item_form.DELETE.value %}d-none{% endif %}">
+                                    <td>
+                                        {{ item_form.id }}
+                                        <select name="{{ item_form.product.html_name }}" class="form-select form-select-sm">
+                                            <option value="">— Select Product —</option>
+                                            {% for p in item_form.fields.product.queryset %}
+                                            <option value="{{ p.pk }}" {% if item_form.product.value|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }} ({{ p.sku }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td><input type="text" name="{{ item_form.description.html_name }}" class="form-control form-control-sm" value="{{ item_form.description.value|default:'' }}"></td>
+                                    <td><input type="number" name="{{ item_form.qty_requested.html_name }}" class="form-control form-control-sm" value="{{ item_form.qty_requested.value|default:'1' }}" min="1"></td>
+                                    <td><input type="number" name="{{ item_form.unit_price.html_name }}" class="form-control form-control-sm" value="{{ item_form.unit_price.value|default:'0' }}" step="0.01" min="0"></td>
+                                    <td><input type="text" name="{{ item_form.reason_note.html_name }}" class="form-control form-control-sm" value="{{ item_form.reason_note.value|default:'' }}"></td>
+                                    <td class="text-center">
+                                        {% if item_form.instance.pk %}
+                                        <input type="checkbox" name="{{ item_form.DELETE.html_name }}" class="form-check-input delete-checkbox" {% if item_form.DELETE.value %}checked{% endif %}>
+                                        {% else %}
+                                        <button type="button" class="btn btn-sm btn-soft-danger remove-row-btn"><i class="ri-close-line"></i></button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if rma %}Update RMA{% else %}Create RMA{% endif %}</button>
+                        <a href="{% url 'returns:rma_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+            {% if rma %}
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">RMA Info</h5></div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>RMA #:</strong> <code>{{ rma.rma_number }}</code></p>
+                    <p class="mb-1"><strong>Status:</strong> {{ rma.get_status_display }}</p>
+                    <p class="mb-0"><strong>Created:</strong> {{ rma.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-item-btn');
+    const tbody = document.getElementById('items-body');
+    const totalFormsInput = document.querySelector('[name="items-TOTAL_FORMS"]');
+
+    addBtn.addEventListener('click', function() {
+        const formCount = parseInt(totalFormsInput.value);
+        const lastRow = tbody.querySelector('.item-row:last-child');
+        if (!lastRow) return;
+        const newRow = lastRow.cloneNode(true);
+        newRow.classList.remove('d-none');
+        newRow.innerHTML = newRow.innerHTML.replace(new RegExp('items-\\d+', 'g'), 'items-' + formCount);
+        newRow.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(i) {
+            if (i.name.includes('qty_requested')) i.value = '1';
+            else if (i.name.includes('unit_price')) i.value = '0';
+            else i.value = '';
+        });
+        newRow.querySelectorAll('select').forEach(function(s) { s.selectedIndex = 0; });
+        const delCell = newRow.querySelector('td:last-child');
+        delCell.innerHTML = '<button type="button" class="btn btn-sm btn-soft-danger remove-row-btn"><i class="ri-close-line"></i></button>';
+        const idInput = newRow.querySelector('input[name$="-id"]');
+        if (idInput) idInput.value = '';
+        tbody.appendChild(newRow);
+        totalFormsInput.value = formCount + 1;
+        attachRemoveHandlers();
+    });
+
+    function attachRemoveHandlers() {
+        document.querySelectorAll('.remove-row-btn').forEach(function(b) {
+            b.onclick = function() { b.closest('tr').remove(); };
+        });
+        document.querySelectorAll('.delete-checkbox').forEach(function(c) {
+            c.onchange = function() { c.closest('tr').classList.toggle('d-none', c.checked); };
+        });
+    }
+    attachRemoveHandlers();
+});
+</script>
+{% endblock %}
