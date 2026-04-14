@@ -17,6 +17,7 @@ urlpatterns = [
     path('stock-movements/', include('stock_movements.urls')),
     path('lot-tracking/', include('lot_tracking.urls')),
     path('orders/', include('orders.urls')),
+    path('returns/', include('returns.urls')),
 ]
 
 if settings.DEBUG:
