@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}RMA {{ rma.rma_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">RMA {{ rma.rma_number }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'returns:rma_list' %}">RMA</a></li>
+                    <li class="breadcrumb-item active">{{ rma.rma_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>RMA #:</strong> <code>{{ rma.rma_number }}</code></p>
+                        <p class="mb-1"><strong>Sales Order:</strong> <code>{{ rma.sales_order.order_number }}</code></p>
+                        <p class="mb-1"><strong>Reason:</strong> {{ rma.get_reason_display }}</p>
+                        <p class="mb-1"><strong>Requested Date:</strong> {{ rma.requested_date|date:"M d, Y" }}</p>
+                        <p class="mb-1"><strong>Expected Return:</strong> {{ rma.expected_return_date|date:"M d, Y"|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Customer:</strong> {{ rma.customer_name }}</p>
+                        <p class="mb-1"><strong>Email:</strong> {{ rma.customer_email|default:"—" }}</p>
+                        <p class="mb-1"><strong>Phone:</strong> {{ rma.customer_phone|default:"—" }}</p>
+                        <p class="mb-1"><strong>Warehouse:</strong> {{ rma.warehouse.name }}</p>
+                        <p class="mb-1"><strong>Created By:</strong> {{ rma.created_by.get_full_name|default:rma.created_by.username|default:"—" }}</p>
+                    </div>
+                </div>
+                {% if rma.return_address %}<p class="mb-0 mt-2"><strong>Return Address:</strong><br>{{ rma.return_address|linebreaksbr }}</p>{% endif %}
+                {% if rma.notes %}<p class="mb-0 mt-2"><strong>Notes:</strong> {{ rma.notes }}</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Return Items</h5></div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-nowrap align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>Description</th>
+                                <th class="text-end">Qty Req</th>
+                                <th class="text-end">Qty Recv</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Line Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.product.name }} <small class="text-muted">({{ item.product.sku }})</small></td>
+                                <td>{{ item.description|default:"—" }}</td>
+                                <td class="text-end">{{ item.qty_requested }}</td>
+                                <td class="text-end">{{ item.qty_received }}</td>
+                                <td class="text-end">{{ item.unit_price }}</td>
+                                <td class="text-end">{{ item.line_total }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="6" class="text-center text-muted py-3">No items</td></tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if items %}
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="5" class="text-end">Total Value:</th>
+                                <th class="text-end">{{ rma.total_value }}</th>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% if inspections %}
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Inspections</h5></div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for ins in inspections %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <a href="{% url 'returns:inspection_detail' ins.pk %}">{{ ins.inspection_number }}</a>
+                        <span>{{ ins.get_status_display }} — {{ ins.get_overall_result_display|default:"—" }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if dispositions %}
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Dispositions</h5></div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for d in dispositions %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <a href="{% url 'returns:disposition_detail' d.pk %}">{{ d.disposition_number }}</a>
+                        <span>{{ d.get_decision_display }} — {{ d.get_status_display }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if refunds %}
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Refunds / Credits</h5></div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for r in refunds %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <a href="{% url 'returns:refund_detail' r.pk %}">{{ r.refund_number }}</a>
+                        <span>{{ r.get_type_display }} — {{ r.amount }} {{ r.currency }} — {{ r.get_status_display }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Status</h5></div>
+            <div class="card-body">
+                <h4>
+                    {% if rma.status == 'draft' %}<span class="badge bg-secondary-subtle text-secondary">Draft</span>
+                    {% elif rma.status == 'pending' %}<span class="badge bg-warning-subtle text-warning">Pending Approval</span>
+                    {% elif rma.status == 'approved' %}<span class="badge bg-info-subtle text-info">Approved</span>
+                    {% elif rma.status == 'rejected' %}<span class="badge bg-danger-subtle text-danger">Rejected</span>
+                    {% elif rma.status == 'received' %}<span class="badge bg-primary-subtle text-primary">Received</span>
+                    {% elif rma.status == 'closed' %}<span class="badge bg-success-subtle text-success">Closed</span>
+                    {% elif rma.status == 'cancelled' %}<span class="badge bg-dark-subtle text-dark">Cancelled</span>
+                    {% endif %}
+                </h4>
+                {% if rma.approved_at %}<p class="mb-1 small text-muted">Approved: {{ rma.approved_at|date:"M d, Y H:i" }}</p>{% endif %}
+                {% if rma.received_at %}<p class="mb-1 small text-muted">Received: {{ rma.received_at|date:"M d, Y H:i" }}</p>{% endif %}
+                {% if rma.closed_at %}<p class="mb-0 small text-muted">Closed: {{ rma.closed_at|date:"M d, Y H:i" }}</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if rma.status == 'draft' %}
+                    <a href="{% url 'returns:rma_edit' rma.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+                    <form method="post" action="{% url 'returns:rma_submit' rma.pk %}">{% csrf_token %}<button class="btn btn-primary w-100"><i class="ri-send-plane-line me-1"></i>Submit for Approval</button></form>
+                    {% endif %}
+                    {% if rma.status == 'pending' %}
+                    <form method="post" action="{% url 'returns:rma_approve' rma.pk %}">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-check-line me-1"></i>Approve</button></form>
+                    <form method="post" action="{% url 'returns:rma_reject' rma.pk %}">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-close-line me-1"></i>Reject</button></form>
+                    {% endif %}
+                    {% if rma.status == 'approved' %}
+                    <form method="post" action="{% url 'returns:rma_receive' rma.pk %}">{% csrf_token %}<button class="btn btn-primary w-100"><i class="ri-inbox-line me-1"></i>Mark Received</button></form>
+                    {% endif %}
+                    {% if rma.status == 'received' %}
+                    <form method="post" action="{% url 'returns:rma_close' rma.pk %}">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-archive-line me-1"></i>Close RMA</button></form>
+                    {% endif %}
+                    {% if rma.status in 'draft,pending,approved' %}
+                    <form method="post" action="{% url 'returns:rma_cancel' rma.pk %}" onsubmit="return confirm('Cancel this RMA?');">{% csrf_token %}<button class="btn btn-soft-danger w-100">Cancel RMA</button></form>
+                    {% endif %}
+                    {% if rma.status == 'draft' %}
+                    <form method="post" action="{% url 'returns:rma_delete' rma.pk %}" onsubmit="return confirm('Delete this RMA?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+                    {% endif %}
+                    <a href="{% url 'returns:rma_list' %}" class="btn btn-light">Back to List</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
