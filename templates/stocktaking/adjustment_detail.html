@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Adjustment {{ adjustment.adjustment_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Variance Adjustment {{ adjustment.adjustment_number }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stocktaking:adjustment_list' %}">Adjustments</a></li>
+                    <li class="breadcrumb-item active">{{ adjustment.adjustment_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Adjustment #:</strong> <code>{{ adjustment.adjustment_number }}</code></p>
+                        <p class="mb-1"><strong>Count:</strong> <a href="{% url 'stocktaking:count_detail' adjustment.count.pk %}">{{ adjustment.count.count_number }}</a></p>
+                        <p class="mb-1"><strong>Warehouse:</strong> {{ adjustment.count.warehouse.name }}</p>
+                        <p class="mb-1"><strong>Reason:</strong> {{ adjustment.get_reason_code_display }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Variance Qty:</strong> {{ adjustment.total_variance_qty }}</p>
+                        <p class="mb-1"><strong>Variance Value:</strong> <span class="fs-5">{{ adjustment.total_variance_value }}</span></p>
+                        <p class="mb-1"><strong>Approved By:</strong> {{ adjustment.approved_by.get_full_name|default:adjustment.approved_by.username|default:"—" }}</p>
+                        <p class="mb-1"><strong>Posted:</strong> {{ adjustment.posted_at|date:"M d, Y H:i"|default:"—" }}</p>
+                    </div>
+                </div>
+                {% if adjustment.notes %}<p class="mb-0 mt-2"><strong>Notes:</strong> {{ adjustment.notes }}</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Variance Items</h5></div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-nowrap align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>Bin</th>
+                                <th class="text-end">System</th>
+                                <th class="text-end">Counted</th>
+                                <th class="text-end">Variance</th>
+                                <th class="text-end">Value</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in variance_items %}
+                            <tr class="{% if item.has_variance %}table-warning{% endif %}">
+                                <td>{{ item.product.name }} <small class="text-muted">({{ item.product.sku }})</small></td>
+                                <td>{{ item.bin_location.code|default:"—" }}</td>
+                                <td class="text-end">{{ item.system_qty }}</td>
+                                <td class="text-end">{{ item.counted_qty }}</td>
+                                <td class="text-end">
+                                    {% if item.variance > 0 %}<span class="text-success">+{{ item.variance }}</span>
+                                    {% elif item.variance < 0 %}<span class="text-danger">{{ item.variance }}</span>
+                                    {% else %}<span class="text-muted">0</span>{% endif %}
+                                </td>
+                                <td class="text-end">{{ item.variance_value }}</td>
+                                <td>{{ item.get_reason_code_display|default:"—" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="7" class="text-center text-muted py-3">No counted items</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Status</h5></div>
+            <div class="card-body">
+                <h4>
+                    {% if adjustment.status == 'pending' %}<span class="badge bg-warning-subtle text-warning">Pending Approval</span>
+                    {% elif adjustment.status == 'approved' %}<span class="badge bg-info-subtle text-info">Approved</span>
+                    {% elif adjustment.status == 'posted' %}<span class="badge bg-success-subtle text-success">Posted</span>
+                    {% elif adjustment.status == 'rejected' %}<span class="badge bg-danger-subtle text-danger">Rejected</span>
+                    {% endif %}
+                </h4>
+                {% if adjustment.approved_at %}<p class="mb-1 small text-muted">Approved: {{ adjustment.approved_at|date:"M d, Y H:i" }}</p>{% endif %}
+                {% if adjustment.posted_at %}<p class="mb-0 small text-muted">Posted: {{ adjustment.posted_at|date:"M d, Y H:i" }}</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if adjustment.status == 'pending' %}
+                    <a href="{% url 'stocktaking:adjustment_edit' adjustment.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+                    <form method="post" action="{% url 'stocktaking:adjustment_approve' adjustment.pk %}">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-check-line me-1"></i>Approve</button></form>
+                    <form method="post" action="{% url 'stocktaking:adjustment_reject' adjustment.pk %}">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-close-line me-1"></i>Reject</button></form>
+                    {% endif %}
+                    {% if adjustment.status == 'approved' %}
+                    <form method="post" action="{% url 'stocktaking:adjustment_post' adjustment.pk %}" onsubmit="return confirm('Post adjustment? This will update stock levels and create stock adjustment records. Cannot be undone.');">{% csrf_token %}<button class="btn btn-primary w-100"><i class="ri-send-plane-line me-1"></i>Post to Inventory</button></form>
+                    <form method="post" action="{% url 'stocktaking:adjustment_reject' adjustment.pk %}">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-close-line me-1"></i>Reject</button></form>
+                    {% endif %}
+                    {% if adjustment.status != 'posted' %}
+                    <form method="post" action="{% url 'stocktaking:adjustment_delete' adjustment.pk %}" onsubmit="return confirm('Delete?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+                    {% endif %}
+                    <a href="{% url 'stocktaking:adjustment_list' %}" class="btn btn-light">Back to List</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
