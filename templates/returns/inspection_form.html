@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'returns:inspection_list' %}">Inspections</a></li>
+                    <li class="breadcrumb-item active">{% if inspection %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Inspection Details</h5></div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">RMA <span class="text-danger">*</span></label>
+                            <select name="rma" class="form-select" required>
+                                <option value="">— Select RMA —</option>
+                                {% for r in form.rma.field.queryset %}
+                                <option value="{{ r.pk }}" {% if form.rma.value|stringformat:"s" == r.pk|stringformat:"s" %}selected{% endif %}>{{ r.rma_number }} — {{ r.customer_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Inspector</label>
+                            <select name="inspector" class="form-select">
+                                <option value="">— Assign Inspector —</option>
+                                {% for u in form.inspector.field.queryset %}
+                                <option value="{{ u.pk }}" {% if form.inspector.value|stringformat:"s" == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Inspected Date</label>
+                            <input type="date" class="form-control" name="inspected_date" value="{{ form.inspected_date.value|default:'' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Overall Result</label>
+                            <select name="overall_result" class="form-select">
+                                <option value="">—</option>
+                                {% for v, l in form.overall_result.field.choices %}{% if v %}<option value="{{ v }}" {% if form.overall_result.value == v %}selected{% endif %}>{{ l }}</option>{% endif %}{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="2">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <h5 class="card-title mb-0 flex-grow-1">Inspection Items</h5>
+                    <button type="button" class="btn btn-sm btn-soft-primary" id="add-item-btn"><i class="ri-add-line me-1"></i>Add Item</button>
+                </div>
+                <div class="card-body">
+                    {{ formset.management_form }}
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0" id="items-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="min-width: 220px;">RMA Item</th>
+                                    <th style="width: 90px;">Inspected</th>
+                                    <th style="width: 90px;">Passed</th>
+                                    <th style="width: 90px;">Failed</th>
+                                    <th style="min-width: 140px;">Condition</th>
+                                    <th style="width: 70px;">Restock</th>
+                                    <th style="width: 50px;">Del</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-body">
+                                {% for item_form in formset %}
+                                <tr class="item-row {% if item_form.DELETE.value %}d-none{% endif %}">
+                                    <td>
+                                        {{ item_form.id }}
+                                        <select name="{{ item_form.rma_item.html_name }}" class="form-select form-select-sm">
+                                            <option value="">— Select Item —</option>
+                                            {% for ri in item_form.fields.rma_item.queryset %}
+                                            <option value="{{ ri.pk }}" {% if item_form.rma_item.value|stringformat:"s" == ri.pk|stringformat:"s" %}selected{% endif %}>{{ ri.rma.rma_number }} — {{ ri.product.name }} x{{ ri.qty_requested }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td><input type="number" name="{{ item_form.qty_inspected.html_name }}" class="form-control form-control-sm" value="{{ item_form.qty_inspected.value|default:'0' }}" min="0"></td>
+                                    <td><input type="number" name="{{ item_form.qty_passed.html_name }}" class="form-control form-control-sm" value="{{ item_form.qty_passed.value|default:'0' }}" min="0"></td>
+                                    <td><input type="number" name="{{ item_form.qty_failed.html_name }}" class="form-control form-control-sm" value="{{ item_form.qty_failed.value|default:'0' }}" min="0"></td>
+                                    <td>
+                                        <select name="{{ item_form.condition.html_name }}" class="form-select form-select-sm">
+                                            {% for v, l in item_form.fields.condition.choices %}<option value="{{ v }}" {% if item_form.condition.value == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="text-center"><input type="checkbox" name="{{ item_form.restockable.html_name }}" class="form-check-input" {% if item_form.restockable.value %}checked{% endif %}></td>
+                                    <td class="text-center">
+                                        {% if item_form.instance.pk %}
+                                        <input type="checkbox" name="{{ item_form.DELETE.html_name }}" class="form-check-input delete-checkbox" {% if item_form.DELETE.value %}checked{% endif %}>
+                                        {% else %}
+                                        <button type="button" class="btn btn-sm btn-soft-danger remove-row-btn"><i class="ri-close-line"></i></button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if inspection %}Update{% else %}Create{% endif %}</button>
+                        <a href="{% url 'returns:inspection_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-item-btn');
+    const tbody = document.getElementById('items-body');
+    const totalFormsInput = document.querySelector('[name="items-TOTAL_FORMS"]');
+    addBtn.addEventListener('click', function() {
+        const fc = parseInt(totalFormsInput.value);
+        const last = tbody.querySelector('.item-row:last-child');
+        if (!last) return;
+        const r = last.cloneNode(true);
+        r.classList.remove('d-none');
+        r.innerHTML = r.innerHTML.replace(new RegExp('items-\\d+', 'g'), 'items-' + fc);
+        r.querySelectorAll('input[type="number"]').forEach(i => i.value = '0');
+        r.querySelectorAll('input[type="checkbox"]').forEach(i => i.checked = false);
+        r.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+        const delCell = r.querySelector('td:last-child');
+        delCell.innerHTML = '<button type="button" class="btn btn-sm btn-soft-danger remove-row-btn"><i class="ri-close-line"></i></button>';
+        const idInput = r.querySelector('input[name$="-id"]');
+        if (idInput) idInput.value = '';
+        tbody.appendChild(r);
+        totalFormsInput.value = fc + 1;
+        attach();
+    });
+    function attach() {
+        document.querySelectorAll('.remove-row-btn').forEach(b => b.onclick = () => b.closest('tr').remove());
+        document.querySelectorAll('.delete-checkbox').forEach(c => c.onchange = () => c.closest('tr').classList.toggle('d-none', c.checked));
+    }
+    attach();
+});
+</script>
+{% endblock %}
