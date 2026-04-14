@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Disposition {{ disposition.disposition_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Disposition {{ disposition.disposition_number }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'returns:disposition_list' %}">Dispositions</a></li>
+                    <li class="breadcrumb-item active">{{ disposition.disposition_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Disposition #:</strong> <code>{{ disposition.disposition_number }}</code></p>
+                        <p class="mb-1"><strong>RMA:</strong> <a href="{% url 'returns:rma_detail' disposition.rma.pk %}">{{ disposition.rma.rma_number }}</a></p>
+                        <p class="mb-1"><strong>Inspection:</strong> {% if disposition.inspection %}<a href="{% url 'returns:inspection_detail' disposition.inspection.pk %}">{{ disposition.inspection.inspection_number }}</a>{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Decision:</strong> <span class="badge bg-primary-subtle text-primary">{{ disposition.get_decision_display }}</span></p>
+                        <p class="mb-1"><strong>Warehouse:</strong> {{ disposition.warehouse.name }}</p>
+                        <p class="mb-1"><strong>Processed:</strong> {{ disposition.processed_at|date:"M d, Y H:i"|default:"—" }}</p>
+                    </div>
+                </div>
+                {% if disposition.notes %}<p class="mb-0 mt-2"><strong>Notes:</strong> {{ disposition.notes }}</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Items</h5></div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-nowrap align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-end">Qty</th>
+                                <th>Destination Bin</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.product.name }} <small class="text-muted">({{ item.product.sku }})</small></td>
+                                <td class="text-end">{{ item.qty }}</td>
+                                <td>{{ item.destination_bin.code|default:"—" }}</td>
+                                <td>{{ item.notes|default:"—" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted py-3">No items</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Status</h5></div>
+            <div class="card-body">
+                <h4>
+                    {% if disposition.status == 'pending' %}<span class="badge bg-warning-subtle text-warning">Pending</span>
+                    {% elif disposition.status == 'processed' %}<span class="badge bg-success-subtle text-success">Processed</span>
+                    {% elif disposition.status == 'cancelled' %}<span class="badge bg-dark-subtle text-dark">Cancelled</span>
+                    {% endif %}
+                </h4>
+                {% if disposition.processed_by %}<p class="mb-0 small text-muted">By {{ disposition.processed_by.get_full_name|default:disposition.processed_by.username }}</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if disposition.status == 'pending' %}
+                    <a href="{% url 'returns:disposition_edit' disposition.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+                    <form method="post" action="{% url 'returns:disposition_process' disposition.pk %}">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-check-double-line me-1"></i>Process</button></form>
+                    <form method="post" action="{% url 'returns:disposition_cancel' disposition.pk %}" onsubmit="return confirm('Cancel this disposition?');">{% csrf_token %}<button class="btn btn-soft-danger w-100">Cancel</button></form>
+                    <form method="post" action="{% url 'returns:disposition_delete' disposition.pk %}" onsubmit="return confirm('Delete?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+                    {% endif %}
+                    <a href="{% url 'returns:disposition_list' %}" class="btn btn-light">Back to List</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
