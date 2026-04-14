@@ -372,6 +372,37 @@
                 </ul>
             </li>
 
+            <!-- Module 12: Stocktaking & Cycle Counting -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-clipboard-line"></i>
+                    <span class="menu-text">Stocktaking & Counts</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'stocktaking:count_list' %}">
+                            <span class="menu-text">Stock Counts</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'stocktaking:schedule_list' %}">
+                            <span class="menu-text">Cycle Count Schedules</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'stocktaking:freeze_list' %}">
+                            <span class="menu-text">Warehouse Freezes</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'stocktaking:adjustment_list' %}">
+                            <span class="menu-text">Variance Adjustments</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
             <!-- Module 8: Lot & Serial Number Tracking -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
