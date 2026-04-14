@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stocktaking:adjustment_list' %}">Adjustments</a></li>
+                    <li class="breadcrumb-item active">{% if adjustment %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Adjustment Details</h5></div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Stock Count <span class="text-danger">*</span></label>
+                        <select name="count" class="form-select" required>
+                            <option value="">— Select Count —</option>
+                            {% for c in form.count.field.queryset %}
+                            <option value="{{ c.pk }}" {% if form.count.value|stringformat:"s" == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.count_number }} — {{ c.warehouse.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reason Code <span class="text-danger">*</span></label>
+                        <select name="reason_code" class="form-select" required>
+                            {% for v, l in form.reason_code.field.choices %}<option value="{{ v }}" {% if form.reason_code.value == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3">{{ form.notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if adjustment %}Update{% else %}Create{% endif %}</button>
+                        <a href="{% url 'stocktaking:adjustment_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                    <hr>
+                    <p class="small text-muted mb-0"><i class="ri-information-line me-1"></i>Variance totals are computed automatically from the selected count's items. Post the adjustment after approval to update stock levels.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
