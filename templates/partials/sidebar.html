@@ -186,6 +186,37 @@
                 </ul>
             </li>
 
+            <!-- Module 11: Returns Management (RMA) -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-arrow-go-back-line"></i>
+                    <span class="menu-text">Returns (RMA)</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'returns:rma_list' %}">
+                            <span class="menu-text">Return Authorizations</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'returns:inspection_list' %}">
+                            <span class="menu-text">Return Inspections</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'returns:disposition_list' %}">
+                            <span class="menu-text">Disposition Routing</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'returns:refund_list' %}">
+                            <span class="menu-text">Refunds & Credits</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
             <!-- ─── Warehouse Operations ─── -->
             <li class="menu-title"><span>Warehouse Operations</span></li>
 
