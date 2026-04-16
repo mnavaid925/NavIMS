@@ -123,18 +123,18 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if bin.bin_type == 'picking' %}
-                                        <span class="badge bg-primary-subtle text-primary">Picking</span>
+                                    {% if bin.bin_type == 'standard' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Standard</span>
                                     {% elif bin.bin_type == 'bulk' %}
                                         <span class="badge bg-info-subtle text-info">Bulk</span>
-                                    {% elif bin.bin_type == 'reserve' %}
-                                        <span class="badge bg-warning-subtle text-warning">Reserve</span>
-                                    {% elif bin.bin_type == 'staging' %}
-                                        <span class="badge bg-secondary-subtle text-secondary">Staging</span>
-                                    {% elif bin.bin_type == 'receiving' %}
-                                        <span class="badge bg-success-subtle text-success">Receiving</span>
-                                    {% elif bin.bin_type == 'shipping' %}
-                                        <span class="badge bg-dark-subtle text-dark">Shipping</span>
+                                    {% elif bin.bin_type == 'pick' %}
+                                        <span class="badge bg-primary-subtle text-primary">Pick</span>
+                                    {% elif bin.bin_type == 'pallet' %}
+                                        <span class="badge bg-warning-subtle text-warning">Pallet</span>
+                                    {% elif bin.bin_type == 'cold' %}
+                                        <span class="badge bg-info-subtle text-info">Cold</span>
+                                    {% elif bin.bin_type == 'hazmat' %}
+                                        <span class="badge bg-danger-subtle text-danger">Hazmat</span>
                                     {% else %}
                                         <span class="badge bg-secondary-subtle text-secondary">{{ bin.get_bin_type_display }}</span>
                                     {% endif %}
