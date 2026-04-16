@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'multi_location:location_list' %}">Locations</a></li>
+                    <li class="breadcrumb-item active">{% if location %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Location Details</h5></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% for e in form.name.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Location Type <span class="text-danger">*</span></label>
+                            {{ form.location_type }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Parent Location</label>
+                            {{ form.parent }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Linked Warehouse</label>
+                            {{ form.warehouse }}
+                            <small class="text-muted">Links stock at this warehouse to this location.</small>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Address</label>
+                            {{ form.address }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">City</label>
+                            {{ form.city }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">State / Region</label>
+                            {{ form.state }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Country</label>
+                            {{ form.country }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Postal Code</label>
+                            {{ form.postal_code }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Manager Name</label>
+                            {{ form.manager_name }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Contact Phone</label>
+                            {{ form.contact_phone }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Contact Email</label>
+                            {{ form.contact_email }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label d-block">Status</label>
+                            <div class="form-check form-switch mt-2">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Notes</label>
+                            {{ form.notes }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if location %}Update Location{% else %}Create Location{% endif %}</button>
+                        <a href="{% if location %}{% url 'multi_location:location_detail' location.pk %}{% else %}{% url 'multi_location:location_list' %}{% endif %}" class="btn btn-light">Cancel</a>
+                    </div>
+                    <hr>
+                    <p class="small text-muted mb-0"><i class="ri-information-line me-1"></i>A Location is an organizational node (company, region, DC, or store). Link it to a Warehouse to roll up stock visibility.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
