@@ -24,10 +24,10 @@
                 </a>
             </li>
 
-            <!-- ─── Catalog & Procurement ─── -->
-            <li class="menu-title" data-toggle="section"><span>Catalog & Procurement</span></li>
+            <!-- ─── Procurement & Inbound (IMS 1-5) ─── -->
+            <li class="menu-title" data-toggle="section"><span>Procurement & Inbound</span></li>
 
-            <!-- Module 1: Product & Catalog Management -->
+            <!-- IMS 1: Product & Catalog Management -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-shopping-bag-3-line"></i>
@@ -48,7 +48,7 @@
                 </ul>
             </li>
 
-            <!-- Module 2: Vendor / Supplier Management -->
+            <!-- IMS 2: Vendor / Supplier Management -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-truck-line"></i>
@@ -79,7 +79,7 @@
                 </ul>
             </li>
 
-            <!-- Module 3: Purchase Order Management -->
+            <!-- IMS 3: Purchase Order Management -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-file-list-3-line"></i>
@@ -110,117 +110,7 @@
                 </ul>
             </li>
 
-            <!-- ─── Order Fulfillment ─── -->
-            <li class="menu-title" data-toggle="section"><span>Order Fulfillment</span></li>
-
-            <!-- Module 9: Sales Orders -->
-            <li class="nav-item has-submenu">
-                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-shopping-cart-2-line"></i>
-                    <span class="menu-text">Sales Orders</span>
-                    <i class="ri-arrow-right-s-line menu-arrow"></i>
-                </a>
-                <ul class="sub-menu">
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'orders:so_list' %}">
-                            <span class="menu-text">All Orders</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'orders:so_create' %}">
-                            <span class="menu-text">Create Order</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'orders:wave_list' %}">
-                            <span class="menu-text">Wave Planning</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            <!-- Module 9: Pick, Pack & Ship -->
-            <li class="nav-item has-submenu">
-                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-box-3-line"></i>
-                    <span class="menu-text">Pick, Pack & Ship</span>
-                    <i class="ri-arrow-right-s-line menu-arrow"></i>
-                </a>
-                <ul class="sub-menu">
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'orders:picklist_list' %}">
-                            <span class="menu-text">Pick Lists</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'orders:packinglist_list' %}">
-                            <span class="menu-text">Packing Lists</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'orders:shipment_list' %}">
-                            <span class="menu-text">Shipments</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            <!-- Module 9: Shipping -->
-            <li class="nav-item has-submenu">
-                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-ship-line"></i>
-                    <span class="menu-text">Shipping</span>
-                    <i class="ri-arrow-right-s-line menu-arrow"></i>
-                </a>
-                <ul class="sub-menu">
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'orders:carrier_list' %}">
-                            <span class="menu-text">Carriers</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'orders:shippingrate_list' %}">
-                            <span class="menu-text">Shipping Rates</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            <!-- Module 11: Returns Management (RMA) -->
-            <li class="nav-item has-submenu">
-                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-arrow-go-back-line"></i>
-                    <span class="menu-text">Returns (RMA)</span>
-                    <i class="ri-arrow-right-s-line menu-arrow"></i>
-                </a>
-                <ul class="sub-menu">
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'returns:rma_list' %}">
-                            <span class="menu-text">Return Authorizations</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'returns:inspection_list' %}">
-                            <span class="menu-text">Return Inspections</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'returns:disposition_list' %}">
-                            <span class="menu-text">Disposition Routing</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'returns:refund_list' %}">
-                            <span class="menu-text">Refunds & Credits</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            <!-- ─── Warehouse Operations ─── -->
-            <li class="menu-title" data-toggle="section"><span>Warehouse Operations</span></li>
-
-            <!-- Module 4: Receiving & Putaway -->
+            <!-- IMS 4: Receiving & Putaway -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-inbox-archive-line"></i>
@@ -261,7 +151,7 @@
                 </ul>
             </li>
 
-            <!-- Module 5: Warehousing & Bin Management -->
+            <!-- IMS 5: Warehousing & Bin Management -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-building-2-line"></i>
@@ -292,14 +182,14 @@
                 </ul>
             </li>
 
-            <!-- ─── Inventory Management ─── -->
-            <li class="menu-title" data-toggle="section"><span>Inventory Management</span></li>
+            <!-- ─── Inventory & Operations (IMS 6-8) ─── -->
+            <li class="menu-title" data-toggle="section"><span>Inventory & Operations</span></li>
 
-            <!-- Module 6: Inventory Tracking & Control -->
+            <!-- IMS 6: Inventory Tracking & Control -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-bar-chart-box-line"></i>
-                    <span class="menu-text">Tracking & Control</span>
+                    <span class="menu-text">Inventory Tracking</span>
                     <i class="ri-arrow-right-s-line menu-arrow"></i>
                 </a>
                 <ul class="sub-menu">
@@ -336,7 +226,7 @@
                 </ul>
             </li>
 
-            <!-- Module 7: Stock Movement & Transfers -->
+            <!-- IMS 7: Stock Movement & Transfers -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-arrow-left-right-line"></i>
@@ -372,7 +262,118 @@
                 </ul>
             </li>
 
-            <!-- Module 12: Stocktaking & Cycle Counting -->
+            <!-- IMS 8: Lot & Serial Number Tracking -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-barcode-box-line"></i>
+                    <span class="menu-text">Lot & Serial Tracking</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'lot_tracking:lot_list' %}">
+                            <span class="menu-text">Lot / Batches</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'lot_tracking:serial_list' %}">
+                            <span class="menu-text">Serial Numbers</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'lot_tracking:expiry_dashboard' %}">
+                            <span class="menu-text">Expiry Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'lot_tracking:traceability_list' %}">
+                            <span class="menu-text">Traceability Log</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- ─── Fulfillment & Planning (IMS 9-13) ─── -->
+            <li class="menu-title" data-toggle="section"><span>Fulfillment & Planning</span></li>
+
+            <!-- IMS 9: Order Management & Fulfillment -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-shopping-cart-2-line"></i>
+                    <span class="menu-text">Orders & Fulfillment</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'orders:so_list' %}">
+                            <span class="menu-text">Sales Orders</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'orders:picklist_list' %}">
+                            <span class="menu-text">Pick Lists</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'orders:packinglist_list' %}">
+                            <span class="menu-text">Packing Lists</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'orders:shipment_list' %}">
+                            <span class="menu-text">Shipments</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'orders:wave_list' %}">
+                            <span class="menu-text">Wave Planning</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'orders:carrier_list' %}">
+                            <span class="menu-text">Carriers</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'orders:shippingrate_list' %}">
+                            <span class="menu-text">Shipping Rates</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- IMS 10: Returns Management (RMA) -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-arrow-go-back-line"></i>
+                    <span class="menu-text">Returns (RMA)</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'returns:rma_list' %}">
+                            <span class="menu-text">Return Authorizations</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'returns:inspection_list' %}">
+                            <span class="menu-text">Return Inspections</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'returns:disposition_list' %}">
+                            <span class="menu-text">Disposition Routing</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'returns:refund_list' %}">
+                            <span class="menu-text">Refunds & Credits</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- IMS 11: Stocktaking & Cycle Counting -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-clipboard-line"></i>
@@ -403,10 +404,10 @@
                 </ul>
             </li>
 
-            <!-- Module 13: Multi-Location Management -->
+            <!-- IMS 12: Multi-Location Management -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-building-2-line"></i>
+                    <i class="ri-earth-line"></i>
                     <span class="menu-text">Multi-Location</span>
                     <i class="ri-arrow-right-s-line menu-arrow"></i>
                 </a>
@@ -439,7 +440,7 @@
                 </ul>
             </li>
 
-            <!-- Module 14: Inventory Forecasting & Planning -->
+            <!-- IMS 13: Inventory Forecasting & Planning -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-line-chart-line"></i>
@@ -475,41 +476,9 @@
                 </ul>
             </li>
 
-            <!-- Module 8: Lot & Serial Number Tracking -->
-            <li class="nav-item has-submenu">
-                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
-                    <i class="ri-barcode-box-line"></i>
-                    <span class="menu-text">Lot & Serial Tracking</span>
-                    <i class="ri-arrow-right-s-line menu-arrow"></i>
-                </a>
-                <ul class="sub-menu">
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'lot_tracking:lot_list' %}">
-                            <span class="menu-text">Lot / Batches</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'lot_tracking:serial_list' %}">
-                            <span class="menu-text">Serial Numbers</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'lot_tracking:expiry_dashboard' %}">
-                            <span class="menu-text">Expiry Management</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="menu-link" href="{% url 'lot_tracking:traceability_list' %}">
-                            <span class="menu-text">Traceability Log</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
             <!-- ─── System ─── -->
             <li class="menu-title" data-toggle="section"><span>System</span></li>
 
-            <!-- Module 20 (partial): System Administration -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
                     <i class="ri-building-4-line"></i>
