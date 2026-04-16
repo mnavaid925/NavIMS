@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'forecasting:safety_stock_list' %}">Safety Stock</a></li>
+                    <li class="breadcrumb-item active">{% if safety_stock %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Safety Stock Details</h5></div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Product <span class="text-danger">*</span></label>
+                            {{ form.product }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Warehouse <span class="text-danger">*</span></label>
+                            {{ form.warehouse }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Calculation Method <span class="text-danger">*</span></label>
+                            {{ form.method }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Service Level (0.50–0.99)</label>
+                            {{ form.service_level }}
+                            <small class="text-muted">e.g. 0.95 = 95% fill rate.</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Avg Daily Demand</label>
+                            {{ form.avg_demand }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Demand Std Dev</label>
+                            {{ form.demand_std_dev }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Avg Lead Time (days)</label>
+                            {{ form.avg_lead_time_days }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Lead Time Std Dev</label>
+                            {{ form.lead_time_std_dev }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Fixed Qty (for Fixed method)</label>
+                            {{ form.fixed_qty }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Percentage (for Percentage method)</label>
+                            {{ form.percentage }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Safety Stock Qty (auto)</label>
+                            {{ form.safety_stock_qty }}
+                            <small class="text-muted">Recalculated on save.</small>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if safety_stock %}Update{% else %}Save{% endif %}</button>
+                        <a href="{% url 'forecasting:safety_stock_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                    <hr>
+                    <p class="small text-muted mb-0"><i class="ri-information-line me-1"></i>Statistical method uses: Z × √((LT × σ_d²) + (μ_d² × σ_LT²)). Z lookup: 0.90→1.28, 0.95→1.645, 0.99→2.33.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
