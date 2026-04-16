@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Stock Rules{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Location Safety Stock Rules</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Multi-Location</a></li>
+                    <li class="breadcrumb-item active">Safety Stock Rules</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Safety Stock Rules</h5>
+                <a href="{% url 'multi_location:safety_stock_rule_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>Add Rule</a>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="search-box">
+                            <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search location, product, SKU...">
+                            <i class="ri-search-line search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="location" onchange="this.form.submit()">
+                            <option value="">All Locations</option>
+                            {% for l in locations %}<option value="{{ l.pk }}" {% if current_location == l.pk|stringformat:"d" %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="product" onchange="this.form.submit()">
+                            <option value="">All Products</option>
+                            {% for p in products %}<option value="{{ p.pk }}" {% if current_product == p.pk|stringformat:"d" %}selected{% endif %}>{{ p.sku }} — {{ p.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'multi_location:safety_stock_rule_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line me-1"></i>Clear</a>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Location</th>
+                                <th>Product</th>
+                                <th class="text-end">Safety Stock</th>
+                                <th class="text-end">Reorder Point</th>
+                                <th class="text-end">Max Stock</th>
+                                <th>Notes</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in rules %}
+                            <tr>
+                                <td><a href="{% url 'multi_location:location_detail' r.location.pk %}">{{ r.location.name }}</a></td>
+                                <td><strong>{{ r.product.sku }}</strong><br><small class="text-muted">{{ r.product.name }}</small></td>
+                                <td class="text-end"><strong>{{ r.safety_stock_qty }}</strong></td>
+                                <td class="text-end">{{ r.reorder_point }}</td>
+                                <td class="text-end">{% if r.max_stock_qty %}{{ r.max_stock_qty }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                                <td class="text-muted small">{{ r.notes|truncatechars:40 }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'multi_location:safety_stock_rule_detail' r.pk %}" class="btn btn-sm btn-soft-info" title="View"><i class="ri-eye-line"></i></a>
+                                        <a href="{% url 'multi_location:safety_stock_rule_edit' r.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                                        <form method="post" action="{% url 'multi_location:safety_stock_rule_delete' r.pk %}" class="d-inline" onsubmit="return confirm('Delete?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="7" class="text-center py-4 text-muted"><i class="ri-shield-check-line fs-24 d-block mb-2"></i>No safety stock rules found</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if rules.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav><ul class="pagination pagination-sm mb-0">
+                        {% if rules.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ rules.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in rules.paginator.page_range %}<li class="page-item {% if rules.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+                        {% if rules.has_next %}<li class="page-item"><a class="page-link" href="?page={{ rules.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                    </ul></nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
