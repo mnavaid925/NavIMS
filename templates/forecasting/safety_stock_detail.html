@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Stock — {{ safety_stock.product.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Safety Stock — {{ safety_stock.product.name }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'forecasting:safety_stock_list' %}">Safety Stock</a></li>
+                    <li class="breadcrumb-item active">{{ safety_stock.product.sku }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Configuration</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Product:</strong> {{ safety_stock.product.name }} ({{ safety_stock.product.sku }})</p>
+                        <p class="mb-2"><strong>Warehouse:</strong> {{ safety_stock.warehouse.name }}</p>
+                        <p class="mb-2"><strong>Method:</strong> {{ safety_stock.get_method_display }}</p>
+                        <p class="mb-2"><strong>Service Level:</strong> {{ safety_stock.service_level }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Avg Daily Demand:</strong> {{ safety_stock.avg_demand }}</p>
+                        <p class="mb-2"><strong>Demand Std Dev:</strong> {{ safety_stock.demand_std_dev }}</p>
+                        <p class="mb-2"><strong>Avg Lead Time:</strong> {{ safety_stock.avg_lead_time_days }} days</p>
+                        <p class="mb-2"><strong>Lead Time Std Dev:</strong> {{ safety_stock.lead_time_std_dev }}</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-center py-3">
+                    <h6 class="text-muted mb-2">Calculated Safety Stock</h6>
+                    <h1 class="text-primary fw-bold mb-0">{{ safety_stock.safety_stock_qty }}</h1>
+                    <small class="text-muted">units</small>
+                </div>
+                {% if safety_stock.notes %}<div class="alert alert-light mb-0 mt-3">{{ safety_stock.notes|linebreaks }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <form method="post" action="{% url 'forecasting:safety_stock_recalc' safety_stock.pk %}">
+                        {% csrf_token %}
+                        <button class="btn btn-success w-100"><i class="ri-refresh-line me-1"></i>Recalculate</button>
+                    </form>
+                    <a href="{% url 'forecasting:safety_stock_edit' safety_stock.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+                    <form method="post" action="{% url 'forecasting:safety_stock_delete' safety_stock.pk %}" onsubmit="return confirm('Delete safety stock record?');">
+                        {% csrf_token %}
+                        <button class="btn btn-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button>
+                    </form>
+                    <a href="{% url 'forecasting:safety_stock_list' %}" class="btn btn-light">Back to List</a>
+                </div>
+                <p class="small text-muted mb-0 mt-3">Last calculated: {{ safety_stock.calculated_at|date:"M d, Y H:i"|default:"—" }}</p>
+            </div>
+        </div>
+        {% if rop %}
+        <div class="card mt-3">
+            <div class="card-header"><h5 class="card-title mb-0">Related Reorder Point</h5></div>
+            <div class="card-body">
+                <p class="mb-1"><a href="{% url 'forecasting:rop_detail' rop.pk %}" class="fw-medium">View ROP — {{ rop.rop_qty }}</a></p>
+                <small class="text-muted">Includes this safety stock value.</small>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
