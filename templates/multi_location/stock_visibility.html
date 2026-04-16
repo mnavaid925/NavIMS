@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Global Stock Visibility{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Global Stock Visibility</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Multi-Location</a></li>
+                    <li class="breadcrumb-item active">Stock Visibility</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Linked Locations</small><h3 class="mb-0">{{ stats.linked_location_count }}</h3></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Total On Hand</small><h3 class="mb-0">{{ stats.total_on_hand }}</h3></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Total Available</small><h3 class="mb-0">{{ stats.total_available }}</h3></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Low-Stock Items</small><h3 class="mb-0 text-danger">{{ stats.low_stock_count }}</h3></div></div></div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Stock by Location</h5>
+                <span class="text-muted small">Total Value: <strong>{{ stats.total_value|floatformat:2 }}</strong></span>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="search-box">
+                            <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search product name or SKU...">
+                            <i class="ri-search-line search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" name="location" onchange="this.form.submit()">
+                            <option value="">All Locations (incl. sub-tree)</option>
+                            {% for l in locations %}<option value="{{ l.pk }}" {% if current_location == l.pk|stringformat:"d" %}selected{% endif %}>{{ l.full_path }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="low_stock" onchange="this.form.submit()">
+                            <option value="">All Stock</option>
+                            <option value="1" {% if current_low_stock == '1' %}selected{% endif %}>Low Stock Only</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'multi_location:stock_visibility' %}" class="btn btn-light w-100"><i class="ri-filter-off-line me-1"></i>Clear</a>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Location</th>
+                                <th>Warehouse</th>
+                                <th>Product</th>
+                                <th class="text-end">On Hand</th>
+                                <th class="text-end">Allocated</th>
+                                <th class="text-end">Available</th>
+                                <th class="text-end">Reorder Point</th>
+                                <th class="text-end">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in rows %}
+                            <tr>
+                                <td>{% if r.location %}<a href="{% url 'multi_location:location_detail' r.location.pk %}">{{ r.location.name }}</a>{% else %}<span class="text-muted">Unlinked</span>{% endif %}</td>
+                                <td>{{ r.level.warehouse.code }}</td>
+                                <td><strong>{{ r.level.product.sku }}</strong><br><small class="text-muted">{{ r.level.product.name }}</small></td>
+                                <td class="text-end">{{ r.level.on_hand }}</td>
+                                <td class="text-end">{{ r.level.allocated }}</td>
+                                <td class="text-end"><strong>{{ r.level.available }}</strong></td>
+                                <td class="text-end">{{ r.level.reorder_point }}{% if r.level.needs_reorder %} <span class="badge bg-danger-subtle text-danger">Low</span>{% endif %}</td>
+                                <td class="text-end">{{ r.level.total_value|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="8" class="text-center py-4 text-muted"><i class="ri-earth-line fs-24 d-block mb-2"></i>No stock data available</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if levels_page.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav><ul class="pagination pagination-sm mb-0">
+                        {% if levels_page.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ levels_page.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_location %}&location={{ current_location }}{% endif %}{% if current_low_stock %}&low_stock={{ current_low_stock }}{% endif %}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in levels_page.paginator.page_range %}<li class="page-item {% if levels_page.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_location %}&location={{ current_location }}{% endif %}{% if current_low_stock %}&low_stock={{ current_low_stock }}{% endif %}">{{ num }}</a></li>{% endfor %}
+                        {% if levels_page.has_next %}<li class="page-item"><a class="page-link" href="?page={{ levels_page.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_location %}&location={{ current_location }}{% endif %}{% if current_low_stock %}&low_stock={{ current_low_stock }}{% endif %}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                    </ul></nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
