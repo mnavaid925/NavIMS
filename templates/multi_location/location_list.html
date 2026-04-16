@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Locations{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Locations</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Multi-Location</a></li>
+                    <li class="breadcrumb-item active">Locations</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Location Hierarchy</h5>
+                <a href="{% url 'multi_location:location_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>Add Location</a>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="search-box">
+                            <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search name, code, city...">
+                            <i class="ri-search-line search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="type" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            {% for v, l in type_choices %}<option value="{{ v }}" {% if current_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="parent" onchange="this.form.submit()">
+                            <option value="">All Parents (Top-Level + Nested)</option>
+                            {% for p in parents %}<option value="{{ p.pk }}" {% if current_parent == p.pk|stringformat:"d" %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="active" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="active" {% if current_active == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if current_active == 'inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'multi_location:location_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line me-1"></i>Clear</a>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Parent</th>
+                                <th>Warehouse</th>
+                                <th>City / Country</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loc in locations %}
+                            <tr>
+                                <td><span class="fw-medium">{{ loc.code }}</span></td>
+                                <td><a href="{% url 'multi_location:location_detail' loc.pk %}" class="text-reset"><strong>{{ loc.name }}</strong></a></td>
+                                <td>{{ loc.get_location_type_display }}</td>
+                                <td>{{ loc.parent.name|default:"—" }}</td>
+                                <td>{% if loc.warehouse %}<span class="badge bg-info-subtle text-info">{{ loc.warehouse.code }}</span>{% else %}—{% endif %}</td>
+                                <td>{{ loc.city|default:"—" }}{% if loc.country %}, {{ loc.country }}{% endif %}</td>
+                                <td>{% if loc.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'multi_location:location_detail' loc.pk %}" class="btn btn-sm btn-soft-info" title="View"><i class="ri-eye-line"></i></a>
+                                        <a href="{% url 'multi_location:location_edit' loc.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                                        <form method="post" action="{% url 'multi_location:location_delete' loc.pk %}" class="d-inline" onsubmit="return confirm('Delete this location? This will also remove its rules.');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="8" class="text-center py-4 text-muted"><i class="ri-building-2-line fs-24 d-block mb-2"></i>No locations found</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if locations.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav><ul class="pagination pagination-sm mb-0">
+                        {% if locations.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ locations.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in locations.paginator.page_range %}<li class="page-item {% if locations.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+                        {% if locations.has_next %}<li class="page-item"><a class="page-link" href="?page={{ locations.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                    </ul></nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
