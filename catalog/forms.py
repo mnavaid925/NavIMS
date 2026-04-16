@@ -166,6 +166,22 @@ class ProductForm(forms.ModelForm):
             )
             self.fields['category'].required = False
             self.fields['category'].empty_label = '— Select Category —'
+        # Blank = "auto-compute from cost/retail"; explicit 0 stays 0.
+        self.fields['markup_percentage'].required = False
+
+    def clean_sku(self):
+        # tenant isn't a form field, so Django's default unique_together check
+        # excludes it and lets duplicates hit the DB as a 500. Enforce here.
+        sku = self.cleaned_data.get('sku')
+        if sku and self.tenant:
+            qs = Product.objects.filter(tenant=self.tenant, sku=sku)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError(
+                    f'A product with SKU "{sku}" already exists in this tenant.'
+                )
+        return sku
 
     def clean(self):
         cleaned_data = super().clean()
@@ -174,12 +190,11 @@ class ProductForm(forms.ModelForm):
         wholesale_price = cleaned_data.get('wholesale_price')
         markup = cleaned_data.get('markup_percentage')
 
-        # Auto-calculate markup if purchase cost and retail price are provided
-        if purchase_cost and retail_price and purchase_cost > 0:
+        # Auto-calculate markup only if the field was left blank.
+        # A user-entered 0 is a valid value and must NOT be overwritten.
+        if purchase_cost and retail_price and purchase_cost > 0 and markup is None:
             expected_markup = ((retail_price - purchase_cost) / purchase_cost) * 100
-            # If markup was left at default (0) or blank, auto-fill it
-            if not markup:
-                cleaned_data['markup_percentage'] = round(expected_markup, 2)
+            cleaned_data['markup_percentage'] = round(expected_markup, 2)
 
         # Warn if wholesale is higher than retail
         if wholesale_price and retail_price and wholesale_price > retail_price:
