@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Reorder Alerts{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Reorder Alerts</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Forecasting & Planning</a></li>
+                    <li class="breadcrumb-item active">Reorder Alerts</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Alerts</h5>
+                <form method="post" action="{% url 'forecasting:rop_check_alerts' %}" onsubmit="return confirm('Scan all active ROPs and create alerts where stock ≤ ROP?');">
+                    {% csrf_token %}
+                    <button class="btn btn-warning btn-sm"><i class="ri-alarm-warning-line me-1"></i>Run ROP Check</button>
+                </form>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="search-box">
+                            <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by alert # / product...">
+                            <i class="ri-search-line search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="status" onchange="this.form.submit()">
+                            <option value="">All Statuses</option>
+                            {% for v, l in status_choices %}<option value="{{ v }}" {% if current_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="warehouse" onchange="this.form.submit()">
+                            <option value="">All Warehouses</option>
+                            {% for w in warehouses %}<option value="{{ w.pk }}" {% if current_warehouse == w.pk|stringformat:"d" %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'forecasting:alert_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Alert #</th>
+                                <th>Product</th>
+                                <th>Warehouse</th>
+                                <th class="text-end">Current</th>
+                                <th class="text-end">ROP</th>
+                                <th class="text-end">Suggested</th>
+                                <th>Triggered</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in alerts %}
+                            <tr>
+                                <td><a href="{% url 'forecasting:alert_detail' a.pk %}" class="fw-medium text-primary">{{ a.alert_number }}</a></td>
+                                <td>{{ a.product.name }}<br><small class="text-muted">{{ a.product.sku }}</small></td>
+                                <td>{{ a.warehouse.name }}</td>
+                                <td class="text-end {% if a.current_qty <= 0 %}text-danger fw-bold{% endif %}">{{ a.current_qty }}</td>
+                                <td class="text-end">{{ a.rop_qty }}</td>
+                                <td class="text-end">{{ a.suggested_order_qty }}</td>
+                                <td>{{ a.triggered_at|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    {% if a.status == 'new' %}<span class="badge bg-danger-subtle text-danger">New</span>
+                                    {% elif a.status == 'acknowledged' %}<span class="badge bg-warning-subtle text-warning">Acknowledged</span>
+                                    {% elif a.status == 'ordered' %}<span class="badge bg-info-subtle text-info">Ordered</span>
+                                    {% elif a.status == 'closed' %}<span class="badge bg-success-subtle text-success">Closed</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'forecasting:alert_detail' a.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                                        <form method="post" action="{% url 'forecasting:alert_delete' a.pk %}" class="d-inline" onsubmit="return confirm('Delete alert {{ a.alert_number }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="9" class="text-center py-4 text-muted"><i class="ri-notification-off-line fs-24 d-block mb-2"></i>No alerts found</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if alerts.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav><ul class="pagination pagination-sm mb-0">
+                        {% if alerts.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ alerts.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in alerts.paginator.page_range %}<li class="page-item {% if alerts.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+                        {% if alerts.has_next %}<li class="page-item"><a class="page-link" href="?page={{ alerts.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                    </ul></nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
