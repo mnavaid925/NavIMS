@@ -1,0 +1,7 @@
+from django.apps import AppConfig
+
+
+class MultiLocationConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'multi_location'
+    verbose_name = 'Multi-Location Management'
