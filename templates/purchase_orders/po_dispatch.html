@@ -45,12 +45,15 @@
                             {% endif %}
                         </div>
                         <div class="col-md-8 mb-3" id="email-field-container">
-                            <label for="id_sent_to_email" class="form-label">Send To Email</label>
-                            <input type="email" class="form-control {% if form.sent_to_email.errors %}is-invalid{% endif %}" id="id_sent_to_email" name="sent_to_email" value="{{ form.sent_to_email.value|default:'' }}" placeholder="vendor@example.com">
-                            {% if form.sent_to_email.errors %}
-                            <div class="invalid-feedback">{% for error in form.sent_to_email.errors %}{{ error }}{% endfor %}</div>
-                            {% endif %}
-                            <div class="form-text">The PO summary will be emailed to this address.</div>
+                            <label class="form-label">Send To Email</label>
+                            <input type="email" class="form-control" value="{{ po.vendor.email|default:'' }}" disabled readonly>
+                            <div class="form-text">
+                                {% if po.vendor.email %}
+                                    The PO summary will be emailed to the vendor's on-file address.
+                                {% else %}
+                                    <span class="text-danger">Vendor has no email on file — update the vendor record to enable email dispatch.</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     <div class="mb-0">
