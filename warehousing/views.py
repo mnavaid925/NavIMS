@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from catalog.models import Product
+from .decorators import emit_audit, tenant_admin_required
 from .models import (
     Warehouse, Zone, Aisle, Rack, Bin,
     CrossDockOrder, CrossDockItem,
@@ -54,6 +55,7 @@ def warehouse_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def warehouse_create_view(request):
     tenant = request.tenant
 
@@ -61,6 +63,7 @@ def warehouse_create_view(request):
         form = WarehouseForm(request.POST, tenant=tenant)
         if form.is_valid():
             warehouse = form.save()
+            emit_audit(request, 'create', warehouse, changes=f'code={warehouse.code}')
             messages.success(request, f'Warehouse "{warehouse.name}" created successfully.')
             return redirect('warehousing:warehouse_detail', pk=warehouse.pk)
     else:
@@ -87,6 +90,7 @@ def warehouse_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def warehouse_edit_view(request, pk):
     tenant = request.tenant
     warehouse = get_object_or_404(Warehouse, pk=pk, tenant=tenant)
@@ -95,6 +99,7 @@ def warehouse_edit_view(request, pk):
         form = WarehouseForm(request.POST, instance=warehouse, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', warehouse)
             messages.success(request, f'Warehouse "{warehouse.name}" updated successfully.')
             return redirect('warehousing:warehouse_detail', pk=warehouse.pk)
     else:
@@ -109,6 +114,7 @@ def warehouse_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def warehouse_delete_view(request, pk):
     tenant = request.tenant
 
@@ -127,6 +133,7 @@ def warehouse_delete_view(request, pk):
         return redirect('warehousing:warehouse_detail', pk=warehouse.pk)
 
     name = warehouse.name
+    emit_audit(request, 'delete', warehouse, changes=f'name={name}')
     warehouse.delete()
     messages.success(request, f'Warehouse "{name}" deleted successfully.')
     return redirect('warehousing:warehouse_list')
@@ -191,6 +198,7 @@ def zone_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def zone_create_view(request):
     tenant = request.tenant
 
@@ -198,6 +206,7 @@ def zone_create_view(request):
         form = ZoneForm(request.POST, tenant=tenant)
         if form.is_valid():
             zone = form.save()
+            emit_audit(request, 'create', zone, changes=f'code={zone.code}')
             messages.success(request, f'Zone "{zone.name}" created successfully.')
             return redirect('warehousing:zone_detail', pk=zone.pk)
     else:
@@ -230,6 +239,7 @@ def zone_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def zone_edit_view(request, pk):
     tenant = request.tenant
     zone = get_object_or_404(Zone, pk=pk, tenant=tenant)
@@ -238,6 +248,7 @@ def zone_edit_view(request, pk):
         form = ZoneForm(request.POST, instance=zone, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', zone)
             messages.success(request, f'Zone "{zone.name}" updated successfully.')
             return redirect('warehousing:zone_detail', pk=zone.pk)
     else:
@@ -252,6 +263,7 @@ def zone_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def zone_delete_view(request, pk):
     tenant = request.tenant
 
@@ -276,6 +288,7 @@ def zone_delete_view(request, pk):
         return redirect('warehousing:zone_detail', pk=zone.pk)
 
     name = zone.name
+    emit_audit(request, 'delete', zone, changes=f'name={name}')
     zone.delete()
     messages.success(request, f'Zone "{name}" deleted successfully.')
     return redirect('warehousing:zone_list')
@@ -312,6 +325,7 @@ def aisle_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def aisle_create_view(request):
     tenant = request.tenant
 
@@ -319,6 +333,7 @@ def aisle_create_view(request):
         form = AisleForm(request.POST, tenant=tenant)
         if form.is_valid():
             aisle = form.save()
+            emit_audit(request, 'create', aisle, changes=f'code={aisle.code}')
             messages.success(request, f'Aisle "{aisle.name}" created successfully.')
             return redirect('warehousing:aisle_detail', pk=aisle.pk)
     else:
@@ -352,6 +367,7 @@ def aisle_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def aisle_edit_view(request, pk):
     tenant = request.tenant
     aisle = get_object_or_404(Aisle, pk=pk, tenant=tenant)
@@ -360,6 +376,7 @@ def aisle_edit_view(request, pk):
         form = AisleForm(request.POST, instance=aisle, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', aisle)
             messages.success(request, f'Aisle "{aisle.name}" updated successfully.')
             return redirect('warehousing:aisle_detail', pk=aisle.pk)
     else:
@@ -374,6 +391,7 @@ def aisle_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def aisle_delete_view(request, pk):
     tenant = request.tenant
 
@@ -392,6 +410,7 @@ def aisle_delete_view(request, pk):
         return redirect('warehousing:aisle_detail', pk=aisle.pk)
 
     name = aisle.name
+    emit_audit(request, 'delete', aisle, changes=f'name={name}')
     aisle.delete()
     messages.success(request, f'Aisle "{name}" deleted successfully.')
     return redirect('warehousing:aisle_list')
@@ -428,6 +447,7 @@ def rack_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def rack_create_view(request):
     tenant = request.tenant
 
@@ -435,6 +455,7 @@ def rack_create_view(request):
         form = RackForm(request.POST, tenant=tenant)
         if form.is_valid():
             rack = form.save()
+            emit_audit(request, 'create', rack, changes=f'code={rack.code}')
             messages.success(request, f'Rack "{rack.name}" created successfully.')
             return redirect('warehousing:rack_detail', pk=rack.pk)
     else:
@@ -468,6 +489,7 @@ def rack_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def rack_edit_view(request, pk):
     tenant = request.tenant
     rack = get_object_or_404(Rack, pk=pk, tenant=tenant)
@@ -476,6 +498,7 @@ def rack_edit_view(request, pk):
         form = RackForm(request.POST, instance=rack, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', rack)
             messages.success(request, f'Rack "{rack.name}" updated successfully.')
             return redirect('warehousing:rack_detail', pk=rack.pk)
     else:
@@ -490,6 +513,7 @@ def rack_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def rack_delete_view(request, pk):
     tenant = request.tenant
 
@@ -508,6 +532,7 @@ def rack_delete_view(request, pk):
         return redirect('warehousing:rack_detail', pk=rack.pk)
 
     name = rack.name
+    emit_audit(request, 'delete', rack, changes=f'name={name}')
     rack.delete()
     messages.success(request, f'Rack "{name}" deleted successfully.')
     return redirect('warehousing:rack_list')
@@ -557,6 +582,7 @@ def bin_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def bin_create_view(request):
     tenant = request.tenant
 
@@ -564,6 +590,7 @@ def bin_create_view(request):
         form = BinForm(request.POST, tenant=tenant)
         if form.is_valid():
             bin_obj = form.save()
+            emit_audit(request, 'create', bin_obj, changes=f'code={bin_obj.code}')
             messages.success(request, f'Bin "{bin_obj.name}" created successfully.')
             return redirect('warehousing:bin_detail', pk=bin_obj.pk)
     else:
@@ -598,6 +625,7 @@ def bin_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def bin_edit_view(request, pk):
     tenant = request.tenant
     bin_obj = get_object_or_404(Bin, pk=pk, tenant=tenant)
@@ -606,6 +634,7 @@ def bin_edit_view(request, pk):
         form = BinForm(request.POST, instance=bin_obj, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', bin_obj)
             messages.success(request, f'Bin "{bin_obj.name}" updated successfully.')
             return redirect('warehousing:bin_detail', pk=bin_obj.pk)
     else:
@@ -620,6 +649,7 @@ def bin_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def bin_delete_view(request, pk):
     tenant = request.tenant
 
@@ -628,15 +658,23 @@ def bin_delete_view(request, pk):
 
     bin_obj = get_object_or_404(Bin, pk=pk, tenant=tenant)
 
-    if bin_obj.is_occupied:
+    # D-11 — refuse delete if any inventory remains, not just the is_occupied flag.
+    has_inventory = (
+        bin_obj.is_occupied
+        or bin_obj.current_quantity > 0
+        or bin_obj.current_weight > 0
+        or bin_obj.current_volume > 0
+    )
+    if has_inventory:
         messages.error(
             request,
-            f'Cannot delete "{bin_obj.name}" — it is currently occupied. '
+            f'Cannot delete "{bin_obj.name}" — it still holds inventory. '
             f'Empty the bin before deleting.',
         )
         return redirect('warehousing:bin_detail', pk=bin_obj.pk)
 
     name = bin_obj.name
+    emit_audit(request, 'delete', bin_obj, changes=f'name={name}')
     bin_obj.delete()
     messages.success(request, f'Bin "{name}" deleted successfully.')
     return redirect('warehousing:bin_list')
@@ -681,6 +719,7 @@ def crossdock_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def crossdock_create_view(request):
     tenant = request.tenant
 
@@ -698,6 +737,7 @@ def crossdock_create_view(request):
                 item.save()
             for obj in formset.deleted_objects:
                 obj.delete()
+            emit_audit(request, 'create', order, changes=f'number={order.order_number}')
             messages.success(request, f'Cross-Dock Order "{order.order_number}" created successfully.')
             return redirect('warehousing:crossdock_detail', pk=order.pk)
     else:
@@ -759,6 +799,7 @@ def crossdock_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def crossdock_edit_view(request, pk):
     tenant = request.tenant
     order = get_object_or_404(CrossDockOrder, pk=pk, tenant=tenant)
@@ -778,6 +819,7 @@ def crossdock_edit_view(request, pk):
                 item.save()
             for obj in formset.deleted_objects:
                 obj.delete()
+            emit_audit(request, 'update', order)
             messages.success(request, f'Cross-Dock Order "{order.order_number}" updated successfully.')
             return redirect('warehousing:crossdock_detail', pk=order.pk)
     else:
@@ -800,6 +842,7 @@ def crossdock_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def crossdock_delete_view(request, pk):
     tenant = request.tenant
 
@@ -813,12 +856,14 @@ def crossdock_delete_view(request, pk):
         return redirect('warehousing:crossdock_detail', pk=order.pk)
 
     order_number = order.order_number
+    emit_audit(request, 'delete', order, changes=f'number={order_number}')
     order.delete()
     messages.success(request, f'Cross-Dock Order "{order_number}" deleted successfully.')
     return redirect('warehousing:crossdock_list')
 
 
 @login_required
+@tenant_admin_required
 def crossdock_status_view(request, pk):
     tenant = request.tenant
 
@@ -832,6 +877,8 @@ def crossdock_status_view(request, pk):
         messages.warning(request, f'Cannot transition from "{order.get_status_display()}" to "{new_status}".')
         return redirect('warehousing:crossdock_detail', pk=order.pk)
 
+    previous_status = order.status
+
     # Auto-set timestamps on certain transitions
     if new_status == 'at_dock' and not order.actual_arrival:
         order.actual_arrival = timezone.now()
@@ -840,6 +887,7 @@ def crossdock_status_view(request, pk):
 
     order.status = new_status
     order.save()
+    emit_audit(request, 'transition', order, changes=f'{previous_status}->{new_status}')
 
     status_display = dict(CrossDockOrder.STATUS_CHOICES).get(new_status, new_status)
     messages.success(request, f'Cross-Dock Order "{order.order_number}" status changed to {status_display}.')
@@ -847,6 +895,7 @@ def crossdock_status_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def crossdock_reopen_view(request, pk):
     tenant = request.tenant
 
@@ -859,9 +908,11 @@ def crossdock_reopen_view(request, pk):
         messages.warning(request, f'Cannot reopen order from "{order.get_status_display()}" status.')
         return redirect('warehousing:crossdock_detail', pk=order.pk)
 
+    previous_status = order.status
     order.status = 'pending'
     order.actual_arrival = None
     order.actual_departure = None
     order.save()
+    emit_audit(request, 'reopen', order, changes=f'{previous_status}->pending')
     messages.success(request, f'Cross-Dock Order "{order.order_number}" reopened as pending.')
     return redirect('warehousing:crossdock_detail', pk=order.pk)
