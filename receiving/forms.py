@@ -1,4 +1,8 @@
+from decimal import Decimal
+
 from django import forms
+from django.core.exceptions import ValidationError
+from django.db.models import Sum
 from django.forms import inlineformset_factory
 
 from catalog.models import Product
@@ -10,6 +14,19 @@ from .models import (
     ThreeWayMatch, QualityInspection, QualityInspectionItem,
     WarehouseLocation, PutawayTask,
 )
+
+
+# File upload constraints for VendorInvoice.document (D-02, repeat of lesson #8)
+INVOICE_DOCUMENT_ALLOWED_EXTENSIONS = {
+    'pdf', 'png', 'jpg', 'jpeg', 'webp',
+}
+INVOICE_DOCUMENT_BLOCKED_CONTENT_TYPES = {
+    'image/svg+xml', 'application/x-msdownload', 'application/x-sh',
+    'application/x-executable', 'application/x-dosexec',
+    'text/html', 'application/javascript', 'application/x-javascript',
+    'application/x-php', 'application/x-httpd-php',
+}
+INVOICE_DOCUMENT_MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 # ──────────────────────────────────────────────
@@ -71,6 +88,42 @@ class GoodsReceiptNoteItemForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, tenant=None, **kwargs):
+        # D-04: tenant MUST be injected on both GET and POST so formset querysets
+        # stay scoped during validation and we can't bind a foreign-tenant po_item.
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant is not None:
+            self.fields['po_item'].queryset = PurchaseOrderItem.objects.filter(tenant=tenant)
+            self.fields['po_item'].empty_label = '— Select PO Item —'
+            self.fields['product'].queryset = Product.objects.filter(
+                tenant=tenant, status='active',
+            )
+            self.fields['product'].empty_label = '— Select Product —'
+
+    def clean(self):
+        cleaned = super().clean()
+        # D-06: Reject over-receipt. Allow qty_received ≤ qty_outstanding for this PO item.
+        po_item = cleaned.get('po_item')
+        qty_received = cleaned.get('quantity_received') or 0
+        if po_item and qty_received:
+            previously = (
+                GoodsReceiptNoteItem.objects
+                .filter(po_item=po_item, grn__status='completed')
+                .exclude(pk=self.instance.pk if self.instance and self.instance.pk else 0)
+                .aggregate(total=Sum('quantity_received'))['total'] or 0
+            )
+            outstanding = max(po_item.quantity - previously, 0)
+            if qty_received > outstanding:
+                raise ValidationError({
+                    'quantity_received': (
+                        f'Cannot receive {qty_received} — only {outstanding} outstanding '
+                        f'on PO item "{po_item.product.name}" (ordered {po_item.quantity}, '
+                        f'already received {previously}).'
+                    )
+                })
+        return cleaned
+
 
 GoodsReceiptNoteItemFormSet = inlineformset_factory(
     GoodsReceiptNote,
@@ -130,6 +183,61 @@ class VendorInvoiceForm(forms.ModelForm):
                 tenant=tenant,
             ).exclude(status__in=['draft', 'cancelled'])
             self.fields['purchase_order'].empty_label = '— Select Purchase Order —'
+
+    def clean_invoice_number(self):
+        # D-01: unique_together(tenant, invoice_number) can't be enforced by
+        # Django's default validate_unique because tenant is not a form field.
+        number = (self.cleaned_data.get('invoice_number') or '').strip()
+        if not number or self.tenant is None:
+            return number
+        qs = VendorInvoice.objects.filter(tenant=self.tenant, invoice_number__iexact=number)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError(
+                f'An invoice with number "{number}" already exists in this tenant.'
+            )
+        return number
+
+    def clean_document(self):
+        # D-02: whitelist extensions, cap size, block dangerous content types.
+        doc = self.cleaned_data.get('document')
+        if not doc:
+            return doc
+        name = getattr(doc, 'name', '') or ''
+        ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+        if ext not in INVOICE_DOCUMENT_ALLOWED_EXTENSIONS:
+            raise ValidationError(
+                f'File type ".{ext}" is not allowed. Allowed types: '
+                f'{", ".join(sorted(INVOICE_DOCUMENT_ALLOWED_EXTENSIONS))}.'
+            )
+        content_type = (getattr(doc, 'content_type', '') or '').lower()
+        if content_type in INVOICE_DOCUMENT_BLOCKED_CONTENT_TYPES:
+            raise ValidationError(f'Content type "{content_type}" is not allowed.')
+        size = getattr(doc, 'size', 0) or 0
+        if size > INVOICE_DOCUMENT_MAX_SIZE:
+            raise ValidationError(
+                f'File is too large ({size // 1024 // 1024} MB). '
+                f'Maximum allowed size is {INVOICE_DOCUMENT_MAX_SIZE // 1024 // 1024} MB.'
+            )
+        return doc
+
+    def clean(self):
+        # D-07: reconcile subtotal + tax == total within 0.01 tolerance.
+        cleaned = super().clean()
+        subtotal = cleaned.get('subtotal')
+        tax = cleaned.get('tax_amount')
+        total = cleaned.get('total_amount')
+        if subtotal is not None and tax is not None and total is not None:
+            expected = (subtotal or 0) + (tax or 0)
+            if abs(Decimal(expected) - Decimal(total)) > Decimal('0.01'):
+                raise ValidationError({
+                    'total_amount': (
+                        f'Total amount ({total}) does not equal subtotal + tax '
+                        f'({expected}).'
+                    )
+                })
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -252,6 +360,34 @@ class QualityInspectionItemForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, tenant=None, **kwargs):
+        # D-04: tenant-scope grn_item + product on both GET and POST.
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant is not None:
+            self.fields['grn_item'].queryset = GoodsReceiptNoteItem.objects.filter(tenant=tenant)
+            self.fields['grn_item'].empty_label = '— Select GRN Item —'
+            self.fields['product'].queryset = Product.objects.filter(
+                tenant=tenant, status='active',
+            )
+            self.fields['product'].empty_label = '— Select Product —'
+
+    def clean(self):
+        # D-11: accepted + rejected + quarantined must equal inspected.
+        cleaned = super().clean()
+        inspected = cleaned.get('quantity_inspected') or 0
+        accepted = cleaned.get('quantity_accepted') or 0
+        rejected = cleaned.get('quantity_rejected') or 0
+        quarantined = cleaned.get('quantity_quarantined') or 0
+        # Skip the check on empty/deleted formset rows (inspected == 0 and no decision).
+        if inspected or accepted or rejected or quarantined:
+            if accepted + rejected + quarantined != inspected:
+                raise ValidationError(
+                    f'Accepted ({accepted}) + Rejected ({rejected}) + Quarantined '
+                    f'({quarantined}) must equal Inspected ({inspected}).'
+                )
+        return cleaned
+
 
 QualityInspectionItemFormSet = inlineformset_factory(
     QualityInspection,
@@ -296,6 +432,27 @@ class WarehouseLocationForm(forms.ModelForm):
         if tenant:
             self.fields['parent'].queryset = WarehouseLocation.objects.filter(tenant=tenant)
             self.fields['parent'].empty_label = '— No Parent (Top Level) —'
+
+    def clean_code(self):
+        # D-01: unique_together(tenant, code) trap.
+        code = (self.cleaned_data.get('code') or '').strip()
+        if not code or self.tenant is None:
+            return code
+        qs = WarehouseLocation.objects.filter(tenant=self.tenant, code__iexact=code)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError(
+                f'A location with code "{code}" already exists in this tenant.'
+            )
+        return code
+
+    def clean_parent(self):
+        # Prevent self-parent cycle (covers the simple direct case).
+        parent = self.cleaned_data.get('parent')
+        if parent and self.instance and self.instance.pk and parent.pk == self.instance.pk:
+            raise ValidationError('A location cannot be its own parent.')
+        return parent
 
     def save(self, commit=True):
         instance = super().save(commit=False)
