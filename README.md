@@ -181,6 +181,26 @@ NavIMS/
 │       └── commands/
 │           └── seed_stocktaking.py  # Stocktaking seeder with demo data
 │
+├── multi_location/             # Module 13: Multi-Location Management
+│   ├── models.py               # Location (self-referential hierarchy), LocationPricingRule, LocationTransferRule, LocationSafetyStockRule
+│   ├── forms.py                # Location, PricingRule, TransferRule, SafetyStockRule forms
+│   ├── views.py                # Full CRUD for locations + rule models + aggregated global stock visibility dashboard
+│   ├── urls.py                 # Multi-Location URL routes
+│   ├── admin.py                # Admin registration for all 4 models
+│   └── management/
+│       └── commands/
+│           └── seed_multi_location.py  # Multi-location seeder with demo data
+│
+├── forecasting/                # Module 14: Inventory Forecasting & Planning
+│   ├── models.py               # DemandForecast, DemandForecastLine, ReorderPoint, ReorderAlert, SafetyStock, SeasonalityProfile, SeasonalityPeriod
+│   ├── forms.py                # Forecast, ROP, Alert acknowledge, SafetyStock, SeasonalityProfile + SeasonalityPeriod inline formset
+│   ├── views.py                # Full CRUD for forecasts/ROPs/alerts/safety-stock/seasonality + generate forecast + ROP alert scan + safety-stock recalc
+│   ├── urls.py                 # Forecasting URL routes
+│   ├── admin.py                # Admin registration with inlines
+│   └── management/
+│       └── commands/
+│           └── seed_forecasting.py  # Forecasting seeder with demo data
+│
 ├── returns/                    # Module 11: Returns Management (RMA)
 │   ├── models.py               # ReturnAuthorization, ReturnAuthorizationItem, ReturnInspection, ReturnInspectionItem, Disposition, DispositionItem, RefundCredit
 │   ├── forms.py                # RMA, RMA item formset, Inspection, Inspection item formset, Disposition, Disposition item formset, RefundCredit forms
@@ -410,6 +430,8 @@ NavIMS/
    python manage.py seed_orders
    python manage.py seed_returns
    python manage.py seed_stocktaking
+   python manage.py seed_multi_location
+   python manage.py seed_forecasting
    ```
 
    To reset and re-seed:
@@ -426,6 +448,8 @@ NavIMS/
    python manage.py seed_orders --flush
    python manage.py seed_returns --flush
    python manage.py seed_stocktaking --flush
+   python manage.py seed_multi_location --flush
+   python manage.py seed_forecasting --flush
    ```
 
 ---
@@ -515,6 +539,13 @@ The seed command creates the following demo accounts:
 - 3 stock counts per tenant (draft cycle, in-progress blind cycle, adjusted full)
 - ~18 stock count items per tenant (6 per count)
 - 1 posted variance adjustment per tenant with real inventory posting
+- 2 seasonality profiles per tenant (monthly summer peak, quarterly holiday season)
+- 16 seasonality period multipliers per tenant (12 monthly + 4 quarterly)
+- 4 safety stock configurations per tenant across fixed / statistical / percentage methods
+- 5 reorder point rules per tenant with auto-computed ROP quantities
+- 3 reorder alerts per tenant across new / acknowledged / ordered statuses
+- 3 demand forecasts per tenant (monthly moving average, quarterly seasonal, monthly linear regression)
+- ~30 forecast lines per tenant (historical + projected)
 
 ---
 
@@ -654,12 +685,31 @@ The seed command creates the following demo accounts:
 | Adjustment Workflow      | Pending → Approved → Posted; posting creates `inventory.StockAdjustment` records and updates `StockLevel.on_hand` + `last_counted_at` |
 | Status Workflow          | Counts: Draft → In Progress → Counted → Reviewed → Adjusted; freezes: Active → Released |
 
+### Module 13: Multi-Location Management (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Location Hierarchy Setup | Self-referential `Location` tree modelling Parent Company → Regional DC → Distribution Center → Retail Store, with optional link to a physical `warehousing.Warehouse` for stock roll-up |
+| Global Stock Visibility  | Aggregated view over `inventory.StockLevel` joined through linked warehouses, filterable by location sub-tree, product search, and low-stock toggle, with total on-hand / available / value / low-stock stat cards |
+| Location Pricing Rules   | Per-location pricing overrides (markup %, markdown %, fixed adjustment, price override) scoped to a specific product, category, or all products, with priority ordering and effective date range |
+| Location Transfer Rules  | Source→destination transfer policy per location pair (allowed/blocked, max qty, lead time, approval requirement, priority) with `unique_together` guarantee on `(source, destination)` |
+| Location Safety Stock Rules | Per-location × product safety-stock / reorder-point / max-stock overrides, uniquely scoped per location-product pair, with current stock-level comparison on the detail page |
+
+### Module 14: Inventory Forecasting & Planning (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Demand Forecasting       | Auto-generate demand forecasts (moving average, exponential smoothing, linear regression, seasonal) from historical sales-order data, with configurable history/projection horizons and period types (weekly/monthly/quarterly) |
+| Reorder Point (ROP) Calculation | Per product×warehouse ROP rules with formula ROP = (Avg Daily Usage × Lead Time Days) + Safety Stock; auto-recalculated on save |
+| Reorder Alerts           | On-demand scan of active ROPs vs current `StockLevel` available qty; auto-creates alerts with status workflow New → Acknowledged → Ordered → Closed |
+| Safety Stock Calculation | Fixed / Statistical (Z × √((LT × σ_d²) + (μ_d² × σ_LT²))) / Percentage methods; service level → Z-score lookup (0.90→1.28, 0.95→1.645, 0.99→2.33) |
+| Seasonality Planning     | Monthly or quarterly demand multipliers per profile; applied to forecast lines to produce seasonality-adjusted quantities |
+| Profile Targeting        | Seasonality profiles can be scoped to a category, a product, or used globally |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 13 | Multi-Location Management       | Location hierarchy, global stock visibility    |
-| 14 | Inventory Forecasting & Planning| Demand forecasting, reorder points, safety stock|
 | 15 | Barcode & RFID Integration      | Label generation, scanner integration          |
 | 16 | Quality Control & Inspection    | QC checklists, quarantine, defect reporting    |
 | 17 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
