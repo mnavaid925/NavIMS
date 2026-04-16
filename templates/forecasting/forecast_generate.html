@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Forecast{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Generate Forecast</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'forecasting:forecast_list' %}">Forecasts</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'forecasting:forecast_detail' forecast.pk %}">{{ forecast.forecast_number }}</a></li>
+                    <li class="breadcrumb-item active">Generate</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Run Forecast — {{ forecast.forecast_number }}</h5></div>
+            <div class="card-body">
+                <p><strong>Product:</strong> {{ forecast.product.name }} &nbsp; | &nbsp; <strong>Warehouse:</strong> {{ forecast.warehouse.name }}</p>
+                <p><strong>Method:</strong> {{ forecast.get_method_display }} &nbsp; | &nbsp; <strong>Period Type:</strong> {{ forecast.get_period_type_display }}</p>
+                <p><strong>History:</strong> {{ forecast.history_periods }} periods &nbsp; | &nbsp; <strong>Projection:</strong> {{ forecast.forecast_periods }} periods</p>
+                {% if forecast.seasonality_profile %}
+                <p><strong>Seasonality:</strong> {{ forecast.seasonality_profile.name }} ({{ forecast.seasonality_profile.get_period_type_display }})</p>
+                {% endif %}
+                <hr>
+                <div class="alert alert-info">
+                    <i class="ri-information-line me-1"></i>Historical demand will be pulled from confirmed sales orders for this product/warehouse across the past {{ forecast.history_periods }} {{ forecast.get_period_type_display|lower }} periods.
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-check form-switch mb-3">
+                        {{ form.regenerate }}
+                        <label class="form-check-label" for="id_regenerate">Regenerate (delete existing lines and recompute)</label>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success"><i class="ri-play-line me-1"></i>Run Forecast Now</button>
+                        <a href="{% url 'forecasting:forecast_detail' forecast.pk %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
