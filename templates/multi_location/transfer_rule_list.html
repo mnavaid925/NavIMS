@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Transfer Rules{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Location Transfer Rules</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Multi-Location</a></li>
+                    <li class="breadcrumb-item active">Transfer Rules</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Transfer Rules</h5>
+                <a href="{% url 'multi_location:transfer_rule_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>Add Rule</a>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="search-box">
+                            <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search...">
+                            <i class="ri-search-line search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="source" onchange="this.form.submit()">
+                            <option value="">All Sources</option>
+                            {% for l in locations %}<option value="{{ l.pk }}" {% if current_source == l.pk|stringformat:"d" %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="destination" onchange="this.form.submit()">
+                            <option value="">All Destinations</option>
+                            {% for l in locations %}<option value="{{ l.pk }}" {% if current_destination == l.pk|stringformat:"d" %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="allowed" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="yes" {% if current_allowed == 'yes' %}selected{% endif %}>Allowed</option>
+                            <option value="no" {% if current_allowed == 'no' %}selected{% endif %}>Blocked</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <a href="{% url 'multi_location:transfer_rule_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Source</th>
+                                <th></th>
+                                <th>Destination</th>
+                                <th>Max Qty</th>
+                                <th>Lead Time (days)</th>
+                                <th>Approval</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in rules %}
+                            <tr>
+                                <td><a href="{% url 'multi_location:location_detail' r.source_location.pk %}">{{ r.source_location.name }}</a></td>
+                                <td>{% if r.allowed %}<i class="ri-arrow-right-line text-success"></i>{% else %}<i class="ri-close-circle-line text-danger"></i>{% endif %}</td>
+                                <td><a href="{% url 'multi_location:location_detail' r.destination_location.pk %}">{{ r.destination_location.name }}</a></td>
+                                <td>{% if r.max_transfer_qty %}{{ r.max_transfer_qty }}{% else %}<span class="text-muted">∞</span>{% endif %}</td>
+                                <td>{{ r.lead_time_days }}</td>
+                                <td>{% if r.requires_approval %}<span class="badge bg-warning-subtle text-warning">Required</span>{% else %}<span class="badge bg-light text-muted">None</span>{% endif %}</td>
+                                <td>{{ r.priority }}</td>
+                                <td>{% if r.allowed %}<span class="badge bg-success-subtle text-success">Allowed</span>{% else %}<span class="badge bg-danger-subtle text-danger">Blocked</span>{% endif %}{% if not r.is_active %} <span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'multi_location:transfer_rule_detail' r.pk %}" class="btn btn-sm btn-soft-info" title="View"><i class="ri-eye-line"></i></a>
+                                        <a href="{% url 'multi_location:transfer_rule_edit' r.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                                        <form method="post" action="{% url 'multi_location:transfer_rule_delete' r.pk %}" class="d-inline" onsubmit="return confirm('Delete?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="9" class="text-center py-4 text-muted"><i class="ri-exchange-line fs-24 d-block mb-2"></i>No transfer rules found</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if rules.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav><ul class="pagination pagination-sm mb-0">
+                        {% if rules.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ rules.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in rules.paginator.page_range %}<li class="page-item {% if rules.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+                        {% if rules.has_next %}<li class="page-item"><a class="page-link" href="?page={{ rules.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                    </ul></nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
