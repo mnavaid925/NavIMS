@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     'orders',
     'returns',
     'stocktaking',
+    'multi_location',
+    'forecasting',
 ]
 
 MIDDLEWARE = [
