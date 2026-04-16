@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db import models
+from django.db import IntegrityError, models, transaction
 
 
 class Warehouse(models.Model):
@@ -50,18 +50,28 @@ class Warehouse(models.Model):
         return Bin.objects.filter(zone__warehouse=self).count()
 
     def save(self, *args, **kwargs):
-        if not self.code:
+        """D-08 — retry-on-collision for concurrent WH-NNNNN generation."""
+        if self.code:
+            super().save(*args, **kwargs)
+            return
+        for _ in range(5):
             self.code = self._generate_code()
+            try:
+                with transaction.atomic():
+                    super().save(*args, **kwargs)
+                return
+            except IntegrityError:
+                self.code = ''
         super().save(*args, **kwargs)
 
     def _generate_code(self):
         last = (
-            Warehouse.objects.filter(tenant=self.tenant)
+            Warehouse.objects.filter(tenant=self.tenant, code__startswith='WH-')
             .order_by('-id')
             .values_list('code', flat=True)
             .first()
         )
-        if last and last.startswith('WH-'):
+        if last:
             try:
                 num = int(last.split('-')[1]) + 1
             except (IndexError, ValueError):
@@ -350,18 +360,28 @@ class CrossDockOrder(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.order_number:
+        """D-08 — retry-on-collision for concurrent CD-NNNNN generation."""
+        if self.order_number:
+            super().save(*args, **kwargs)
+            return
+        for _ in range(5):
             self.order_number = self._generate_order_number()
+            try:
+                with transaction.atomic():
+                    super().save(*args, **kwargs)
+                return
+            except IntegrityError:
+                self.order_number = ''
         super().save(*args, **kwargs)
 
     def _generate_order_number(self):
         last = (
-            CrossDockOrder.objects.filter(tenant=self.tenant)
+            CrossDockOrder.objects.filter(tenant=self.tenant, order_number__startswith='CD-')
             .order_by('-id')
             .values_list('order_number', flat=True)
             .first()
         )
-        if last and last.startswith('CD-'):
+        if last:
             try:
                 num = int(last.split('-')[1]) + 1
             except (IndexError, ValueError):
