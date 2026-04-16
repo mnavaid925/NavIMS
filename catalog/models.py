@@ -1,5 +1,11 @@
+from decimal import Decimal
+
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.text import slugify
+
+
+ZERO = Decimal('0')
 
 
 class Category(models.Model):
@@ -85,27 +91,43 @@ class Product(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
 
     # Pricing & Costing
-    purchase_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    wholesale_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    retail_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    markup_percentage = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    purchase_cost = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        validators=[MinValueValidator(ZERO)],
+    )
+    wholesale_price = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        validators=[MinValueValidator(ZERO)],
+    )
+    retail_price = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        validators=[MinValueValidator(ZERO)],
+    )
+    markup_percentage = models.DecimalField(
+        max_digits=6, decimal_places=2, default=0,
+        validators=[MinValueValidator(ZERO)],
+    )
 
     # Physical attributes
     weight = models.DecimalField(
         max_digits=10, decimal_places=3, null=True, blank=True,
         help_text='Weight in kg',
+        validators=[MinValueValidator(ZERO)],
     )
     length = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True,
         help_text='Length in cm',
+        validators=[MinValueValidator(ZERO)],
     )
     width = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True,
         help_text='Width in cm',
+        validators=[MinValueValidator(ZERO)],
     )
     height = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True,
         help_text='Height in cm',
+        validators=[MinValueValidator(ZERO)],
     )
 
     # Metadata
