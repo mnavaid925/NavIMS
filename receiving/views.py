@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
 
@@ -80,7 +81,9 @@ def grn_create_view(request):
 
     if request.method == 'POST':
         form = GoodsReceiptNoteForm(request.POST, tenant=tenant)
-        formset = GoodsReceiptNoteItemFormSet(request.POST, prefix='items')
+        formset = GoodsReceiptNoteItemFormSet(
+            request.POST, prefix='items', form_kwargs={'tenant': tenant},
+        )
         if form.is_valid() and formset.is_valid():
             grn = form.save(commit=False)
             grn.created_by = request.user
@@ -99,16 +102,9 @@ def grn_create_view(request):
             return redirect('receiving:grn_detail', pk=grn.pk)
     else:
         form = GoodsReceiptNoteForm(tenant=tenant)
-        formset = GoodsReceiptNoteItemFormSet(prefix='items')
-
-    # Filter querysets for formset
-    po_items = PurchaseOrderItem.objects.filter(tenant=tenant)
-    products = Product.objects.filter(tenant=tenant, status='active')
-    for f in formset.forms:
-        f.fields['po_item'].queryset = po_items
-        f.fields['po_item'].empty_label = '— Select PO Item —'
-        f.fields['product'].queryset = products
-        f.fields['product'].empty_label = '— Select Product —'
+        formset = GoodsReceiptNoteItemFormSet(
+            prefix='items', form_kwargs={'tenant': tenant},
+        )
 
     context = {
         'form': form,
@@ -172,7 +168,9 @@ def grn_edit_view(request, pk):
 
     if request.method == 'POST':
         form = GoodsReceiptNoteForm(request.POST, instance=grn, tenant=tenant)
-        formset = GoodsReceiptNoteItemFormSet(request.POST, instance=grn, prefix='items')
+        formset = GoodsReceiptNoteItemFormSet(
+            request.POST, instance=grn, prefix='items', form_kwargs={'tenant': tenant},
+        )
         if form.is_valid() and formset.is_valid():
             form.save()
             items = formset.save(commit=False)
@@ -187,15 +185,9 @@ def grn_edit_view(request, pk):
             return redirect('receiving:grn_detail', pk=grn.pk)
     else:
         form = GoodsReceiptNoteForm(instance=grn, tenant=tenant)
-        formset = GoodsReceiptNoteItemFormSet(instance=grn, prefix='items')
-
-    po_items = PurchaseOrderItem.objects.filter(tenant=tenant)
-    products = Product.objects.filter(tenant=tenant, status='active')
-    for f in formset.forms:
-        f.fields['po_item'].queryset = po_items
-        f.fields['po_item'].empty_label = '— Select PO Item —'
-        f.fields['product'].queryset = products
-        f.fields['product'].empty_label = '— Select Product —'
+        formset = GoodsReceiptNoteItemFormSet(
+            instance=grn, prefix='items', form_kwargs={'tenant': tenant},
+        )
 
     context = {
         'form': form,
@@ -575,7 +567,9 @@ def inspection_create_view(request):
 
     if request.method == 'POST':
         form = QualityInspectionForm(request.POST, tenant=tenant)
-        formset = QualityInspectionItemFormSet(request.POST, prefix='items')
+        formset = QualityInspectionItemFormSet(
+            request.POST, prefix='items', form_kwargs={'tenant': tenant},
+        )
         if form.is_valid() and formset.is_valid():
             inspection = form.save(commit=False)
             inspection.created_by = request.user
@@ -600,15 +594,9 @@ def inspection_create_view(request):
             return redirect('receiving:inspection_detail', pk=inspection.pk)
     else:
         form = QualityInspectionForm(tenant=tenant)
-        formset = QualityInspectionItemFormSet(prefix='items')
-
-    grn_items = GoodsReceiptNoteItem.objects.filter(tenant=tenant)
-    products = Product.objects.filter(tenant=tenant, status='active')
-    for f in formset.forms:
-        f.fields['grn_item'].queryset = grn_items
-        f.fields['grn_item'].empty_label = '— Select GRN Item —'
-        f.fields['product'].queryset = products
-        f.fields['product'].empty_label = '— Select Product —'
+        formset = QualityInspectionItemFormSet(
+            prefix='items', form_kwargs={'tenant': tenant},
+        )
 
     context = {
         'form': form,
@@ -645,7 +633,9 @@ def inspection_edit_view(request, pk):
 
     if request.method == 'POST':
         form = QualityInspectionForm(request.POST, instance=inspection, tenant=tenant)
-        formset = QualityInspectionItemFormSet(request.POST, instance=inspection, prefix='items')
+        formset = QualityInspectionItemFormSet(
+            request.POST, instance=inspection, prefix='items', form_kwargs={'tenant': tenant},
+        )
         if form.is_valid() and formset.is_valid():
             form.save()
             items = formset.save(commit=False)
@@ -665,15 +655,9 @@ def inspection_edit_view(request, pk):
             return redirect('receiving:inspection_detail', pk=inspection.pk)
     else:
         form = QualityInspectionForm(instance=inspection, tenant=tenant)
-        formset = QualityInspectionItemFormSet(instance=inspection, prefix='items')
-
-    grn_items = GoodsReceiptNoteItem.objects.filter(tenant=tenant)
-    products = Product.objects.filter(tenant=tenant, status='active')
-    for f in formset.forms:
-        f.fields['grn_item'].queryset = grn_items
-        f.fields['grn_item'].empty_label = '— Select GRN Item —'
-        f.fields['product'].queryset = products
-        f.fields['product'].empty_label = '— Select Product —'
+        formset = QualityInspectionItemFormSet(
+            instance=inspection, prefix='items', form_kwargs={'tenant': tenant},
+        )
 
     context = {
         'form': form,
@@ -991,15 +975,37 @@ def putaway_transition_view(request, pk, new_status):
         messages.warning(request, f'Cannot transition task from "{task.get_status_display()}" to "{new_status}".')
         return redirect('receiving:putaway_detail', pk=task.pk)
 
-    task.status = new_status
     if new_status == 'completed':
-        task.completed_at = timezone.now()
-        # Update warehouse location quantity
-        location = task.assigned_location or task.suggested_location
-        if location:
-            location.current_quantity += task.quantity
-            location.save()
-    task.save()
+        # D-08 + D-09: wrap completion in an atomic transaction; lock the bin row;
+        # reject when capacity would overflow (capacity == 0 means unmetered).
+        with transaction.atomic():
+            task = PutawayTask.objects.select_for_update().get(pk=task.pk)
+            location = None
+            if task.assigned_location_id:
+                location = WarehouseLocation.objects.select_for_update().get(
+                    pk=task.assigned_location_id,
+                )
+            elif task.suggested_location_id:
+                location = WarehouseLocation.objects.select_for_update().get(
+                    pk=task.suggested_location_id,
+                )
+            if location and location.capacity > 0:
+                if location.current_quantity + task.quantity > location.capacity:
+                    messages.warning(
+                        request,
+                        f'Cannot complete: bin "{location.code}" would exceed capacity '
+                        f'({location.current_quantity + task.quantity}/{location.capacity}).',
+                    )
+                    return redirect('receiving:putaway_detail', pk=task.pk)
+            task.status = new_status
+            task.completed_at = timezone.now()
+            task.save()
+            if location:
+                location.current_quantity += task.quantity
+                location.save()
+    else:
+        task.status = new_status
+        task.save()
 
     status_label = dict(PutawayTask.STATUS_CHOICES).get(new_status, new_status)
     messages.success(request, f'Putaway Task "{task.task_number}" status changed to {status_label}.')
