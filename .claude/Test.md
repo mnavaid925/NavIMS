@@ -677,6 +677,7 @@ class CatalogUser(HttpUser):
 | **D-09** | **Low** | [catalog/forms.py:60-66](catalog/forms.py#L60-L66) | If `tenant=None` (super-admin) is passed, `CategoryForm.save()` fails at DB layer, not form layer | Raise `ValidationError` in `__init__` when `tenant is None` |
 | **D-10** | **Low (Code smell)** | [catalog/forms.py:36-42](catalog/forms.py#L36-L42) | Recursive `_get_descendant_ids` issues N queries for N levels | CTE / `django-mptt` / `django-treebeard` |
 | **D-11** | **Info / UX** | [templates/catalog/product_list.html:37-43](templates/catalog/product_list.html#L37-L43) | Three independent `<form method="get">` per filter — fragile, uses hidden inputs to sync state | Consolidate into one form with multiple selects |
+| **D-12** | **Medium** (discovered during remediation, 2026-04-17) | [catalog/forms.py](catalog/forms.py) `ProductForm` | `tenant` isn't a form field, so Django's default `validate_unique()` excludes it — duplicate SKUs in the same tenant bypassed form validation and surfaced as DB `IntegrityError` (500). | **FIXED** — added `clean_sku()` that filters by `self.tenant` and raises `ValidationError` on duplicate. Same pattern needs auditing in every other module with `unique_together` involving `tenant`. |
 
 ### 6.2 Risk Register
 
