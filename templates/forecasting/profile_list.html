@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Seasonality Profiles{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Seasonality Profiles</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Forecasting & Planning</a></li>
+                    <li class="breadcrumb-item active">Seasonality</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Profiles</h5>
+                <a href="{% url 'forecasting:profile_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>New Profile</a>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="search-box">
+                            <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by name / description...">
+                            <i class="ri-search-line search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="period_type" onchange="this.form.submit()">
+                            <option value="">All Periods</option>
+                            {% for v, l in period_type_choices %}<option value="{{ v }}" {% if current_period_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="active" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="active" {% if current_active == 'active' %}selected{% endif %}>Active Only</option>
+                            <option value="inactive" {% if current_active == 'inactive' %}selected{% endif %}>Inactive Only</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'forecasting:profile_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Product</th>
+                                <th>Period Type</th>
+                                <th>Periods</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in profiles %}
+                            <tr>
+                                <td><a href="{% url 'forecasting:profile_detail' p.pk %}" class="fw-medium text-primary">{{ p.name }}</a></td>
+                                <td>{{ p.category.name|default:"—" }}</td>
+                                <td>{{ p.product.name|default:"—" }}</td>
+                                <td><span class="badge bg-info-subtle text-info">{{ p.get_period_type_display }}</span></td>
+                                <td>{{ p.periods.count }}</td>
+                                <td>{% if p.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'forecasting:profile_detail' p.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                                        <a href="{% url 'forecasting:profile_edit' p.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                                        <form method="post" action="{% url 'forecasting:profile_delete' p.pk %}" class="d-inline" onsubmit="return confirm('Delete profile {{ p.name }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="7" class="text-center py-4 text-muted"><i class="ri-calendar-line fs-24 d-block mb-2"></i>No seasonality profiles</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if profiles.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav><ul class="pagination pagination-sm mb-0">
+                        {% if profiles.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ profiles.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in profiles.paginator.page_range %}<li class="page-item {% if profiles.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+                        {% if profiles.has_next %}<li class="page-item"><a class="page-link" href="?page={{ profiles.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                    </ul></nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
