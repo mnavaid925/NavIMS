@@ -1,4 +1,5 @@
 from decimal import Decimal
+from functools import cached_property
 
 from django.conf import settings
 from django.db import models
@@ -74,17 +75,21 @@ class PurchaseOrder(models.Model):
     def can_transition_to(self, new_status):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
+    @cached_property
+    def _items_cache(self):
+        return list(self.items.all())
+
     @property
     def subtotal(self):
-        return sum(item.line_total for item in self.items.all())
+        return sum((item.line_total for item in self._items_cache), Decimal('0'))
 
     @property
     def tax_total(self):
-        return sum(item.tax_amount for item in self.items.all())
+        return sum((item.tax_amount for item in self._items_cache), Decimal('0'))
 
     @property
     def discount_total(self):
-        return sum(item.discount_amount for item in self.items.all())
+        return sum((item.discount_amount for item in self._items_cache), Decimal('0'))
 
     @property
     def grand_total(self):
