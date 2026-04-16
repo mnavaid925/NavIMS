@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Alert {{ alert.alert_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Alert {{ alert.alert_number }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'forecasting:alert_list' %}">Reorder Alerts</a></li>
+                    <li class="breadcrumb-item active">{{ alert.alert_number }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Alert Details</h5>
+                {% if alert.status == 'new' %}<span class="badge bg-danger-subtle text-danger fs-12">New</span>
+                {% elif alert.status == 'acknowledged' %}<span class="badge bg-warning-subtle text-warning fs-12">Acknowledged</span>
+                {% elif alert.status == 'ordered' %}<span class="badge bg-info-subtle text-info fs-12">Ordered</span>
+                {% elif alert.status == 'closed' %}<span class="badge bg-success-subtle text-success fs-12">Closed</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Product:</strong> {{ alert.product.name }} ({{ alert.product.sku }})</p>
+                        <p class="mb-2"><strong>Warehouse:</strong> {{ alert.warehouse.name }}</p>
+                        <p class="mb-2"><strong>Triggered At:</strong> {{ alert.triggered_at|date:"M d, Y H:i" }}</p>
+                        <p class="mb-2"><strong>ROP Rule:</strong> <a href="{% url 'forecasting:rop_detail' alert.rop.pk %}">{{ alert.rop }}</a></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Current Qty:</strong> <span class="fw-bold {% if alert.current_qty <= 0 %}text-danger{% else %}text-warning{% endif %}">{{ alert.current_qty }}</span></p>
+                        <p class="mb-2"><strong>ROP Qty:</strong> {{ alert.rop_qty }}</p>
+                        <p class="mb-2"><strong>Suggested Order:</strong> <span class="fw-bold text-primary">{{ alert.suggested_order_qty }}</span></p>
+                        <p class="mb-2"><strong>Acknowledged By:</strong> {{ alert.acknowledged_by.get_full_name|default:alert.acknowledged_by.username|default:"—" }}</p>
+                    </div>
+                </div>
+                {% if alert.notes %}<div class="alert alert-light mb-0"><strong>Notes:</strong><br>{{ alert.notes|linebreaks }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if alert.status == 'new' %}
+                    <a href="{% url 'forecasting:alert_acknowledge' alert.pk %}" class="btn btn-warning"><i class="ri-check-line me-1"></i>Acknowledge</a>
+                    {% endif %}
+                    {% if alert.status == 'acknowledged' %}
+                    <form method="post" action="{% url 'forecasting:alert_mark_ordered' alert.pk %}">
+                        {% csrf_token %}
+                        <button class="btn btn-info w-100"><i class="ri-shopping-cart-line me-1"></i>Mark as Ordered</button>
+                    </form>
+                    {% endif %}
+                    {% if alert.status != 'closed' %}
+                    <form method="post" action="{% url 'forecasting:alert_close' alert.pk %}">
+                        {% csrf_token %}
+                        <button class="btn btn-success w-100"><i class="ri-close-circle-line me-1"></i>Close Alert</button>
+                    </form>
+                    {% endif %}
+                    <form method="post" action="{% url 'forecasting:alert_delete' alert.pk %}" onsubmit="return confirm('Delete alert?');">
+                        {% csrf_token %}
+                        <button class="btn btn-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button>
+                    </form>
+                    <a href="{% url 'forecasting:alert_list' %}" class="btn btn-light">Back to List</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
