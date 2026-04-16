@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'multi_location:pricing_rule_list' %}">Pricing Rules</a></li>
+                    <li class="breadcrumb-item active">{% if rule %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Pricing Rule</h5></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Location <span class="text-danger">*</span></label>
+                            {{ form.location }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Product (optional)</label>
+                            {{ form.product }}
+                            <small class="text-muted">Choose a specific product, or leave blank.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Category (optional)</label>
+                            {{ form.category }}
+                            <small class="text-muted">Apply to all products in a category.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Rule Type <span class="text-danger">*</span></label>
+                            {{ form.rule_type }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Value <span class="text-danger">*</span></label>
+                            {{ form.value }}
+                            <small class="text-muted">Percentage for markup/markdown, amount for fixed/override.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Priority</label>
+                            {{ form.priority }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Effective From</label>
+                            {{ form.effective_from }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Effective To</label>
+                            {{ form.effective_to }}
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check form-switch">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Notes</label>
+                            {{ form.notes }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if rule %}Update{% else %}Create{% endif %} Rule</button>
+                        <a href="{% url 'multi_location:pricing_rule_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
