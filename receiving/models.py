@@ -1,8 +1,30 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction, IntegrityError
 from django.db.models import Sum, F
+
+
+def _save_with_generated_number(instance, number_field, generator, *args, **kwargs):
+    """
+    D-03: Serialise auto-number generation. Concurrent `MAX(id)+1` is racy; on
+    conflict we regenerate and retry so the second caller simply gets N+2 rather
+    than failing with an IntegrityError.
+    """
+    attempts = 5
+    last_exc = None
+    while attempts > 0:
+        if not getattr(instance, number_field):
+            setattr(instance, number_field, generator())
+        try:
+            with transaction.atomic():
+                models.Model.save(instance, *args, **kwargs)
+            return
+        except IntegrityError as exc:
+            last_exc = exc
+            setattr(instance, number_field, '')
+            attempts -= 1
+    raise last_exc
 
 
 # ──────────────────────────────────────────────
@@ -133,9 +155,7 @@ class GoodsReceiptNote(models.Model):
         return self.items.aggregate(total=Sum('quantity_received'))['total'] or 0
 
     def save(self, *args, **kwargs):
-        if not self.grn_number:
-            self.grn_number = self._generate_grn_number()
-        super().save(*args, **kwargs)
+        _save_with_generated_number(self, 'grn_number', self._generate_grn_number, *args, **kwargs)
 
     def _generate_grn_number(self):
         last = (
@@ -155,30 +175,34 @@ class GoodsReceiptNote(models.Model):
 
     def update_po_status(self):
         """Update the linked PO status based on total received quantities across all completed GRNs."""
-        po = self.purchase_order
-        po_items = po.items.all()
-        all_received = True
+        # D-15: wrap the read + write in a single transaction so two GRN completions
+        # against the same PO can't interleave.
+        with transaction.atomic():
+            from purchase_orders.models import PurchaseOrder
+            po = PurchaseOrder.objects.select_for_update().get(pk=self.purchase_order_id)
+            po_items = po.items.all()
+            all_received = True
 
-        for po_item in po_items:
-            total_received = (
-                GoodsReceiptNoteItem.objects.filter(
-                    grn__purchase_order=po,
-                    grn__status='completed',
-                    po_item=po_item,
-                ).aggregate(total=Sum('quantity_received'))['total'] or 0
-            )
-            if total_received < po_item.quantity:
-                all_received = False
-                break
+            for po_item in po_items:
+                total_received = (
+                    GoodsReceiptNoteItem.objects.filter(
+                        grn__purchase_order=po,
+                        grn__status='completed',
+                        po_item=po_item,
+                    ).aggregate(total=Sum('quantity_received'))['total'] or 0
+                )
+                if total_received < po_item.quantity:
+                    all_received = False
+                    break
 
-        if all_received:
-            if po.can_transition_to('received'):
-                po.status = 'received'
-                po.save()
-        else:
-            if po.can_transition_to('partially_received'):
-                po.status = 'partially_received'
-                po.save()
+            if all_received:
+                if po.can_transition_to('received'):
+                    po.status = 'received'
+                    po.save()
+            else:
+                if po.can_transition_to('partially_received'):
+                    po.status = 'partially_received'
+                    po.save()
 
 
 class GoodsReceiptNoteItem(models.Model):
@@ -401,9 +425,15 @@ class ThreeWayMatch(models.Model):
                 break
         self.quantity_match = qty_matched
 
-        # Price match: PO total vs Invoice total (within tolerance)
+        # D-05: price match must compare PO↔Invoice AND PO↔GRN AND Invoice↔GRN.
+        # Otherwise an attacker can edit VendorInvoice.total_amount to equal the
+        # PO total while the GRN is short-received, and the match still passes.
         tolerance = Decimal('0.01')
-        self.price_match = abs(self.po_total - self.invoice_total) <= tolerance
+        self.price_match = (
+            abs(self.po_total - self.invoice_total) <= tolerance
+            and abs(self.po_total - self.grn_total) <= tolerance
+            and abs(self.invoice_total - self.grn_total) <= tolerance
+        )
 
         # Total match
         self.total_match = self.quantity_match and self.price_match
@@ -417,9 +447,7 @@ class ThreeWayMatch(models.Model):
         self.save()
 
     def save(self, *args, **kwargs):
-        if not self.match_number:
-            self.match_number = self._generate_match_number()
-        super().save(*args, **kwargs)
+        _save_with_generated_number(self, 'match_number', self._generate_match_number, *args, **kwargs)
 
     def _generate_match_number(self):
         last = (
@@ -504,9 +532,7 @@ class QualityInspection(models.Model):
         return self.items.aggregate(total=Sum('quantity_quarantined'))['total'] or 0
 
     def save(self, *args, **kwargs):
-        if not self.inspection_number:
-            self.inspection_number = self._generate_inspection_number()
-        super().save(*args, **kwargs)
+        _save_with_generated_number(self, 'inspection_number', self._generate_inspection_number, *args, **kwargs)
 
     def _generate_inspection_number(self):
         last = (
@@ -658,9 +684,7 @@ class PutawayTask(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.task_number:
-            self.task_number = self._generate_task_number()
-        super().save(*args, **kwargs)
+        _save_with_generated_number(self, 'task_number', self._generate_task_number, *args, **kwargs)
 
     def _generate_task_number(self):
         last = (
