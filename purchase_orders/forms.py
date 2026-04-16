@@ -1,4 +1,5 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 
 from catalog.models import Product
@@ -51,6 +52,17 @@ class PurchaseOrderForm(forms.ModelForm):
                 tenant=tenant, is_active=True, status='active',
             )
             self.fields['vendor'].empty_label = '— Select Vendor —'
+
+    def clean(self):
+        cleaned = super().clean()
+        order_date = cleaned.get('order_date')
+        delivery = cleaned.get('expected_delivery_date')
+        if order_date and delivery and delivery < order_date:
+            raise ValidationError({
+                'expected_delivery_date':
+                    'Expected delivery date cannot be earlier than order date.',
+            })
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -105,6 +117,8 @@ PurchaseOrderItemFormSet = inlineformset_factory(
     PurchaseOrderItem,
     form=PurchaseOrderItemForm,
     extra=3,
+    min_num=1,
+    validate_min=True,
     can_delete=True,
 )
 
@@ -145,6 +159,17 @@ class ApprovalRuleForm(forms.ModelForm):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
 
+    def clean(self):
+        cleaned = super().clean()
+        min_amount = cleaned.get('min_amount')
+        max_amount = cleaned.get('max_amount')
+        if min_amount is not None and max_amount is not None and max_amount < min_amount:
+            raise ValidationError({
+                'max_amount':
+                    'Maximum amount must be greater than or equal to minimum amount.',
+            })
+        return cleaned
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.tenant:
@@ -155,16 +180,14 @@ class ApprovalRuleForm(forms.ModelForm):
 
 
 class PurchaseOrderDispatchForm(forms.ModelForm):
+    """Recipient address is server-pinned to `po.vendor.email`; not a form field (D-04)."""
+
     class Meta:
         model = PurchaseOrderDispatch
-        fields = ['dispatch_method', 'sent_to_email', 'notes']
+        fields = ['dispatch_method', 'notes']
         widgets = {
             'dispatch_method': forms.Select(attrs={
                 'class': 'form-select',
-            }),
-            'sent_to_email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'vendor@example.com',
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'form-control',
