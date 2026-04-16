@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'forecasting:profile_list' %}">Seasonality</a></li>
+                    <li class="breadcrumb-item active">{% if profile %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Profile Details</h5></div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        {{ form.name }}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Category</label>
+                            {{ form.category }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Product</label>
+                            {{ form.product }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Period Type <span class="text-danger">*</span></label>
+                            {{ form.period_type }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label d-block">Active</label>
+                            <div class="form-check form-switch">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="id_is_active">Enabled</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        {{ form.description }}
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+            </div>
+
+            {% if formset %}
+            <div class="card mt-3">
+                <div class="card-header"><h5 class="card-title mb-0">Period Multipliers</h5></div>
+                <div class="card-body">
+                    {{ formset.management_form }}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle table-borderless">
+                            <thead class="text-muted table-light">
+                                <tr><th>Period #</th><th>Label</th><th>Demand Multiplier</th><th>Notes</th><th>Delete</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for f in formset %}
+                                <tr>
+                                    {% for h in f.hidden_fields %}{{ h }}{% endfor %}
+                                    <td>{{ f.period_number }}</td>
+                                    <td>{{ f.period_label }}</td>
+                                    <td>{{ f.demand_multiplier }}</td>
+                                    <td>{{ f.notes }}</td>
+                                    <td>{% if f.DELETE %}{{ f.DELETE }}{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="small text-muted mb-0 mt-2"><i class="ri-information-line me-1"></i>Multipliers are applied to forecast quantities. 1.00 = baseline, 1.25 = +25%, 0.80 = −20%.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if profile %}Update Profile{% else %}Create Profile{% endif %}</button>
+                        <a href="{% url 'forecasting:profile_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                    {% if is_create %}
+                    <hr>
+                    <p class="small text-muted mb-0"><i class="ri-information-line me-1"></i>After creation, default periods will be auto-generated. Edit the profile to set multipliers.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
