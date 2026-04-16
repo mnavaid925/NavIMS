@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'forecasting:rop_list' %}">Reorder Points</a></li>
+                    <li class="breadcrumb-item active">{% if rop %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Reorder Point Details</h5></div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Product <span class="text-danger">*</span></label>
+                            {{ form.product }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Warehouse <span class="text-danger">*</span></label>
+                            {{ form.warehouse }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Avg Daily Usage <span class="text-danger">*</span></label>
+                            {{ form.avg_daily_usage }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Lead Time (days) <span class="text-danger">*</span></label>
+                            {{ form.lead_time_days }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Safety Stock Qty</label>
+                            {{ form.safety_stock_qty }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">ROP Qty (auto)</label>
+                            {{ form.rop_qty }}
+                            <small class="text-muted">Recalculated on save.</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Min Qty</label>
+                            {{ form.min_qty }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Max Qty</label>
+                            {{ form.max_qty }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Reorder Qty</label>
+                            {{ form.reorder_qty }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label d-block">Active</label>
+                            <div class="form-check form-switch">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="id_is_active">Enable alerts for this ROP</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if rop %}Update ROP{% else %}Save ROP{% endif %}</button>
+                        <a href="{% url 'forecasting:rop_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                    <hr>
+                    <p class="small text-muted mb-0"><i class="ri-information-line me-1"></i>ROP formula: (Avg Daily Usage × Lead Time) + Safety Stock.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
