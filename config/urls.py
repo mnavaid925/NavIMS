@@ -19,6 +19,8 @@ urlpatterns = [
     path('orders/', include('orders.urls')),
     path('returns/', include('returns.urls')),
     path('stocktaking/', include('stocktaking.urls')),
+    path('multi-location/', include('multi_location.urls')),
+    path('forecasting/', include('forecasting.urls')),
 ]
 
 if settings.DEBUG:
