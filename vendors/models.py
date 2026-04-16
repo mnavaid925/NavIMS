@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.db.models import Q
 
 
 class Vendor(models.Model):
@@ -51,7 +52,11 @@ class Vendor(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     payment_terms = models.CharField(max_length=20, choices=PAYMENT_TERMS_CHOICES, default='net_30')
     lead_time_days = models.PositiveIntegerField(default=0, help_text='Average lead time in days')
-    minimum_order_quantity = models.PositiveIntegerField(default=1, verbose_name='MOQ')
+    minimum_order_quantity = models.PositiveIntegerField(
+        default=1,
+        verbose_name='MOQ',
+        validators=[MinValueValidator(1)],
+    )
     notes = models.TextField(blank=True, default='')
 
     is_active = models.BooleanField(default=True)
@@ -100,10 +105,12 @@ class VendorPerformance(models.Model):
     )
     defect_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text='Defect rate percentage',
     )
     on_time_delivery_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text='On-time delivery percentage',
     )
     notes = models.TextField(blank=True, default='')
@@ -119,6 +126,29 @@ class VendorPerformance(models.Model):
 
     class Meta:
         ordering = ['-review_date']
+        constraints = [
+            # D-07: enforce rating bounds at the DB layer as well.
+            models.CheckConstraint(
+                check=Q(delivery_rating__gte=1) & Q(delivery_rating__lte=5),
+                name='vendorperformance_delivery_rating_1_5',
+            ),
+            models.CheckConstraint(
+                check=Q(quality_rating__gte=1) & Q(quality_rating__lte=5),
+                name='vendorperformance_quality_rating_1_5',
+            ),
+            models.CheckConstraint(
+                check=Q(compliance_rating__gte=1) & Q(compliance_rating__lte=5),
+                name='vendorperformance_compliance_rating_1_5',
+            ),
+            models.CheckConstraint(
+                check=Q(defect_rate__gte=0) & Q(defect_rate__lte=100),
+                name='vendorperformance_defect_rate_0_100',
+            ),
+            models.CheckConstraint(
+                check=Q(on_time_delivery_rate__gte=0) & Q(on_time_delivery_rate__lte=100),
+                name='vendorperformance_on_time_rate_0_100',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.vendor.company_name} - {self.review_date}"
@@ -154,8 +184,15 @@ class VendorContract(models.Model):
     end_date = models.DateField(null=True, blank=True)
     payment_terms = models.CharField(max_length=20, choices=PAYMENT_TERMS_CHOICES, default='net_30')
     lead_time_days = models.PositiveIntegerField(default=0)
-    moq = models.PositiveIntegerField(default=1, verbose_name='Minimum Order Quantity')
-    contract_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    moq = models.PositiveIntegerField(
+        default=1,
+        verbose_name='Minimum Order Quantity',
+        validators=[MinValueValidator(1)],
+    )
+    contract_value = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        validators=[MinValueValidator(0)],
+    )
     status = models.CharField(max_length=20, choices=CONTRACT_STATUS_CHOICES, default='draft')
     document = models.FileField(upload_to='vendors/contracts/', blank=True, null=True)
     notes = models.TextField(blank=True, default='')
@@ -165,6 +202,13 @@ class VendorContract(models.Model):
     class Meta:
         ordering = ['-start_date']
         unique_together = ('tenant', 'contract_number')
+        constraints = [
+            # D-17: enforce non-negative contract_value at the DB layer.
+            models.CheckConstraint(
+                check=Q(contract_value__gte=0),
+                name='vendorcontract_value_non_negative',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.contract_number} - {self.title}"
