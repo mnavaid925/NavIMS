@@ -1,9 +1,9 @@
-# Purchase Order (PO) Management — Comprehensive SQA Test Report
+# Inventory Tracking & Control — Comprehensive SQA Test Report
 
-> Target module: [purchase_orders/](../purchase_orders/)
-> Scope: full module review (models, forms, views, templates, seed, admin, workflow).
-> Standards: ISO/IEC/IEEE 29119, OWASP Top 10:2021, NavIMS project conventions ([CLAUDE.md](CLAUDE.md)).
-> Prepared by: Senior SQA Engineer persona, staff-engineer quality bar.
+> Target module: [inventory/](../inventory/) — the `inventory` Django app comprising four sub-modules (Stock Levels, Stock Status, Valuation, Reservations).
+> Scope: full module review end-to-end (models, forms, views, templates, seed, admin).
+> Standards: ISO/IEC/IEEE 29119, OWASP Top 10:2021, NavIMS conventions ([CLAUDE.md](CLAUDE.md)).
+> Prepared by: Senior SQA Engineer persona, staff-engineer bar.
 > Date: 2026-04-17.
 
 ---
@@ -14,299 +14,252 @@
 
 | Artefact | File | LoC | Notes |
 |---|---|---|---|
-| Models | [purchase_orders/models.py](../purchase_orders/models.py) | 271 | 5 models: `PurchaseOrder`, `PurchaseOrderItem`, `ApprovalRule`, `PurchaseOrderApproval`, `PurchaseOrderDispatch` |
-| Forms | [purchase_orders/forms.py](../purchase_orders/forms.py) | 190 | 5 ModelForms + inline formset for items |
-| Views | [purchase_orders/views.py](../purchase_orders/views.py) | 593 | 16 function-based views covering CRUD + 8 status transitions + dispatch + approval rules |
-| URLs | [purchase_orders/urls.py](../purchase_orders/urls.py) | 32 | App namespace `purchase_orders:` mounted at `/purchase-orders/` |
-| Admin | [purchase_orders/admin.py](../purchase_orders/admin.py) | 56 | All 5 models registered with inlines |
-| Templates | [templates/purchase_orders/](../templates/purchase_orders/) | 7 files | list/detail/form/dispatch + approval rule list/form + pending approvals |
-| Seed | [purchase_orders/management/commands/seed_purchase_orders.py](../purchase_orders/management/commands/seed_purchase_orders.py) | 257 | Per-tenant seeding with 3 approval rules + 8 POs spanning every status |
-| Tests | — | **0** | **No test coverage** (pytest `testpaths` in [pytest.ini](../pytest.ini) exclude `purchase_orders/tests`) |
+| Models | [inventory/models.py](../inventory/models.py) | 441 | **8 models** across 4 sub-modules |
+| Forms | [inventory/forms.py](../inventory/forms.py) | 133 | 4 ModelForms |
+| Views | [inventory/views.py](../inventory/views.py) | 558 | **18 views** (list/detail/create/edit/delete/transition/recalculate) |
+| URLs | [inventory/urls.py](../inventory/urls.py) | 35 | App namespace `inventory:` at `/inventory/` |
+| Admin | [inventory/admin.py](../inventory/admin.py) | 60 | All 8 models registered |
+| Templates | [templates/inventory/](../templates/inventory/) | 15 files | list + detail + form per entity |
+| Seed | [inventory/management/commands/seed_inventory.py](../inventory/management/commands/seed_inventory.py) | — | Per-tenant sample data |
+| Tests | — | **0** | **No test coverage** (pytest `testpaths` excludes `inventory/tests`) |
 
-### 1.2 Business domain
+### 1.2 Sub-modules
 
-The module implements a full Purchase Order lifecycle:
+| # | Sub-module | Primary models | Purpose |
+|---|---|---|---|
+| 1 | **Real-Time Stock Levels** | `StockLevel`, `StockAdjustment` | Per-product-per-warehouse stock with manual +/−/correction adjustments |
+| 2 | **Stock Status Management** | `StockStatus`, `StockStatusTransition` | Classify stock into `active / damaged / expired / on_hold`; move between buckets |
+| 3 | **Inventory Valuation** | `ValuationConfig`, `InventoryValuation`, `ValuationEntry` | Configure FIFO / LIFO / Weighted Avg; on-demand recalc snapshot |
+| 4 | **Inventory Reservations** | `InventoryReservation` | Soft-allocate stock to references (sales orders, jobs) with state machine |
 
-1. **Authoring** — Draft PO with header + inline line-items (product, qty, unit price, tax%, discount).
-2. **Approval flow** — Submit-for-approval → one or more approvers sign off (or reject) → PO moves to `approved`. Threshold computed from amount-range `ApprovalRule` records.
-3. **Dispatch** — Send PO to vendor via email / EDI / manual / other. Email body auto-assembled from line items + totals.
-4. **Fulfilment** — Mark `sent` → `received` → `closed`. `partially_received` is a parallel state.
-5. **Cancellation** — Any non-closed/non-cancelled PO can be cancelled. Cancelled POs can be reopened to draft (wipes approvals).
+### 1.3 State machines
 
-Status machine defined at [models.py:27-36](../purchase_orders/models.py#L27-L36):
+Reservation machine at [models.py:364-370](../inventory/models.py#L364-L370):
 
 ```
-draft ⇄ pending_approval → approved → sent → partially_received → received → closed
-  └──────────────────────────────────────── cancelled ──────────────────┘
-                                            (reopen → draft)
+pending ⇄ confirmed → released / expired / cancelled
+      └────────────────────────── cancelled → pending
 ```
 
-Computed properties at [models.py:77-108](../purchase_orders/models.py#L77-L108): `subtotal`, `tax_total`, `discount_total`, `grand_total`, `approval_status`.
+Stock Status is not a state machine — it is a bucket-transfer system. `StockStatusTransition.apply_transition` at [models.py:230-249](../inventory/models.py#L230-L249) debits one bucket and credits another.
 
-### 1.3 Security-sensitive paths
+### 1.4 Security-sensitive paths (risk map)
 
 | Path | File:Line | Risk surface |
 |---|---|---|
-| Dispatch via email | [views.py:344-391](../purchase_orders/views.py#L344-L391) | Free-form recipient → data-exfil risk; no RBAC gate |
-| Approve / Reject | [views.py:248-317](../purchase_orders/views.py#L248-L317) | No role check; creator self-approval allowed; workflow-breaking rejection residue |
-| PO-number generation | [models.py:115-129](../purchase_orders/models.py#L115-L129) | Race condition on `_generate_po_number` — two concurrent inserts collide on `unique_together(tenant, po_number)` |
-| Delete / Cancel / Close | [views.py:202-490](../purchase_orders/views.py#L202-L490) | No RBAC; no audit log |
-| Approval rule range | [forms.py:112-154](../purchase_orders/forms.py#L112-L154) | No validation `min_amount ≤ max_amount`; overlapping / gap ranges silently swallowed |
+| Stock adjustment | [views.py:86-109](../inventory/views.py#L86-L109) | No RBAC; non-atomic; silent clamp on over-decrement |
+| Stock status transition | [views.py:217-237](../inventory/views.py#L217-L237) | No RBAC; non-atomic; phantom source allowed → **creates inventory from thin air** |
+| Valuation recalculate | [views.py:347-402](../inventory/views.py#L347-L402) | No RBAC; global DELETE then insert; non-atomic; FIFO/LIFO math identical to W-Avg |
+| Reservation transition | [views.py:527-558](../inventory/views.py#L527-L558) | No RBAC; non-atomic; no over-reserve guard |
+| Reservation create/edit | [views.py:449-506](../inventory/views.py#L449-L506) | No `quantity ≤ available` check |
+| Auto-generated sequence numbers | [models.py:103-117, 214-228, 427-441](../inventory/models.py) | TOCTOU race (same pattern as purchase_orders D-08) |
 
-### 1.4 Multi-tenancy posture
-
-Every view correctly uses `tenant=request.tenant` filter on the top-level queryset, and every `get_object_or_404` includes the tenant predicate. **No direct IDOR vector identified** via URL-pk lookups. However **tenant superuser has `tenant=None`** (known pattern, see [CLAUDE.md](CLAUDE.md)).
-
-### 1.5 Known NavIMS-pattern violations
+### 1.5 NavIMS pattern compliance
 
 | Pattern | Status |
 |---|---|
-| `tenant` on every non-join model | ✅ Compliant (all 5 models carry FK) |
-| `@login_required` on every view | ✅ Compliant |
-| Filter retention across pagination | ✅ Compliant ([po_list.html:186-224](../templates/purchase_orders/po_list.html#L186-L224)) |
-| Full CRUD (list/create/detail/edit/delete) | ✅ Compliant |
-| Seed idempotency | ⚠️ Partial — outer `if PurchaseOrder.exists()` guard (OK) but nested `ApprovalRule.objects.create(**rd)` does not `get_or_create`; if POs exist but rules were manually flushed, rules are never re-created |
-| `unique_together` + tenant trap | ⚠️ `PurchaseOrder.Meta.unique_together=('tenant','po_number')` relies on auto-generated numbers; no explicit `clean_po_number` — but the form does not expose the field, so trap is dormant |
-| `status_choices` in context | ✅ Compliant |
-| `|stringformat:"d"` for FK filter equality | ✅ Compliant ([po_list.html:66](../templates/purchase_orders/po_list.html#L66)) |
-| AuditLog on destructive ops | ❌ **Missing** — delete/cancel/close/approve/dispatch do not emit `core.AuditLog` |
+| `tenant` FK on every model | ✅ (all 8 models) |
+| `@login_required` on every view | ✅ |
+| `filter(tenant=request.tenant)` on every queryset | ✅ |
+| `get_object_or_404(..., tenant=...)` on every pk lookup | ✅ |
+| Filter retention (`q`, `status`, `warehouse`) on pagination | ⚠️ Present in view contexts but relies on template hidden-inputs — needs per-template audit |
+| CRUD completeness | ⚠️ `StockAdjustment` has no edit / delete (arguably correct — adjustments are append-only); `StockStatusTransition` has no dedicated detail page; `StockLevel` has no create view (populated by receiving/seed) |
+| `|stringformat:"d"` on FK filter selected-state | needs template audit |
+| AuditLog on destructive mutations | ❌ None of adjust, transition, reservation_transition, valuation_recalculate, reservation_delete write `core.AuditLog` |
+| `unique_together` + tenant trap | ✅ Forms do not expose `adjustment_number`, `transition_number`, `reservation_number` — dormant |
+| Seed idempotency | needs audit of [seed_inventory.py](../inventory/management/commands/seed_inventory.py) |
 
 ---
 
 ## 2. Test Plan
 
-### 2.1 Testing objectives
+### 2.1 Objectives
 
-| Objective | Acceptance criteria |
+| Objective | Acceptance |
 |---|---|
-| Functional correctness of CRUD | All 5 CRUD ops pass with valid data; validation blocks invalid |
-| Workflow integrity | Every `VALID_TRANSITIONS` edge proven; invalid transitions rejected with message |
-| Approval engine correctness | Multi-approver, rejection, threshold, rule lookup, resubmit-after-reject all correct |
-| Financial math precision | `grand_total` stable across currencies/decimals; no rounding drift > $0.01 per 1000-item PO |
-| Tenant isolation | No data bleed between tenants; anonymous redirected to login |
-| RBAC | Only authorised roles can approve, dispatch, cancel, delete |
-| Injection / XSS | Every field with user input renders escaped; email body safe for plain-text |
-| N+1 / Performance | List page ≤ 6 queries; detail page ≤ 15; 100-PO list p95 < 300 ms |
-| Accessibility | Forms keyboard-navigable; tables labelled; WCAG 2.1 AA colour contrast on status badges |
+| Stock math accuracy | `on_hand`, `allocated`, `available` consistent across adjust/reserve cycles |
+| Status transfer integrity | `Σ buckets` preserved on every transition; no phantom credit |
+| Valuation correctness | FIFO / LIFO / Weighted Avg produce **mathematically distinct** unit_cost when layers have varying cost |
+| Reservation state machine | Every `VALID_TRANSITIONS` edge proven; invalid rejected |
+| Tenant isolation | No data bleed between tenants; anonymous redirected |
+| RBAC | Only authorised roles can adjust stock, transition status, recalculate, alter reservations |
+| Injection / XSS | Template auto-escape intact on all free-text fields |
+| N+1 guard | List views ≤ 8 queries; detail ≤ 12 |
+| Concurrency | Two parallel adjustments cannot double-spend stock |
 
-### 2.2 Test levels & types
+### 2.2 Levels & types
 
-| Level | Types | Tools |
-|---|---|---|
-| **Unit** | Model properties, form `clean()`, helpers, `_generate_po_number`, `can_transition_to` | pytest + pytest-django |
-| **Integration** | View + form + formset + DB round-trip; tenant-scoped querysets | pytest-django + Client |
-| **Functional / E2E** | User journeys: create → submit → approve → dispatch → receive → close | Playwright |
-| **Regression** | Guard existing behaviours against drift | pytest markers + CI |
-| **Boundary / Edge** | Max-length, decimal precision, unicode, zero-value, empty formset | parametrised pytest |
-| **Negative** | IDOR, CSRF off, invalid transitions, duplicate approvals, min>max rule | pytest |
-| **Security** | OWASP A01-A10 mapping; bandit SAST; ZAP DAST | bandit, OWASP ZAP, pytest |
-| **Performance** | `django_assert_max_num_queries`, list at 500 POs, Locust load | pytest-django, Locust |
-| **Accessibility** | axe-core scan on list/detail/form | axe-playwright |
+| Level | Coverage |
+|---|---|
+| **Unit** | `StockLevel.available`, `needs_reorder`; `StockAdjustment._generate_adjustment_number`, `apply_adjustment`; `StockStatusTransition._generate_transition_number`, `apply_transition`; `InventoryReservation.can_transition_to`, `is_expired`, `_generate_reservation_number`; valuation arithmetic per method |
+| **Integration** | Adjust → stock_level update; transition → status bucket update; reservation confirm → `allocated` update |
+| **Functional E2E** | Create reservation → confirm → release round-trip; adjust → detail → audit trail |
+| **Regression** | Every defect in §6 has a named pytest ID |
+| **Boundary** | Quantity 0 / 1 / MAX; over-decrement; over-reserve; empty valuation |
+| **Edge** | Unicode notes/reason; timezone-aware `expires_at`; DST boundary on `valuation_date` |
+| **Negative** | IDOR, cross-tenant pk, GET on transition URLs, duplicate adjustment_number |
+| **Security** | OWASP A01-A10; CSRF; XSS escape |
+| **Performance** | `django_assert_max_num_queries` per list view; 1000-entry valuation recalc |
 
-### 2.3 Entry / exit criteria
-
-**Entry:** `pytest purchase_orders/tests` collects ≥ 80 tests; dev server boots without errors; fixtures seed per-tenant without collisions.
-
-**Exit gate:** see §7 Release Exit Gate.
-
-### 2.4 Risk register (pre-test)
+### 2.3 Risk register (pre-test)
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Rejected PO can never be re-approved | High | Critical | Defect D-01; clear approvals on resubmit |
-| Arbitrary email dispatch → data-exfil | Medium | High | Defect D-04; pin recipient to `vendor.email` + allow-list |
-| Concurrent PO create collides on `po_number` | Medium | High | Defect D-08; wrap generation in `transaction.atomic` + `select_for_update` OR use a DB sequence |
-| Creator self-approves large-value PO | High | Medium-High | Defect D-03; disallow `approver == created_by` |
-| Non-admin triggers state transitions | High | High | Defect D-02; enforce `is_tenant_admin` or RBAC role |
+| FIFO/LIFO mis-compute → wrong COGS, wrong tax | **High** | **Critical** | D-04; rewrite valuation algorithm |
+| Phantom status transition inflates on-hand | **High** | **High** | D-02; enforce source-quantity guard |
+| Over-reserve → negative available at fulfilment | **High** | High | D-03; validator on create/confirm |
+| Non-admin tampers with stock | **High** | High | D-05; RBAC decorator |
+| Adjust/transition/reservation-transition non-atomic → torn write | Medium | Medium-High | D-06; `transaction.atomic` blocks |
+| No AuditLog on mutations | Certain | Medium (compliance) | D-07; emit AuditLog |
 
 ---
 
 ## 3. Test Scenarios
 
-### 3.1 Purchase Order — core (PO-XX)
+### 3.1 Stock Levels (SL-XX)
 
 | # | Scenario | Type |
 |---|---|---|
-| PO-01 | Create PO with header only (no items) | Functional |
-| PO-02 | Create PO with 1 valid line item | Functional |
-| PO-03 | Create PO with 10 line items (stress) | Boundary |
-| PO-04 | Create PO with vendor from another tenant (IDOR) | Negative / Security |
-| PO-05 | Create PO with inactive vendor | Negative |
-| PO-06 | Create PO with `order_date` in future | Edge |
-| PO-07 | Create PO with `expected_delivery_date < order_date` | Edge / Validation |
-| PO-08 | Create PO — `po_number` auto-generates `PO-00001` on first | Functional |
-| PO-09 | Create PO — concurrent create does not collide on `unique_together` | Concurrency / Security |
-| PO-10 | Edit draft PO | Functional |
-| PO-11 | Edit non-draft PO → redirected with warning | Negative |
-| PO-12 | Edit PO — vendor swap replaces items’ parent correctly | Integration |
-| PO-13 | Delete draft PO | Functional |
-| PO-14 | Delete non-draft PO blocked | Negative |
-| PO-15 | Delete PO — `vendor` on_delete=PROTECT blocks vendor delete | Integration |
-| PO-16 | Detail view shows correct totals | Functional |
-| PO-17 | Detail view timeline renders per status | UI |
-| PO-18 | Detail view — cross-tenant access → 404 | Security (IDOR) |
-| PO-19 | List — search by PO number | Functional |
-| PO-20 | List — search by vendor name | Functional |
-| PO-21 | List — filter by status | Functional |
-| PO-22 | List — filter by vendor | Functional |
-| PO-23 | List — filter by date range | Functional |
-| PO-24 | List — filters persist across pagination | Functional |
-| PO-25 | List — N+1 query guard (≤ 6 queries for 20 POs) | Performance |
-| PO-26 | List — empty state rendered | UI |
-| PO-27 | Anonymous → `/purchase-orders/` → redirect to login | Security |
+| SL-01 | List — anonymous redirected | Security |
+| SL-02 | List — search by SKU | Functional |
+| SL-03 | List — filter by warehouse | Functional |
+| SL-04 | List — `low_stock=yes` surfaces only low-stock rows | Functional |
+| SL-05 | List — invalid `warehouse=abc` handled (no 500) | Negative |
+| SL-06 | List — N+1 query guard ≤ 8 queries / 20 rows | Performance |
+| SL-07 | Detail — cross-tenant pk → 404 | Security (IDOR) |
+| SL-08 | Detail — shows last 10 adjustments | Functional |
+| SL-09 | Detail — shows statuses + open reservations | Functional |
+| SL-10 | `available = max(on_hand - allocated, 0)` | Unit |
+| SL-11 | `needs_reorder` true when `available ≤ reorder_point` and `reorder_point > 0` | Unit |
 
-### 3.2 Line items (ITEM-XX)
+### 3.2 Stock Adjustments (SA-XX)
 
 | # | Scenario | Type |
 |---|---|---|
-| ITEM-01 | `line_total = quantity × unit_price` | Unit |
-| ITEM-02 | `discount_amount = quantity × discount` | Unit |
-| ITEM-03 | `tax_amount` quantized to 2dp | Unit |
-| ITEM-04 | `tax_rate = 0` → zero tax | Boundary |
-| ITEM-05 | `tax_rate = 100` → full tax | Boundary |
-| ITEM-06 | `tax_rate > 100` blocked at form level | Negative |
-| ITEM-07 | `discount > unit_price` allowed (negative tax base) | Edge |
-| ITEM-08 | `quantity = 0` blocked (`PositiveIntegerField` rejects 0 via widget `min=1`) | Negative |
-| ITEM-09 | `unit_price = 0` allowed | Edge |
-| ITEM-10 | Product from another tenant → formset invalid | Security (IDOR) |
-| ITEM-11 | 1000-item PO → grand_total stable, no float drift | Scalability |
+| SA-01 | Increase +N → `on_hand += N` | Functional |
+| SA-02 | Decrease −N where N ≤ on_hand → `on_hand -= N` | Functional |
+| SA-03 | Decrease −N where N > on_hand → must RAISE, not silently clamp | Negative (D-01) |
+| SA-04 | Correction = N → `on_hand = N` | Functional |
+| SA-05 | Quantity = 0 blocked | Negative |
+| SA-06 | Adjust by non-admin → blocked | Security / RBAC (D-05) |
+| SA-07 | Adjust number auto-generates `ADJ-00001`, increments | Functional |
+| SA-08 | Two parallel adjustments → both persist without number collision | Concurrency (D-08) |
+| SA-09 | Adjust atomic — failure of `apply_adjustment` rolls back record | Regression (D-06) |
+| SA-10 | Adjustment list search / filter by type / filter by reason | Functional |
+| SA-11 | Adjust writes `core.AuditLog` | Security (D-07) |
+| SA-12 | Detail — cross-tenant pk → 404 | Security (IDOR) |
 
-### 3.3 Status transitions (TRN-XX)
-
-| # | Scenario | Type |
-|---|---|---|
-| TRN-01 | draft → pending_approval with items | Functional |
-| TRN-02 | draft → pending_approval with no items → blocked | Negative |
-| TRN-03 | draft → cancelled | Functional |
-| TRN-04 | pending_approval → approved (threshold met) | Functional |
-| TRN-05 | pending_approval → approved (threshold unmet) | Functional |
-| TRN-06 | pending_approval → draft on rejection | Functional |
-| TRN-07 | **Resubmit after rejection can be approved** | Regression (covers D-01) |
-| TRN-08 | approved → sent via dispatch | Functional |
-| TRN-09 | sent → partially_received | Functional |
-| TRN-10 | sent → received | Functional |
-| TRN-11 | partially_received → received | Functional |
-| TRN-12 | received → closed | Functional |
-| TRN-13 | closed → anything → blocked | Negative |
-| TRN-14 | cancelled → draft (reopen clears approvals) | Functional |
-| TRN-15 | reopen from non-cancelled → blocked | Negative |
-| TRN-16 | GET on transition URL → redirect (POST-only) | Security (CSRF) |
-
-### 3.4 Approvals (APP-XX)
+### 3.3 Stock Status (SS-XX)
 
 | # | Scenario | Type |
 |---|---|---|
-| APP-01 | Single-approval rule: 1 approve → `approved` | Functional |
-| APP-02 | Two-approval rule: 1 approve → still pending; 2nd → `approved` | Functional |
-| APP-03 | Rejection overrides any approvals | Functional |
-| APP-04 | Duplicate approval by same user blocked | Negative |
-| APP-05 | No rule matches total → defaults to 1 approval (audit flag) | Boundary / Defect |
-| APP-06 | Creator self-approves → should be blocked (SOD) | Negative / Security |
-| APP-07 | Non-tenant-admin user approves → should be blocked | Security / RBAC |
-| APP-08 | Cross-tenant approve (PK from other tenant) → 404 | Security (IDOR) |
-| APP-09 | Approval form with missing `decision` → error message shown | Negative / UX |
-| APP-10 | Pending approvals list excludes user’s own decided POs | Functional |
+| SS-01 | List — filter by status / warehouse | Functional |
+| SS-02 | Detail — shows transition history | Functional |
+| SS-03 | Transition N from an **empty** source → must be blocked | Negative (D-02) |
+| SS-04 | Transition N where source has < N → must be blocked | Negative (D-02) |
+| SS-05 | Valid transition preserves `Σ quantities` | Integration |
+| SS-06 | Transition with from_status == to_status → form invalid | Negative |
+| SS-07 | Transition by non-admin → blocked | Security / RBAC (D-05) |
+| SS-08 | Transition atomic — fail on target save rolls back source | Regression (D-06) |
+| SS-09 | Transition number auto-generates `SST-00001` | Functional |
+| SS-10 | Transition writes `core.AuditLog` | Security (D-07) |
 
-### 3.5 Dispatch (DSP-XX)
-
-| # | Scenario | Type |
-|---|---|---|
-| DSP-01 | Dispatch via email with vendor default email | Functional |
-| DSP-02 | Dispatch via EDI / manual / other (no email sent) | Functional |
-| DSP-03 | Dispatch to arbitrary external email → should be restricted | Security (Data-exfil) |
-| DSP-04 | Dispatch from non-approved status → blocked | Negative |
-| DSP-05 | Email body contains PO number, items, totals, vendor | Functional |
-| DSP-06 | Email delivery failure does NOT flip status to `sent` | Regression |
-| DSP-07 | Dispatch by non-admin → should be blocked | Security / RBAC |
-| DSP-08 | Emoji/unicode in notes renders safely in email | Edge |
-
-### 3.6 Approval Rules (RULE-XX)
+### 3.4 Valuation (VAL-XX)
 
 | # | Scenario | Type |
 |---|---|---|
-| RULE-01 | Create rule with valid range | Functional |
-| RULE-02 | Create rule where `min > max` → blocked | Negative |
-| RULE-03 | Create overlapping rules → warning or ordered precedence | Edge |
-| RULE-04 | Inactive rule ignored by `approval_status` | Functional |
-| RULE-05 | Rule search by name | Functional |
-| RULE-06 | Delete rule — attached POs unaffected | Functional |
-| RULE-07 | Cross-tenant rule delete → 404 | Security |
+| VAL-01 | Dashboard — totals reflect `Σ total_value` | Functional |
+| VAL-02 | Config — default method is `weighted_avg` | Functional |
+| VAL-03 | Config update → next recalc uses new method | Functional |
+| VAL-04 | Recalculate — FIFO on 2 layers 5@10 then 5@20 with 5 consumed → unit_cost = **20** (5 units @20 remain) | Correctness (D-04) |
+| VAL-05 | Recalculate — LIFO on same layers with 5 consumed → unit_cost = **10** | Correctness (D-04) |
+| VAL-06 | Recalculate — Weighted Avg on same layers (10 remain) → unit_cost = **15** | Correctness |
+| VAL-07 | Recalculate by non-admin → blocked | Security / RBAC (D-05) |
+| VAL-08 | Recalculate atomic — rolls back if any product fails | Reliability (D-06) |
+| VAL-09 | Recalculate is idempotent when run twice same day | Functional |
+| VAL-10 | Superuser (`tenant=None`) hitting dashboard → no crash | Boundary (D-09) |
 
-### 3.7 Security cross-cutting (SEC-XX)
+### 3.5 Reservations (RES-XX)
+
+| # | Scenario | Type |
+|---|---|---|
+| RES-01 | Create with valid qty ≤ available | Functional |
+| RES-02 | Create with qty > available → blocked | Negative (D-03) |
+| RES-03 | Create when no StockLevel exists → blocked | Negative (D-03) |
+| RES-04 | Edit pending reservation → succeeds | Functional |
+| RES-05 | Edit non-pending reservation → blocked | Negative |
+| RES-06 | Delete pending or cancelled reservation → succeeds | Functional |
+| RES-07 | Delete active (confirmed) → blocked | Negative |
+| RES-08 | Transition pending → confirmed → `allocated += qty` | Integration |
+| RES-09 | Transition confirmed → released → `allocated -= qty` | Integration |
+| RES-10 | Transition confirmed → expired → `allocated -= qty` | Integration |
+| RES-11 | Invalid transition (e.g. released → pending) blocked by state machine | Negative |
+| RES-12 | GET on transition URL → redirect (CSRF safe) | Security |
+| RES-13 | Transition when StockLevel missing — graceful (not crash) | Reliability |
+| RES-14 | Cross-tenant pk → 404 | Security (IDOR) |
+| RES-15 | `is_expired` true only when past `expires_at` and not terminal | Unit |
+| RES-16 | Auto-expired reservation releases `allocated` (sweep) | Reliability (D-10) |
+| RES-17 | Reservation-transition writes `core.AuditLog` | Security (D-07) |
+
+### 3.6 Cross-cutting Security (SEC-XX)
 
 | # | Scenario | OWASP |
 |---|---|---|
 | SEC-01 | Every view requires login | A01 |
-| SEC-02 | Every view filters by tenant | A01 |
-| SEC-03 | CSRF required on POST endpoints | A01 |
-| SEC-04 | `po.notes` rendered auto-escaped | A03 |
-| SEC-05 | `po.shipping_address` rendered via `linebreaksbr` (safe) | A03 |
-| SEC-06 | Arbitrary recipient email dispatch (D-04) | A01 / A04 |
-| SEC-07 | Concurrent PO create → no duplicate `po_number` | A04 |
-| SEC-08 | Bandit scan has no High findings | A06 |
-| SEC-09 | `DEBUG=False` in prod settings | A05 |
-| SEC-10 | Auth failures throttled (login view) | A07 |
-| SEC-11 | AuditLog emitted on approve/reject/cancel/delete/dispatch | A09 |
+| SEC-02 | Every queryset filters by tenant | A01 |
+| SEC-03 | CSRF token required on POST | A01 |
+| SEC-04 | `notes` / `reason` XSS escaped | A03 |
+| SEC-05 | Cross-tenant pk → 404 for every detail view | A01 |
+| SEC-06 | `quantity` coerced (not injected) in low_stock filter | A03 |
+| SEC-07 | Bandit clean | A06 |
+| SEC-08 | AuditLog emitted on every destructive op | A09 |
 
 ---
 
 ## 4. Detailed Test Cases
 
-Only the most load-bearing cases are expanded here; the full suite is scaffolded in §5.
+### 4.1 Valuation correctness (the headliner)
 
-### 4.1 Core PO CRUD
-
-| ID | Description | Pre-conditions | Steps | Test Data | Expected Result | Post-conditions |
+| ID | Description | Pre-conditions | Steps | Test Data | Expected | Post-conditions |
 |---|---|---|---|---|---|---|
-| TC-PO-002 | Create PO with 1 valid line item | Tenant admin logged in; 1 active vendor + 1 active product exist | POST `/purchase-orders/create/` with vendor, order_date, 1 item row | `vendor=v.pk, order_date=today, items-0-product=p.pk, items-0-quantity=2, items-0-unit_price=10.00, items-0-tax_rate=10, items-0-discount=0` | 302 → `/purchase-orders/<pk>/`; DB has 1 PO (status=draft, po_number=`PO-00001`) + 1 item; grand_total = 22.00 | PO record persisted |
-| TC-PO-009 | Concurrent PO creates do not collide | Tenant + 1 vendor/1 product | Two threads call `PurchaseOrder(...).save()` simultaneously | Same tenant, no `po_number` provided | Both succeed with distinct `po_number` values OR one raises cleanly with a user-facing error, not an unhandled `IntegrityError` | 2 rows with unique po_number |
-| TC-PO-013 | Delete draft PO | Draft PO exists | POST `/purchase-orders/<pk>/delete/` | `{}` with CSRF token | 302 → `/purchase-orders/`; PO + items deleted; success message | Row removed |
-| TC-PO-014 | Delete non-draft PO blocked | PO status=approved | POST `/purchase-orders/<pk>/delete/` | `{}` | 302 → detail; warning message; PO still exists | No change |
-| TC-PO-018 | Cross-tenant detail → 404 | Tenant A logged in; PO belongs to Tenant B | GET `/purchase-orders/<B.pk>/` | — | 404 | No disclosure |
-| TC-PO-025 | N+1 on list page (20 POs) | 20 POs seeded, each with 3 items | GET `/purchase-orders/` wrapped in `django_assert_max_num_queries(6)` | — | Assertion passes; queries ≤ 6 | No load drift |
+| TC-VAL-004 | FIFO on mixed cost layers | Two ValuationEntry for same product/warehouse: `(2026-01-01, rem=5, cost=$10)`, `(2026-03-01, rem=5, cost=$20)`. Config.method=`fifo`. | POST `/inventory/valuation/recalculate/` | — | **Latest InventoryValuation row has `unit_cost=20.00`** (5 units remaining are the newest at $20 after consumption). Today the code returns `15.00`. | 1 valuation row |
+| TC-VAL-005 | LIFO on same layers | As above, method=`lifo` | POST recalc | — | **unit_cost = 10.00** | — |
+| TC-VAL-006 | Weighted Avg | As above, method=`weighted_avg` | POST recalc | — | unit_cost = 15.00 | — |
 
-### 4.2 Transitions
+### 4.2 Stock Status integrity (the second headliner)
 
-| ID | Description | Pre-conditions | Steps | Test Data | Expected Result | Post-conditions |
+| ID | Description | Pre-conditions | Steps | Test Data | Expected | Post-conditions |
 |---|---|---|---|---|---|---|
-| TC-TRN-002 | Submit empty-item PO blocked | Draft PO with 0 items | POST `/purchase-orders/<pk>/submit/` | — | Warning message; status still draft | No transition |
-| TC-TRN-007 | Resubmit after reject can reach approved | Draft PO; 1 rejection exists from prior cycle | Submit → new approver approves | — | `po.status == 'approved'`; old rejection does not block | Approvals list: rejected + approved |
-| TC-TRN-013 | Closed PO can't transition | Closed PO | POST any transition (cancel, reopen) | — | Warning; status unchanged | Immutable |
-| TC-TRN-016 | GET on transition URLs redirects | PO exists | GET each of `/submit/, /approve/, /reject/, /cancel/, /close/, /mark-received/, /reopen/` | — | 302 back to detail; no state change | CSRF safe |
+| TC-SS-003 | Phantom source transition blocked | No `StockStatus(product=p, warehouse=w, status='damaged')` exists | POST `/inventory/stock-status/transition/` with `from_status=damaged, to_status=active, quantity=50` | — | **Form invalid**: "No damaged inventory exists for this product/warehouse" — no StockStatus records created/modified. **Today: `active` bucket is credited +50 from nothing.** | Σ buckets = 0 |
+| TC-SS-004 | Under-stocked transition blocked | `damaged=10` for (p,w) | POST transition with `from=damaged, to=active, quantity=50` | — | Form invalid: "Requested 50 exceeds damaged on-hand of 10". No change. | No change |
+| TC-SS-008 | Atomic transition on target save failure | monkeypatch target.save to raise | POST valid transition | — | Source unchanged (no partial decrement); transition record rolled back | No partial commit |
 
-### 4.3 Approvals / SOD / RBAC
+### 4.3 Reservation over-reserve (the third headliner)
 
-| ID | Description | Pre-conditions | Steps | Test Data | Expected Result | Post-conditions |
+| ID | Description | Pre-conditions | Steps | Test Data | Expected | Post-conditions |
 |---|---|---|---|---|---|---|
-| TC-APP-002 | 2-approval threshold | Active rule covers amount with `required_approvals=2`; PO pending_approval | User A approve → user B approve | — | After A: `pending`, status unchanged. After B: `approved`, status flipped | 2 approvals |
-| TC-APP-004 | Duplicate approval blocked | User A already approved | POST /approve/ again | — | Warning; no new approval row | Idempotent |
-| TC-APP-006 | Creator self-approval blocked | PO created by user A; A is only approver | POST /approve/ as A | — | 403 OR redirect with error "Creator cannot approve own PO" | No approval recorded |
-| TC-APP-007 | Non-admin RBAC | Non-tenant-admin user; PO pending | POST /approve/ | — | 403 OR redirect with error | No approval |
-| TC-APP-009 | Invalid approval form | decision field missing | POST /reject/ without `decision` | `{}` | Error message displayed; status unchanged | UX feedback |
+| TC-RES-002 | Over-reserve blocked | StockLevel `(p,w)` with `on_hand=10, allocated=0` | POST `/inventory/reservations/create/` with `quantity=99` | — | Form invalid: "Requested quantity 99 exceeds available 10". No reservation created. | — |
+| TC-RES-003 | Reserve without StockLevel blocked | No StockLevel exists for (p,w) | POST create qty=1 | — | Form invalid: "No stock level configured for this product at this warehouse". | — |
+| TC-RES-016 | Expired reservation sweep | Reservation with `expires_at = now() - 1h`, status=`confirmed`, allocated=5 on StockLevel | run management command `sweep_expired_reservations` | — | Reservation status → `expired`; `allocated -= 5` | Integrity |
 
-### 4.4 Dispatch / Data-exfil
+### 4.4 Adjustments
 
-| ID | Description | Pre-conditions | Steps | Test Data | Expected Result | Post-conditions |
+| ID | Description | Pre-conditions | Steps | Test Data | Expected | Post-conditions |
 |---|---|---|---|---|---|---|
-| TC-DSP-003 | Arbitrary recipient email | PO approved | POST /dispatch/ with `sent_to_email='attacker@evil.com'` | attacker email | 403 OR recipient forced to `po.vendor.email` / allow-listed domain | No leakage |
-| TC-DSP-006 | Email failure rolls back state | Email backend raises | POST /dispatch/ | — | PO status remains `approved`; warning shown; no Dispatch record OR record marked `failed` | No partial commit |
-| TC-DSP-008 | Unicode notes encoded safely | PO with notes=`"漢字 🚀 <script>"` | POST /dispatch/ email | — | Email body contains UTF-8-encoded original text; no HTML interpretation | Safe |
+| TC-SA-003 | Over-decrement raises | `StockLevel.on_hand=50`, `allocated=0` | POST adjust with `type=decrease, quantity=999` | — | Form invalid OR view rejects: "Decrease 999 exceeds on-hand 50". **Today: on_hand silently becomes 0.** | No loss |
+| TC-SA-005 | Quantity 0 blocked | Any SL | POST `quantity=0` | — | Form invalid: "Quantity must be ≥ 1" | — |
+| TC-SA-009 | Atomic adjust rollback | monkeypatch `sl.save` to raise | POST valid adjust | — | No StockAdjustment row created; on_hand unchanged | — |
+| TC-SA-011 | AuditLog emitted | Valid adjust | POST | — | `AuditLog(action='inventory.adjust', object_id=adj.pk)` exists | — |
 
-### 4.5 Approval Rules
+### 4.5 RBAC
 
-| ID | Description | Pre-conditions | Steps | Test Data | Expected Result | Post-conditions |
-|---|---|---|---|---|---|---|
-| TC-RULE-002 | min > max rejected | Admin on rule create | POST /approval-rules/create/ | `min=1000, max=10` | Form error "Max must be ≥ Min"; no DB row | No rule |
-| TC-RULE-003 | Overlapping rule warning | Rule `(0-1000, req=1)` exists | Create rule `(500-1500, req=3)` | overlapping | Either: reject OR accept with documented precedence; behaviour deterministic | Either outcome acceptable if documented |
-| TC-RULE-004 | Inactive rule excluded | Rule `0-1000 req=2 is_active=False` | Compute `approval_status` for $500 PO with 1 approve | — | Falls back to `required=1` → `approved` (inactive rule ignored) | Documented |
-
-### 4.6 Performance & Scalability
-
-| ID | Description | Pre-conditions | Steps | Test Data | Expected Result | Post-conditions |
-|---|---|---|---|---|---|---|
-| TC-PERF-001 | List p95 latency | 500 POs, each 3 items, tenant indexed | Locust 50 VU × 60 s on `/purchase-orders/` | — | p95 < 300 ms | — |
-| TC-PERF-002 | Query count for 100-PO list | 100 POs | `django_assert_max_num_queries(6)` | — | ≤ 6 queries | — |
-| TC-PERF-003 | Detail page query budget | PO with 20 items, 3 approvals, 2 dispatches | GET detail wrapped in `django_assert_max_num_queries(15)` | — | ≤ 15 queries | — |
+| ID | Description | Pre-conditions | Steps | Expected | Post-conditions |
+|---|---|---|---|---|---|
+| TC-RBAC-001 | Non-admin cannot adjust | login non_admin_user | POST `/inventory/stock-levels/<pk>/adjust/` | 302 to list with permission-denied message; **on_hand unchanged** | — |
+| TC-RBAC-002 | Non-admin cannot transition status | login non_admin | POST transition | as above | — |
+| TC-RBAC-003 | Non-admin cannot recalculate | login non_admin | POST valuation recalc | as above; no new valuation rows | — |
+| TC-RBAC-004 | Non-admin cannot transition reservation | login non_admin | POST `/inventory/reservations/<pk>/transition/cancelled/` | reservation status unchanged | — |
+| TC-RBAC-005 | Tenant admin CAN perform all of the above | login admin | same POSTs | success | — |
 
 ---
 
@@ -316,52 +269,54 @@ Only the most load-bearing cases are expanded here; the full suite is scaffolded
 
 | Layer | Tool | Rationale |
 |---|---|---|
-| Unit + integration | pytest + pytest-django | Already in use ([pytest.ini](../pytest.ini)) |
-| Factories | factory-boy | Lower boilerplate than manual fixtures; aligns with NavIMS patterns |
-| E2E | Playwright (Python) | Cross-browser E2E smoke |
-| Load | Locust | Scriptable Python; PO create + list hot paths |
-| SAST | bandit | Static scan for injection/`exec`/hardcoded secrets |
-| DAST | OWASP ZAP (baseline) | CSRF, headers, XSS |
-| Accessibility | axe-playwright | WCAG 2.1 AA on list/detail/form |
+| Unit + integration | pytest + pytest-django | Project convention |
+| Factories | manual fixtures (match `catalog/tests/conftest.py` style) | Consistency |
+| E2E smoke | Playwright (optional) | Dispatch + reservation round-trip |
+| Load | Locust (optional) | Valuation recalc at 10k entries |
+| SAST | bandit | Static scan of views.py + models.py |
 
 ### 5.2 Suite layout
 
 ```
-purchase_orders/
+inventory/
 └── tests/
     ├── __init__.py
-    ├── conftest.py                   # tenant, user, admin, vendor, product, po, approval_rule fixtures
-    ├── test_models.py                # property math + state machine + po_number generation
-    ├── test_forms.py                 # validation, cross-field rules
-    ├── test_views_po_crud.py         # list/create/detail/edit/delete
-    ├── test_views_transitions.py     # submit/approve/reject/dispatch/cancel/close/reopen
-    ├── test_views_approval_rules.py  # rule CRUD + pending approvals list
-    ├── test_approval_engine.py       # threshold, rejection, self-approval, multi-rule
-    ├── test_dispatch.py              # email body, failure rollback, arbitrary recipient
-    ├── test_security.py              # OWASP A01-A10 mapping
-    └── test_performance.py           # N+1 guards
+    ├── conftest.py                     # tenant + admin + non_admin + warehouse + product + stock_level fixtures
+    ├── test_models.py                  # property math + sequence generation + state machine
+    ├── test_forms.py                   # validation (over-reserve, over-decrement, same-status, qty≥1)
+    ├── test_views_stock.py             # stock level + adjustment views + tenant isolation
+    ├── test_views_status.py            # status list/detail + transition view
+    ├── test_views_valuation.py         # dashboard + recalc correctness (FIFO/LIFO/WAVG)
+    ├── test_views_reservation.py       # CRUD + state machine
+    ├── test_security.py                # OWASP: RBAC (D-05), IDOR, CSRF, XSS, AuditLog (D-07)
+    └── test_performance.py             # N+1 guards
 ```
 
 Update [pytest.ini](../pytest.ini):
 
 ```ini
-testpaths = catalog/tests vendors/tests purchase_orders/tests
+testpaths = catalog/tests vendors/tests receiving/tests purchase_orders/tests warehousing/tests inventory/tests
 ```
 
 ### 5.3 `conftest.py`
 
 ```python
-# purchase_orders/tests/conftest.py
+# inventory/tests/conftest.py
 from decimal import Decimal
-from datetime import date
+from datetime import date, timedelta
 import pytest
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 
-from core.models import Tenant, User
-from vendors.models import Vendor
+from core.models import Tenant
 from catalog.models import Category, Product
-from purchase_orders.models import (
-    PurchaseOrder, PurchaseOrderItem, ApprovalRule,
+from warehousing.models import Warehouse
+from inventory.models import (
+    StockLevel, StockStatus, InventoryReservation,
+    ValuationConfig, ValuationEntry,
 )
+
+User = get_user_model()
 
 
 @pytest.fixture
@@ -377,15 +332,7 @@ def other_tenant(db):
 @pytest.fixture
 def admin_user(db, tenant):
     return User.objects.create_user(
-        username="admin_qa", password="qa_pass_123!",
-        tenant=tenant, is_tenant_admin=True,
-    )
-
-
-@pytest.fixture
-def approver_user(db, tenant):
-    return User.objects.create_user(
-        username="approver_qa", password="qa_pass_123!",
+        username="inv_admin", password="pw_123!",
         tenant=tenant, is_tenant_admin=True,
     )
 
@@ -393,7 +340,7 @@ def approver_user(db, tenant):
 @pytest.fixture
 def non_admin_user(db, tenant):
     return User.objects.create_user(
-        username="staff_qa", password="qa_pass_123!",
+        username="inv_staff", password="pw_123!",
         tenant=tenant, is_tenant_admin=False,
     )
 
@@ -401,7 +348,7 @@ def non_admin_user(db, tenant):
 @pytest.fixture
 def other_tenant_user(db, other_tenant):
     return User.objects.create_user(
-        username="admin_other", password="qa_pass_123!",
+        username="inv_other", password="pw_123!",
         tenant=other_tenant, is_tenant_admin=True,
     )
 
@@ -413,552 +360,515 @@ def client_logged_in(client, admin_user):
 
 
 @pytest.fixture
-def vendor(db, tenant):
-    return Vendor.objects.create(
-        tenant=tenant, company_name="Widgets Inc",
-        email="sales@widgets.example",
-        is_active=True, status="active",
+def warehouse(db, tenant):
+    return Warehouse.objects.create(
+        tenant=tenant, code="WH-01", name="Main", is_active=True,
     )
 
 
 @pytest.fixture
 def product(db, tenant):
-    category = Category.objects.create(tenant=tenant, name="Supplies")
+    cat = Category.objects.create(tenant=tenant, name="Supplies")
     return Product.objects.create(
-        tenant=tenant, sku="SUP-001", name="Stapler",
-        category=category, purchase_cost=10, retail_price=20,
+        tenant=tenant, sku="SUP-001", name="Widget",
+        category=cat, purchase_cost=10, retail_price=15,
         status="active",
     )
 
 
 @pytest.fixture
-def approval_rule(db, tenant):
-    return ApprovalRule.objects.create(
-        tenant=tenant, name="Low value",
-        min_amount=Decimal("0"), max_amount=Decimal("100000.00"),
-        required_approvals=1, is_active=True,
+def stock_level(db, tenant, product, warehouse):
+    return StockLevel.objects.create(
+        tenant=tenant, product=product, warehouse=warehouse,
+        on_hand=50, allocated=0, reorder_point=10, reorder_quantity=20,
     )
 
 
 @pytest.fixture
-def draft_po(db, tenant, admin_user, vendor, product):
-    po = PurchaseOrder.objects.create(
-        tenant=tenant, vendor=vendor, order_date=date.today(),
-        payment_terms="net_30", created_by=admin_user,
+def damaged_status(db, tenant, product, warehouse):
+    return StockStatus.objects.create(
+        tenant=tenant, product=product, warehouse=warehouse,
+        status='damaged', quantity=10,
     )
-    PurchaseOrderItem.objects.create(
-        tenant=tenant, purchase_order=po, product=product,
-        quantity=2, unit_price=Decimal("50.00"),
-        tax_rate=Decimal("10.00"), discount=Decimal("0"),
-    )
-    return po
 
 
 @pytest.fixture
-def pending_po(db, draft_po):
-    draft_po.status = "pending_approval"
-    draft_po.save()
-    return draft_po
+def pending_reservation(db, tenant, product, warehouse, admin_user, stock_level):
+    return InventoryReservation.objects.create(
+        tenant=tenant, product=product, warehouse=warehouse,
+        quantity=5, status='pending', reserved_by=admin_user,
+    )
+
+
+@pytest.fixture
+def confirmed_reservation(db, pending_reservation, stock_level):
+    pending_reservation.status = 'confirmed'
+    pending_reservation.save()
+    stock_level.allocated += pending_reservation.quantity
+    stock_level.save()
+    return pending_reservation
+
+
+@pytest.fixture
+def valuation_config(db, tenant):
+    return ValuationConfig.objects.create(tenant=tenant, method='weighted_avg')
+
+
+@pytest.fixture
+def cost_layers(db, tenant, product, warehouse):
+    """Two cost layers for FIFO/LIFO math verification."""
+    old = ValuationEntry.objects.create(
+        tenant=tenant, product=product, warehouse=warehouse,
+        entry_date=date.today() - timedelta(days=60),
+        quantity=5, remaining_quantity=5, unit_cost=Decimal('10'),
+    )
+    new = ValuationEntry.objects.create(
+        tenant=tenant, product=product, warehouse=warehouse,
+        entry_date=date.today() - timedelta(days=30),
+        quantity=5, remaining_quantity=5, unit_cost=Decimal('20'),
+    )
+    return [old, new]
 ```
 
 ### 5.4 `test_models.py`
 
 ```python
 from decimal import Decimal
-from datetime import date
-import threading
 import pytest
 
-from purchase_orders.models import PurchaseOrder, PurchaseOrderItem, PurchaseOrderApproval
+from inventory.models import (
+    StockLevel, StockAdjustment, StockStatus, StockStatusTransition,
+    InventoryReservation,
+)
 
 
 @pytest.mark.django_db
-class TestPurchaseOrderTotals:
-    def test_subtotal_equals_sum_of_line_totals(self, draft_po, product, tenant):
-        PurchaseOrderItem.objects.create(
-            tenant=tenant, purchase_order=draft_po, product=product,
-            quantity=3, unit_price=Decimal("7.50"),
-        )
-        assert draft_po.subtotal == Decimal("100.00") + Decimal("22.50")
+class TestStockLevelProperties:
+    def test_available_caps_at_zero(self, stock_level):
+        stock_level.on_hand = 5; stock_level.allocated = 10
+        assert stock_level.available == 0
 
-    def test_grand_total_formula(self, draft_po):
-        # 2 × 50 = 100; tax 10% of (100-0) = 10; discount 0 → 110
-        assert draft_po.grand_total == Decimal("110.00")
+    def test_needs_reorder_respects_reorder_point(self, stock_level):
+        stock_level.on_hand = 5; stock_level.allocated = 0
+        stock_level.reorder_point = 10
+        assert stock_level.needs_reorder is True
 
-    def test_tax_amount_rounded_to_2dp(self, tenant, draft_po, product):
-        item = PurchaseOrderItem.objects.create(
-            tenant=tenant, purchase_order=draft_po, product=product,
-            quantity=1, unit_price=Decimal("33.33"),
-            tax_rate=Decimal("7.5"),
-        )
-        assert item.tax_amount == Decimal("2.50")  # rounded
+    def test_needs_reorder_disabled_when_point_is_zero(self, stock_level):
+        stock_level.on_hand = 0; stock_level.reorder_point = 0
+        assert stock_level.needs_reorder is False
 
 
 @pytest.mark.django_db
-class TestStateMachine:
-    @pytest.mark.parametrize("src,dst,ok", [
-        ("draft", "pending_approval", True),
-        ("draft", "approved", False),
-        ("closed", "draft", False),
-        ("cancelled", "draft", True),
-        ("sent", "received", True),
+class TestSequenceGeneration:
+    @pytest.mark.parametrize("Model,prefix,extra", [
+        (StockAdjustment, 'ADJ-', {'adjustment_type': 'increase', 'quantity': 1, 'reason': 'other'}),
     ])
-    def test_can_transition_to(self, draft_po, src, dst, ok):
-        draft_po.status = src
-        assert draft_po.can_transition_to(dst) is ok
+    def test_first_number(self, Model, prefix, extra, tenant, stock_level):
+        obj = Model.objects.create(tenant=tenant, stock_level=stock_level, **extra)
+        field = f'{prefix.rstrip("-").lower()}_number'
+        assert getattr(obj, field).startswith(prefix)
+        assert getattr(obj, field).endswith('00001')
 
 
 @pytest.mark.django_db
-class TestPoNumberGeneration:
-    def test_first_po_is_PO_00001(self, tenant, vendor):
-        po = PurchaseOrder.objects.create(
-            tenant=tenant, vendor=vendor, order_date=date.today(),
-        )
-        assert po.po_number == "PO-00001"
+class TestReservationStateMachine:
+    @pytest.mark.parametrize("src,dst,ok", [
+        ("pending", "confirmed", True),
+        ("pending", "released", True),
+        ("pending", "cancelled", True),
+        ("pending", "expired", False),
+        ("confirmed", "released", True),
+        ("confirmed", "expired", True),
+        ("confirmed", "pending", False),
+        ("released", "pending", False),
+        ("cancelled", "pending", True),
+    ])
+    def test_can_transition_to(self, pending_reservation, src, dst, ok):
+        pending_reservation.status = src
+        assert pending_reservation.can_transition_to(dst) is ok
 
-    def test_sequence_increments(self, tenant, vendor):
-        PurchaseOrder.objects.create(tenant=tenant, vendor=vendor, order_date=date.today())
-        p2 = PurchaseOrder.objects.create(tenant=tenant, vendor=vendor, order_date=date.today())
-        assert p2.po_number == "PO-00002"
+    def test_is_expired_false_when_no_expires_at(self, pending_reservation):
+        pending_reservation.expires_at = None
+        assert pending_reservation.is_expired is False
 
-    def test_concurrent_creates_do_not_duplicate(self, tenant, vendor, django_db_blocker):
-        """Reproduces D-08 (PO number race). Today this test FAILS — that is the point."""
-        from django.db import connections
-        results = []
-        errors = []
+    def test_is_expired_false_when_terminal(self, pending_reservation):
+        from django.utils import timezone
+        from datetime import timedelta
+        pending_reservation.expires_at = timezone.now() - timedelta(hours=1)
+        pending_reservation.status = 'released'
+        assert pending_reservation.is_expired is False
 
-        def create():
-            try:
-                connections['default'].connect()
-                po = PurchaseOrder.objects.create(
-                    tenant=tenant, vendor=vendor, order_date=date.today(),
-                )
-                results.append(po.po_number)
-            except Exception as e:
-                errors.append(e)
-
-        with django_db_blocker.unblock():
-            threads = [threading.Thread(target=create) for _ in range(5)]
-            for t in threads: t.start()
-            for t in threads: t.join()
-
-        assert len(set(results)) == len(results), f"Duplicate po_numbers: {results}"
-        assert not errors, f"IntegrityErrors: {errors}"
+    def test_is_expired_true_when_past_and_active(self, pending_reservation):
+        from django.utils import timezone
+        from datetime import timedelta
+        pending_reservation.expires_at = timezone.now() - timedelta(hours=1)
+        pending_reservation.status = 'pending'
+        assert pending_reservation.is_expired is True
 
 
 @pytest.mark.django_db
-class TestApprovalStatus:
-    def test_rejection_blocks_approval(self, pending_po, approver_user):
-        PurchaseOrderApproval.objects.create(
-            tenant=pending_po.tenant, purchase_order=pending_po,
-            approver=approver_user, decision="rejected",
+class TestAdjustmentApplication:
+    def test_increase(self, tenant, stock_level):
+        adj = StockAdjustment.objects.create(
+            tenant=tenant, stock_level=stock_level,
+            adjustment_type='increase', quantity=10, reason='return',
         )
-        assert pending_po.approval_status == "rejected"
+        adj.apply_adjustment()
+        stock_level.refresh_from_db()
+        assert stock_level.on_hand == 60
 
-    def test_resubmit_after_reject_can_be_approved(
-        self, pending_po, admin_user, approver_user
-    ):
-        """Regression for D-01. Old rejection must NOT block a fresh cycle."""
-        # Cycle 1: reject
-        PurchaseOrderApproval.objects.create(
-            tenant=pending_po.tenant, purchase_order=pending_po,
-            approver=admin_user, decision="rejected",
+    def test_decrease_within_bounds(self, tenant, stock_level):
+        adj = StockAdjustment.objects.create(
+            tenant=tenant, stock_level=stock_level,
+            adjustment_type='decrease', quantity=10, reason='damage',
         )
-        pending_po.status = "draft"; pending_po.save()
+        adj.apply_adjustment()
+        stock_level.refresh_from_db()
+        assert stock_level.on_hand == 40
 
-        # Cycle 2: resubmit + approve
-        pending_po.status = "pending_approval"; pending_po.save()
-        # After D-01 remediation: submit clears stale approvals
-        PurchaseOrderApproval.objects.create(
-            tenant=pending_po.tenant, purchase_order=pending_po,
-            approver=approver_user, decision="approved",
+    def test_correction(self, tenant, stock_level):
+        adj = StockAdjustment.objects.create(
+            tenant=tenant, stock_level=stock_level,
+            adjustment_type='correction', quantity=23, reason='count',
         )
-        assert pending_po.approval_status == "approved"
+        adj.apply_adjustment()
+        stock_level.refresh_from_db()
+        assert stock_level.on_hand == 23
 ```
 
 ### 5.5 `test_forms.py`
 
 ```python
-from decimal import Decimal
 import pytest
-
-from purchase_orders.forms import (
-    PurchaseOrderForm, PurchaseOrderItemFormSet, ApprovalRuleForm,
+from inventory.forms import (
+    StockAdjustmentForm, StockStatusTransitionForm, InventoryReservationForm,
 )
 
 
 @pytest.mark.django_db
-class TestApprovalRuleForm:
-    def test_min_greater_than_max_rejected(self, tenant):
-        """Regression for D-06."""
-        form = ApprovalRuleForm(
+class TestAdjustmentForm:
+    def test_qty_zero_rejected(self, tenant):
+        """Regression for D-?: qty must be ≥ 1."""
+        form = StockAdjustmentForm(
+            data={'adjustment_type': 'increase', 'quantity': '0',
+                  'reason': 'other', 'notes': ''},
+            tenant=tenant,
+        )
+        assert not form.is_valid()
+
+    def test_over_decrement_rejected(self, tenant, stock_level):
+        """Regression for D-01."""
+        form = StockAdjustmentForm(
+            data={'adjustment_type': 'decrease', 'quantity': '9999',
+                  'reason': 'damage', 'notes': ''},
+            tenant=tenant,
+        )
+        form.instance.stock_level = stock_level  # inject for clean()
+        assert not form.is_valid()
+
+
+@pytest.mark.django_db
+class TestTransitionForm:
+    def test_same_from_to_status_rejected(self, tenant, product, warehouse):
+        form = StockStatusTransitionForm(
             data={
-                'name': 'Bad', 'min_amount': '1000', 'max_amount': '10',
-                'required_approvals': '1', 'is_active': 'on',
+                'product': product.pk, 'warehouse': warehouse.pk,
+                'from_status': 'active', 'to_status': 'active',
+                'quantity': 10, 'reason': 'x',
             },
             tenant=tenant,
         )
         assert not form.is_valid()
-        assert 'max_amount' in form.errors or '__all__' in form.errors
 
-
-@pytest.mark.django_db
-class TestPurchaseOrderForm:
-    def test_vendor_queryset_is_tenant_scoped(self, tenant, other_tenant):
-        from vendors.models import Vendor
-        v_mine = Vendor.objects.create(
-            tenant=tenant, company_name="Mine", is_active=True, status="active")
-        v_other = Vendor.objects.create(
-            tenant=other_tenant, company_name="Theirs", is_active=True, status="active")
-        form = PurchaseOrderForm(tenant=tenant)
-        qs = form.fields['vendor'].queryset
-        assert v_mine in qs
-        assert v_other not in qs
-
-    def test_vendor_queryset_excludes_inactive(self, tenant):
-        from vendors.models import Vendor
-        v_active = Vendor.objects.create(
-            tenant=tenant, company_name="Active", is_active=True, status="active")
-        v_draft = Vendor.objects.create(
-            tenant=tenant, company_name="Draft", is_active=True, status="draft")
-        form = PurchaseOrderForm(tenant=tenant)
-        qs = form.fields['vendor'].queryset
-        assert v_active in qs
-        assert v_draft not in qs
-```
-
-### 5.6 `test_views_po_crud.py`
-
-```python
-from datetime import date
-import pytest
-from django.urls import reverse
-
-
-@pytest.mark.django_db
-class TestListView:
-    def test_anonymous_redirected(self, client):
-        resp = client.get(reverse('purchase_orders:po_list'))
-        assert resp.status_code == 302
-        assert '/accounts/login/' in resp['Location']
-
-    def test_list_tenant_isolation(
-        self, client_logged_in, draft_po, other_tenant
-    ):
-        from purchase_orders.models import PurchaseOrder
-        from vendors.models import Vendor
-        other_vendor = Vendor.objects.create(
-            tenant=other_tenant, company_name="Other",
-            is_active=True, status="active")
-        PurchaseOrder.objects.create(
-            tenant=other_tenant, vendor=other_vendor, order_date=date.today())
-
-        resp = client_logged_in.get(reverse('purchase_orders:po_list'))
-        assert draft_po.po_number.encode() in resp.content
-        assert resp.content.count(b'PO-') == 1
-
-    def test_filter_by_status(self, client_logged_in, draft_po):
-        resp = client_logged_in.get(
-            reverse('purchase_orders:po_list') + '?status=approved')
-        assert draft_po.po_number.encode() not in resp.content
-
-    def test_search_by_po_number(self, client_logged_in, draft_po):
-        resp = client_logged_in.get(
-            reverse('purchase_orders:po_list') + f'?q={draft_po.po_number}')
-        assert draft_po.po_number.encode() in resp.content
-
-
-@pytest.mark.django_db
-class TestDetailView:
-    def test_cross_tenant_returns_404(
-        self, client, other_tenant_user, draft_po
-    ):
-        client.force_login(other_tenant_user)
-        resp = client.get(reverse('purchase_orders:po_detail', args=[draft_po.pk]))
-        assert resp.status_code == 404
-
-
-@pytest.mark.django_db
-class TestDeleteView:
-    def test_delete_draft_succeeds(self, client_logged_in, draft_po):
-        pk = draft_po.pk
-        resp = client_logged_in.post(
-            reverse('purchase_orders:po_delete', args=[pk]))
-        assert resp.status_code == 302
-        from purchase_orders.models import PurchaseOrder
-        assert not PurchaseOrder.objects.filter(pk=pk).exists()
-
-    def test_delete_non_draft_blocked(self, client_logged_in, pending_po):
-        resp = client_logged_in.post(
-            reverse('purchase_orders:po_delete', args=[pending_po.pk]))
-        from purchase_orders.models import PurchaseOrder
-        assert PurchaseOrder.objects.filter(pk=pending_po.pk).exists()
-
-    def test_delete_GET_redirects_without_deleting(
-        self, client_logged_in, draft_po
-    ):
-        resp = client_logged_in.get(
-            reverse('purchase_orders:po_delete', args=[draft_po.pk]))
-        assert resp.status_code == 302
-        from purchase_orders.models import PurchaseOrder
-        assert PurchaseOrder.objects.filter(pk=draft_po.pk).exists()
-```
-
-### 5.7 `test_views_transitions.py`
-
-```python
-import pytest
-from django.urls import reverse
-
-
-@pytest.mark.django_db
-class TestSubmit:
-    def test_submit_with_items(self, client_logged_in, draft_po):
-        client_logged_in.post(
-            reverse('purchase_orders:po_submit', args=[draft_po.pk]))
-        draft_po.refresh_from_db()
-        assert draft_po.status == 'pending_approval'
-
-    def test_submit_without_items_blocked(self, client_logged_in, draft_po):
-        draft_po.items.all().delete()
-        client_logged_in.post(
-            reverse('purchase_orders:po_submit', args=[draft_po.pk]))
-        draft_po.refresh_from_db()
-        assert draft_po.status == 'draft'
-
-    def test_submit_must_be_POST(self, client_logged_in, draft_po):
-        client_logged_in.get(
-            reverse('purchase_orders:po_submit', args=[draft_po.pk]))
-        draft_po.refresh_from_db()
-        assert draft_po.status == 'draft'
-
-
-@pytest.mark.django_db
-class TestResubmitAfterReject:
-    """Regression for D-01 (critical)."""
-
-    def test_resubmit_can_reach_approved(
-        self, client, pending_po, admin_user, approver_user, approval_rule
-    ):
-        # Cycle 1: admin rejects
-        client.force_login(admin_user)
-        client.post(
-            reverse('purchase_orders:po_reject', args=[pending_po.pk]),
-            {'decision': 'rejected', 'notes': 'try again'},
-        )
-        pending_po.refresh_from_db()
-        assert pending_po.status == 'draft'
-
-        # Cycle 2: resubmit + approve by different user
-        client.post(reverse('purchase_orders:po_submit', args=[pending_po.pk]))
-        client.force_login(approver_user)
-        client.post(
-            reverse('purchase_orders:po_approve', args=[pending_po.pk]),
-            {'decision': 'approved', 'notes': 'ok'},
-        )
-        pending_po.refresh_from_db()
-        # Today this assertion FAILS — D-01 blocks approval forever
-        assert pending_po.status == 'approved'
-```
-
-### 5.8 `test_security.py`
-
-```python
-import pytest
-from django.urls import reverse
-
-
-@pytest.mark.django_db
-class TestAuthAndRBAC:
-    @pytest.mark.parametrize("url_name,args", [
-        ('purchase_orders:po_list', []),
-        ('purchase_orders:po_create', []),
-        ('purchase_orders:approval_rule_list', []),
-        ('purchase_orders:approval_list', []),
-    ])
-    def test_login_required(self, client, url_name, args):
-        resp = client.get(reverse(url_name, args=args))
-        assert resp.status_code == 302
-        assert '/accounts/login/' in resp['Location']
-
-    def test_non_admin_cannot_approve(self, client, non_admin_user, pending_po):
-        """Regression for D-02."""
-        client.force_login(non_admin_user)
-        client.post(
-            reverse('purchase_orders:po_approve', args=[pending_po.pk]),
-            {'decision': 'approved'},
-        )
-        assert pending_po.approvals.filter(approver=non_admin_user).count() == 0
-
-    def test_creator_cannot_self_approve(self, client, admin_user, pending_po):
-        """Regression for D-03."""
-        client.force_login(admin_user)
-        client.post(
-            reverse('purchase_orders:po_approve', args=[pending_po.pk]),
-            {'decision': 'approved'},
-        )
-        pending_po.refresh_from_db()
-        assert pending_po.status != 'approved'
-
-    def test_dispatch_to_external_email_blocked(
-        self, client, admin_user, draft_po
-    ):
-        """Regression for D-04."""
-        draft_po.status = 'approved'; draft_po.save()
-        client.force_login(admin_user)
-        client.post(
-            reverse('purchase_orders:po_dispatch', args=[draft_po.pk]),
-            {
-                'dispatch_method': 'email',
-                'sent_to_email': 'attacker@evil.example',
-                'notes': '',
+    def test_phantom_source_rejected(self, tenant, product, warehouse):
+        """Regression for D-02: no StockStatus(damaged) exists."""
+        form = StockStatusTransitionForm(
+            data={
+                'product': product.pk, 'warehouse': warehouse.pk,
+                'from_status': 'damaged', 'to_status': 'active',
+                'quantity': 50, 'reason': 'fraud',
             },
+            tenant=tenant,
         )
-        # After remediation: recipient forced to vendor.email OR rejected
-        draft_po.refresh_from_db()
-        dispatches = draft_po.dispatches.all()
-        if dispatches:
-            assert dispatches.first().sent_to_email != 'attacker@evil.example'
+        assert not form.is_valid()
 
-    def test_cross_tenant_approval_rule_delete_404(
-        self, client, admin_user, other_tenant
-    ):
-        from purchase_orders.models import ApprovalRule
-        rule = ApprovalRule.objects.create(
-            tenant=other_tenant, name="X",
-            min_amount=0, max_amount=100, required_approvals=1,
+    def test_under_stocked_source_rejected(self, tenant, damaged_status, product, warehouse):
+        """damaged=10; try to transition 50."""
+        form = StockStatusTransitionForm(
+            data={
+                'product': product.pk, 'warehouse': warehouse.pk,
+                'from_status': 'damaged', 'to_status': 'active',
+                'quantity': 50, 'reason': 'x',
+            },
+            tenant=tenant,
         )
-        client.force_login(admin_user)
-        client.post(
-            reverse('purchase_orders:approval_rule_delete', args=[rule.pk]))
-        assert ApprovalRule.objects.filter(pk=rule.pk).exists()
+        assert not form.is_valid()
 
 
 @pytest.mark.django_db
-class TestCSRFAndMethods:
-    @pytest.mark.parametrize("url_name", [
-        'purchase_orders:po_submit', 'purchase_orders:po_approve',
-        'purchase_orders:po_reject', 'purchase_orders:po_mark_received',
-        'purchase_orders:po_close', 'purchase_orders:po_cancel',
-        'purchase_orders:po_reopen', 'purchase_orders:po_delete',
-    ])
-    def test_get_on_transition_is_safe(
-        self, client_logged_in, draft_po, url_name
-    ):
-        resp = client_logged_in.get(reverse(url_name, args=[draft_po.pk]))
-        assert resp.status_code == 302
-        draft_po.refresh_from_db()
-        assert draft_po.status == 'draft'
+class TestReservationForm:
+    def test_over_reserve_rejected(self, tenant, stock_level, product, warehouse):
+        """Regression for D-03: reserve > available."""
+        form = InventoryReservationForm(
+            data={
+                'product': product.pk, 'warehouse': warehouse.pk,
+                'quantity': 9999, 'reference_type': '', 'reference_number': '',
+                'expires_at': '', 'notes': '',
+            },
+            tenant=tenant,
+        )
+        assert not form.is_valid()
 
-
-@pytest.mark.django_db
-class TestXSS:
-    def test_notes_escaped_on_detail(self, client_logged_in, draft_po):
-        draft_po.notes = '<script>alert(1)</script>'
-        draft_po.save()
-        resp = client_logged_in.get(
-            reverse('purchase_orders:po_detail', args=[draft_po.pk]))
-        assert b'<script>alert(1)</script>' not in resp.content
-        assert b'&lt;script&gt;' in resp.content
+    def test_no_stock_level_rejected(self, tenant, product, warehouse):
+        """No StockLevel exists for (product, warehouse)."""
+        form = InventoryReservationForm(
+            data={
+                'product': product.pk, 'warehouse': warehouse.pk,
+                'quantity': 1, 'reference_type': '', 'reference_number': '',
+                'expires_at': '', 'notes': '',
+            },
+            tenant=tenant,
+        )
+        assert not form.is_valid()
 ```
 
-### 5.9 `test_performance.py`
+### 5.6 `test_views_valuation.py` — the correctness test
 
 ```python
 from decimal import Decimal
-from datetime import date
 import pytest
 from django.urls import reverse
-from purchase_orders.models import PurchaseOrder, PurchaseOrderItem
+
+from inventory.models import InventoryValuation, ValuationConfig
 
 
 @pytest.mark.django_db
-def test_list_query_budget(
-    client_logged_in, tenant, vendor, product, django_assert_max_num_queries
-):
-    for _ in range(20):
-        po = PurchaseOrder.objects.create(
-            tenant=tenant, vendor=vendor, order_date=date.today(),
-        )
-        for _ in range(3):
-            PurchaseOrderItem.objects.create(
-                tenant=tenant, purchase_order=po, product=product,
-                quantity=1, unit_price=Decimal("10"),
-            )
-    with django_assert_max_num_queries(6):
-        resp = client_logged_in.get(reverse('purchase_orders:po_list'))
-        assert resp.status_code == 200
+class TestValuationCorrectness:
+    """Regression for D-04 — FIFO/LIFO/WAVG must produce DIFFERENT unit_cost."""
+
+    def _consume_old_layer(self, cost_layers):
+        """Simulate that 5 units were issued using the OLDER layer under FIFO."""
+        old, new = cost_layers
+        old.remaining_quantity = 0; old.save()  # consumed
+        # `new` keeps remaining_quantity=5
+
+    def test_fifo_after_consumption_uses_newest_cost(
+        self, client, admin_user, tenant, stock_level, cost_layers, valuation_config
+    ):
+        valuation_config.method = 'fifo'; valuation_config.save()
+        self._consume_old_layer(cost_layers)
+        client.force_login(admin_user)
+        client.post(reverse('inventory:valuation_recalculate'))
+        v = InventoryValuation.objects.get(tenant=tenant, product=stock_level.product)
+        # 5 units remain, all at $20
+        assert v.unit_cost == Decimal('20.00')
+
+    def test_lifo_after_consumption_uses_oldest_cost(
+        self, client, admin_user, tenant, stock_level, cost_layers, valuation_config
+    ):
+        valuation_config.method = 'lifo'; valuation_config.save()
+        # LIFO: consume NEWEST first. 5 issued → newer layer gone
+        old, new = cost_layers
+        new.remaining_quantity = 0; new.save()
+        client.force_login(admin_user)
+        client.post(reverse('inventory:valuation_recalculate'))
+        v = InventoryValuation.objects.get(tenant=tenant, product=stock_level.product)
+        # 5 units remain at $10
+        assert v.unit_cost == Decimal('10.00')
+
+    def test_weighted_avg_blends_layers(
+        self, client, admin_user, tenant, stock_level, cost_layers, valuation_config
+    ):
+        valuation_config.method = 'weighted_avg'; valuation_config.save()
+        client.force_login(admin_user)
+        client.post(reverse('inventory:valuation_recalculate'))
+        v = InventoryValuation.objects.get(tenant=tenant, product=stock_level.product)
+        # (5*10 + 5*20) / 10 = 15.00
+        assert v.unit_cost == Decimal('15.00')
 ```
 
-### 5.10 Locust — `locustfile.py`
+### 5.7 `test_security.py`
 
 ```python
-from locust import HttpUser, task, between
+import pytest
+from django.urls import reverse
 
-class POUser(HttpUser):
-    wait_time = between(1, 3)
+from core.models import AuditLog
 
-    def on_start(self):
-        self.client.post('/accounts/login/', {
-            'username': 'admin_acme', 'password': 'demo123',
-        })
 
-    @task(5)
-    def list_pos(self):
-        self.client.get('/purchase-orders/')
+@pytest.mark.django_db
+class TestAuthRequired:
+    @pytest.mark.parametrize("url_name,args", [
+        ('inventory:stock_level_list', []),
+        ('inventory:stock_adjustment_list', []),
+        ('inventory:stock_status_list', []),
+        ('inventory:valuation_dashboard', []),
+        ('inventory:reservation_list', []),
+    ])
+    def test_anonymous_redirected(self, client, url_name, args):
+        r = client.get(reverse(url_name, args=args))
+        assert r.status_code == 302 and '/accounts/login/' in r['Location']
 
-    @task(1)
-    def approval_queue(self):
-        self.client.get('/purchase-orders/approvals/')
+
+@pytest.mark.django_db
+class TestRBAC:
+    """Regression for D-05."""
+
+    def test_non_admin_cannot_adjust(self, client, non_admin_user, stock_level):
+        client.force_login(non_admin_user)
+        client.post(
+            reverse('inventory:stock_adjust', args=[stock_level.pk]),
+            {'adjustment_type': 'increase', 'quantity': 100, 'reason': 'other'},
+        )
+        stock_level.refresh_from_db()
+        assert stock_level.on_hand == 50  # unchanged
+
+    def test_non_admin_cannot_transition_status(
+        self, client, non_admin_user, damaged_status, product, warehouse
+    ):
+        client.force_login(non_admin_user)
+        client.post(
+            reverse('inventory:stock_status_transition'),
+            {
+                'product': product.pk, 'warehouse': warehouse.pk,
+                'from_status': 'damaged', 'to_status': 'active',
+                'quantity': 5, 'reason': 'x',
+            },
+        )
+        damaged_status.refresh_from_db()
+        assert damaged_status.quantity == 10  # unchanged
+
+    def test_non_admin_cannot_recalculate(
+        self, client, non_admin_user, valuation_config, cost_layers
+    ):
+        client.force_login(non_admin_user)
+        client.post(reverse('inventory:valuation_recalculate'))
+        from inventory.models import InventoryValuation
+        assert InventoryValuation.objects.count() == 0
+
+    def test_non_admin_cannot_transition_reservation(
+        self, client, non_admin_user, pending_reservation
+    ):
+        client.force_login(non_admin_user)
+        client.post(reverse(
+            'inventory:reservation_transition',
+            args=[pending_reservation.pk, 'cancelled'],
+        ))
+        pending_reservation.refresh_from_db()
+        assert pending_reservation.status == 'pending'
+
+
+@pytest.mark.django_db
+class TestIDOR:
+    def test_stock_level_cross_tenant_404(
+        self, client, other_tenant_user, stock_level
+    ):
+        client.force_login(other_tenant_user)
+        r = client.get(reverse('inventory:stock_level_detail', args=[stock_level.pk]))
+        assert r.status_code == 404
+
+
+@pytest.mark.django_db
+class TestCSRFMethods:
+    @pytest.mark.parametrize("url_name,kwargs", [
+        ('inventory:reservation_delete', 'pk'),
+        ('inventory:valuation_recalculate', None),
+    ])
+    def test_get_is_safe(self, client, admin_user, pending_reservation, url_name, kwargs):
+        client.force_login(admin_user)
+        args = [pending_reservation.pk] if kwargs == 'pk' else []
+        r = client.get(reverse(url_name, args=args))
+        assert r.status_code == 302
+
+
+@pytest.mark.django_db
+class TestAuditLog:
+    """Regression for D-07."""
+    def test_adjust_writes_audit(self, client, admin_user, stock_level):
+        client.force_login(admin_user)
+        client.post(
+            reverse('inventory:stock_adjust', args=[stock_level.pk]),
+            {'adjustment_type': 'increase', 'quantity': 5, 'reason': 'return'},
+        )
+        assert AuditLog.objects.filter(action='inventory.adjust').exists()
+
+    def test_transition_writes_audit(
+        self, client, admin_user, damaged_status, product, warehouse
+    ):
+        client.force_login(admin_user)
+        client.post(
+            reverse('inventory:stock_status_transition'),
+            {
+                'product': product.pk, 'warehouse': warehouse.pk,
+                'from_status': 'damaged', 'to_status': 'active',
+                'quantity': 5, 'reason': 'test',
+            },
+        )
+        assert AuditLog.objects.filter(action='inventory.status_transition').exists()
 ```
 
-### 5.11 CI hooks
+### 5.8 `test_performance.py`
 
-```yaml
-# .github/workflows/ci.yml (excerpt)
-- run: pytest purchase_orders/tests --cov=purchase_orders --cov-fail-under=85
-- run: bandit -r purchase_orders/
-- run: pip-audit -r requirements.txt --fail-on-severity high
+```python
+from decimal import Decimal
+import pytest
+from django.urls import reverse
+
+from inventory.models import StockLevel
+
+
+@pytest.mark.django_db
+def test_stock_level_list_query_budget(
+    client_logged_in, tenant, product, warehouse, django_assert_max_num_queries
+):
+    for i in range(20):
+        StockLevel.objects.create(
+            tenant=tenant, product=product, warehouse=warehouse,
+            on_hand=i, allocated=0,
+        )
+    with django_assert_max_num_queries(8):
+        r = client_logged_in.get(reverse('inventory:stock_level_list'))
+        assert r.status_code == 200
 ```
 
 ---
 
 ## 6. Defects, Risks & Recommendations
 
-> Verification key: ✅ = reproduced in Django shell; 📋 = inspected code only.
+> Legend: ✅ = reproduced in Django shell; 📋 = code review only.
 
 ### 6.1 Defects
 
 | ID | Severity | OWASP | Location | Finding | Recommendation |
 |---|---|---|---|---|---|
-| **D-01** ✅ | **Critical** | A04 | [models.py:94-108](../purchase_orders/models.py#L94-L108), [views.py:226-245](../purchase_orders/views.py#L226-L245) | `approval_status` returns `'rejected'` whenever **any** `PurchaseOrderApproval.decision=='rejected'` row exists. After reject → resubmit, the stale rejection is **not** cleared, so the PO can **never** be approved again. Reproduced: `approval_status` returns `rejected` after resubmit. | On `po_submit_for_approval_view`, call `po.approvals.all().delete()` before transitioning to `pending_approval` (mirror `po_reopen_view`). Alternatively, scope the rejection check to approvals created **after** the most recent `draft → pending_approval` transition (requires a cycle counter or timestamp). |
-| **D-02** ✅ | High | A01 | [views.py:226,248,288,321,415,434,453,472,202](../purchase_orders/views.py#L248) | None of `po_submit`, `po_approve`, `po_reject`, `po_dispatch`, `po_mark_received`, `po_close`, `po_cancel`, `po_reopen`, `po_delete` enforce any role check beyond `@login_required`. A non-admin user (`is_tenant_admin=False`) successfully approved a PO in shell test. | Introduce `@tenant_admin_required` decorator *or* map RBAC permissions from `core.Permission('purchasing.approve_po' / 'dispatch_po' / 'cancel_po')`. Gate each sensitive view. Add regression in `test_security.py::test_non_admin_cannot_approve`. |
-| **D-03** ✅ | High | A04 | [views.py:261-264](../purchase_orders/views.py#L261-L264) | PO creator can approve their own PO (SOD violation). Shell verified: creator-as-approver gives `approval_status == 'approved'` on a $1000 PO. | In `po_approve_view`: `if po.created_by_id == request.user.id: messages.warning(request, 'Creators cannot approve their own POs'); return redirect(...)`. Enforce the same at the model layer with `PurchaseOrderApproval.clean()`. |
-| **D-04** ✅ | High | A01 / A04 | [views.py:334-391](../purchase_orders/views.py#L334-L391) | `sent_to_email` is a free-form `EmailField` — a dispatcher (including a non-admin per D-02) can exfiltrate full PO contents (line items, totals, vendor, notes) to an arbitrary external address. Shell verified: non-admin user successfully sent PO body to `attacker@evil.com`. | (1) Default and lock `sent_to_email` to `po.vendor.email` (disable the form input); (2) optionally allow override only to a tenant-configured allow-list of domains; (3) audit-log every dispatch with recipient. |
-| **D-05** 📋 | High | A04 | [views.py:395-399](../purchase_orders/views.py#L395-L399) | `po.status = 'sent'` is set **after** the `send_mail` exception handler — so if email fails, the PO is still moved to `sent` and a `Dispatch` record exists claiming a failed recipient. | Move `po.status='sent'` inside the success branch only. Add a `status` field to `PurchaseOrderDispatch` (`sent` / `failed`). Wrap in `transaction.atomic()` so the Dispatch row is rolled back on email failure. |
-| **D-06** ✅ | Medium | A04 | [forms.py:112-154](../purchase_orders/forms.py#L112-L154) | `ApprovalRuleForm` has no validation ensuring `min_amount ≤ max_amount`. Shell verified: `min=1000, max=10` is accepted and matches no POs, silently dropping to the 1-approver fallback. | Add `def clean(self)` raising `ValidationError('max_amount must be ≥ min_amount')`. Also add `Meta.constraints = [CheckConstraint(check=Q(max_amount__gte=F('min_amount')), name='...')]` to enforce at DB layer. |
-| **D-07** 📋 | Medium | A04 | [models.py:98-108](../purchase_orders/models.py#L98-L108) | If `grand_total` falls **outside** every active rule’s `[min,max]` band (e.g. above the highest `max_amount`, or inside a band gap), `approval_status` silently falls back to `required=1`. Hidden business-rule bypass: a $1M PO can be approved by a single approver if no high-value rule exists. | Raise a visible warning to the approver UI when no rule matches; require at least one catch-all rule per tenant; bootstrap the seed with a high-ceiling rule. |
-| **D-08** 📋 | Medium-High | A04 | [models.py:115-129](../purchase_orders/models.py#L115-L129) | `_generate_po_number` reads `order_by('-id').first()` then writes — classic TOCTOU race. Two parallel requests get same `po_number` → `IntegrityError` on `unique_together('tenant','po_number')`. | Wrap save in `transaction.atomic()` + `select_for_update()` on a per-tenant counter row, OR add a `TenantSequence` helper model, OR switch to DB-native sequence (Postgres `nextval`). |
-| **D-09** 📋 | Medium | A01 | [views.py:161-199, 202-218](../purchase_orders/views.py#L161-L218) | Any tenant user can edit/delete any draft PO, including POs they did not create. `created_by` is never consulted. | Add a `created_by == request.user OR is_tenant_admin` gate on `po_edit_view` and `po_delete_view`. |
-| **D-10** ✅ | Medium | Perf | [models.py:77-91](../purchase_orders/models.py#L77-L91), [po_list.html:149](../templates/purchase_orders/po_list.html#L149) | `subtotal`, `tax_total`, `discount_total`, `grand_total` each call `self.items.all()` — accessed on every row of the list template. Shell verified: 10 POs produced 27 additional queries just from `grand_total`. | (a) Denormalise totals as DB-backed fields recomputed on item save via signals, (b) use `Prefetch('items')` in the list queryset and memoise the totals on the model instance, or (c) compute with a `Sum(F('quantity')*F('unit_price'))` annotation. |
-| **D-11** 📋 | Medium | A03 | [views.py:47-58](../purchase_orders/views.py#L47-L58) | Numeric query params (`vendor`, `date_from`, `date_to`, `page`) are used in ORM filters without type coercion. `PurchaseOrder.filter(vendor_id='abc')` raises `ValueError` → 500. | Coerce and validate: `int(request.GET.get('vendor', 0) or 0)`; wrap date parsing in `datetime.strptime` with try/except; otherwise ignore. |
-| **D-12** 📋 | Medium | A09 | all state-change views | No `core.AuditLog` rows written on approve, reject, cancel, close, delete, dispatch — so there is no forensic record of who authorised high-value purchases. | Emit `AuditLog.objects.create(tenant=..., user=request.user, action='po.approve', model_name='PurchaseOrder', object_id=po.pk, changes=json.dumps({...}))` at every sensitive mutation. |
-| **D-13** 📋 | Medium | A04 | [views.py:288-317](../purchase_orders/views.py#L288-L317) | `po_reject_view` silently ignores invalid forms — no `messages.error`, no re-render. If JS fails or a bot submits without `decision`, the user sees a success-looking redirect. | Add `messages.error(request, 'Invalid rejection form — decision required')` in the `else` branch of `if form.is_valid()`. |
-| **D-14** 📋 | Low | A04 | [views.py:68](../purchase_orders/views.py#L68) | Vendor dropdown in PO list filter uses `Vendor.objects.filter(tenant=tenant, is_active=True)` — but the PO **create** form uses `is_active=True, status='active'`. The list filter exposes `status='draft'` vendors that the create form hides. | Align the queryset with the form: also filter by `status='active'`. |
-| **D-15** 📋 | Low | A04 | [views.py:128](../purchase_orders/views.py#L128) | Timeline omits `partially_received` from `status_order`, so a PO in that state returns `current_idx == -1` and all steps render `upcoming`. | Add `'partially_received'` to `status_order` between `sent` and `received`. |
-| **D-16** 📋 | Low | A04 | [models.py:180](../purchase_orders/models.py#L180) | Only `tax_amount` quantizes to 2dp; `line_total` / `discount_amount` return raw arithmetic. Summed `grand_total` can carry >2dp drift that the template masks with `floatformat:2` (display-only). Accounting-breaking if exported. | Quantize `line_total`, `discount_amount`, and `grand_total` to `Decimal('0.01')`. |
-| **D-17** 📋 | Low | A04 | [forms.py:103-109](../purchase_orders/forms.py#L103-L109) | `PurchaseOrderItemFormSet` uses `extra=3` and no `min_num`. A draft PO can be saved with zero line items. Submit-for-approval catches the 0-item case but the empty PO persists visibly. | Set `min_num=1, validate_min=True` on the formset factory. |
-| **D-18** 📋 | Low | A04 | [forms.py](../purchase_orders/forms.py) | No validation that `expected_delivery_date ≥ order_date`. | Add a `clean()` guard in `PurchaseOrderForm`. |
-| **D-19** 📋 | Info | A01 | [admin.py:23-28](../purchase_orders/admin.py#L23-L28) | `PurchaseOrderAdmin` exposes all tenants to superuser (tenant is `None`). Documented superuser trap — OK — but a `get_queryset` override scoped to `request.user.tenant` when `not is_superuser` would be safer for staff users. | Override `get_queryset` on all PO admin classes. |
-| **D-20** 📋 | Info | A05 | [seed_purchase_orders.py:86-97](../purchase_orders/management/commands/seed_purchase_orders.py#L86-L97) | `ApprovalRule.objects.create` is not idempotent — only the outer `if PurchaseOrder.objects.filter(tenant=tenant).exists()` guards it. If POs exist but rules were flushed manually, rules are never re-created. | Use `ApprovalRule.objects.get_or_create(tenant=tenant, name=...)`. |
+| **D-04** ✅ | **Critical** | A04 | [views.py:370-383](../inventory/views.py#L370-L383) | **FIFO / LIFO / Weighted Avg all compute identical unit_cost.** The FIFO and LIFO branches sort entries but then run `sum(rem_qty × unit_cost) / Σ rem_qty`, which is by definition the weighted average regardless of order. Shell verified on 2-layer (5@$10, 5@$20) data: FIFO=15, LIFO=15, WAVG=15 — all three identical. Financial correctness of COGS, ending inventory, and tax reporting is broken. | Rewrite valuation arithmetic: for **FIFO / LIFO** the "unit_cost" of remaining inventory is the cost of the layers that **remain after consumption** (depends on which layers were issued). This requires modelling issuances (likely via `ValuationEntry.remaining_quantity` shrinking FIFO/LIFO-style, with a helper that walks the layer stack). The current snapshot-on-demand approach conflates issued and remaining. See accounting ref: FIFO ending = Σ newest layers; LIFO ending = Σ oldest layers. |
+| **D-02** ✅ | **High** | A04 | [models.py:230-249](../inventory/models.py#L230-L249), [views.py:217-237](../inventory/views.py#L217-L237) | **Phantom-source status transition creates inventory from nothing.** `apply_transition` uses `get_or_create(..., status=from_status, defaults={'quantity': 0})` and then `max(source.quantity - self.quantity, 0)` — if no damaged rows exist, code creates one at 0, decrements to 0, and credits target by the full amount. Shell verified: transition 50 from non-existent `damaged` bucket → `active` bucket gained +50 from thin air. | `StockStatusTransitionForm.clean()` must require that `StockStatus(tenant, product, warehouse, from_status)` already exists with `quantity >= self.quantity`. Additionally wrap `apply_transition` in `transaction.atomic()` and raise `ValidationError` instead of silently clamping. |
+| **D-03** ✅ | High | A04 | [forms.py:87-133](../inventory/forms.py#L87-L133), [views.py:449-558](../inventory/views.py#L449-L558) | **Reservation allows quantity > available.** No validator prevents reserving 9999 units against `on_hand=10`. Shell verified: saved `RES-xxxxx` with qty=9999 for `available=0`. Subsequent confirmation would push `stock_level.allocated` to an arbitrary value with no backing inventory. | `InventoryReservationForm.clean()`: look up StockLevel for (product, warehouse); reject if missing or if `quantity > stock_level.available`. Also guard in `reservation_transition_view` so a `pending → confirmed` transition re-checks availability at transition time (stock may have moved). |
+| **D-05** ✅ | High | A01 | all destructive views: [views.py:86,217,347,527](../inventory/views.py#L86) | **No RBAC on sensitive mutations.** Shell verified: non-admin `james_acme` successfully increased stock by +1000 (63 → 1063), triggered tenant-wide valuation recalc, and cancelled a reservation. Any tenant user can manipulate inventory, fraud-detect COGS, or release allocated stock. | Introduce `@tenant_admin_required` (see the same decorator already shipped in `purchase_orders/views.py`) on: `stock_adjust_view`, `stock_status_transition_view`, `valuation_recalculate_view`, `valuation_config_view`, `reservation_create/edit/delete/transition_view`. |
+| **D-01** ✅ | High | A04 | [models.py:119-127](../inventory/models.py#L119-L127) | **Silent over-decrement clamp.** `apply_adjustment` does `sl.on_hand = max(sl.on_hand - self.quantity, 0)` — 50 on-hand + decrease 999 → silently becomes 0 with no error. User believes 999 left the building; system records 50 left. Fraud / loss-coverup vector. | Raise `ValidationError('Decrease exceeds on-hand')` in `StockAdjustmentForm.clean()` when `adjustment_type='decrease' and quantity > stock_level.on_hand`. Remove the `max(..., 0)` clamp. |
+| **D-06** 📋 | High | A04 | [views.py:90-100, 220-228, 455-460, 527-555](../inventory/views.py) | **Non-atomic mutations.** `stock_adjust_view`: `adjustment.save()` then `adjustment.apply_adjustment()` — if the second fails, adjustment record orphaned. `stock_status_transition_view`: `source.save()` then `target.save()` — torn write. `reservation_transition_view`: `reservation.save()` then `stock_level.save()` — same. | Wrap every `apply_*` call and adjacent saves in `with transaction.atomic():`. Use `select_for_update()` on the source `StockLevel` / `StockStatus` before mutating. |
+| **D-07** 📋 | Medium | A09 | all state-change views | **No `core.AuditLog`** on adjust, status transition, valuation recalc, reservation-transition, reservation-delete. Stock is a financial asset — every mutation must be logged. | Call `AuditLog.objects.create(tenant=request.tenant, user=request.user, action='inventory.<verb>', model_name=..., object_id=..., changes=json.dumps({...}))` at every sensitive mutation. |
+| **D-08** 📋 | Medium-High | A04 | [models.py:103-117, 214-228, 427-441](../inventory/models.py) | **TOCTOU race on auto-generated numbers** (`ADJ-`, `SST-`, `RES-`). `order_by('-id').first()` then write is not atomic; concurrent inserts collide on respective `unique_together`. Same pattern flagged in purchase_orders. | Wrap in `transaction.atomic` + `select_for_update` on a per-tenant lock row, or use a `TenantSequence` model. Same fix approach for all three modules. |
+| **D-09** 📋 | Medium | A05 | [views.py:280-282, 326-328, 352-353](../inventory/views.py) | **`ValuationConfig.get_or_create(tenant=request.tenant)` for superuser (`tenant=None`) raises `IntegrityError`** because `ValuationConfig.tenant` is a non-null `OneToOneField`. Superuser hitting `/inventory/valuation/` therefore 500s. | Guard: `if not request.tenant: return redirect('dashboard')` at view entry; or early-return a "no tenant" message. Consistent with the documented superuser trap. |
+| **D-10** 📋 | Medium | A04 | [models.py:414-420](../inventory/models.py#L414-L420) | **No sweeper for expired reservations.** `is_expired` is a pure property — nothing sets status to `expired` automatically, so stale `confirmed` reservations hold `allocated` stock forever. | Add management command `sweep_expired_reservations` (run via cron) that flips `expires_at < now()` reservations to `expired` and decrements `StockLevel.allocated` atomically. |
+| **D-11** 📋 | Medium | A03 | [views.py:38-45, 181, 290, 428](../inventory/views.py) | **Numeric query params not coerced.** `warehouse_id=abc` → `filter(warehouse_id='abc')` raises `ValueError` → 500. Same as PO module. | `int(request.GET.get('warehouse', 0) or 0)` with try/except. |
+| **D-12** 📋 | Medium | A04 | [views.py:356](../inventory/views.py#L356) | **`valuation_recalculate_view` deletes then inserts globally without atomic.** If the loop raises mid-flight, today's valuation rows are partially populated / missing entirely. Also: no idempotency guard means concurrent recalc requests race on DELETE. | Wrap whole recalc in `with transaction.atomic():`; lock `ValuationConfig` row with `select_for_update`; return 409 if a recalc is already in flight. |
+| **D-13** 📋 | Medium | A04 | [forms.py:11-32](../inventory/forms.py#L11-L32) | **`StockAdjustmentForm` has no `tenant`-wired product/warehouse sanity and no `quantity >= 1` enforcement** (PositiveIntegerField accepts 0). | `widget min='1'` is front-end only; add `def clean_quantity` in the form. |
+| **D-14** 📋 | Medium | A04 | [views.py:541-555](../inventory/views.py#L541-L555) | **`reservation_transition_view` double-counts allocated on status ping-pong.** `pending → confirmed → released → pending → confirmed` — each `pending → confirmed` adds `+qty` to `allocated` but there is no offsetting decrement on `confirmed → cancelled/released` IF it was already released-and-restored. A pending-confirmed-pending-confirmed dance compounds `allocated`. | Re-key the logic on the old/new tuple as a map `{('pending','confirmed'): +qty, ('confirmed','released'): -qty, ('confirmed','expired'): -qty, ('confirmed','cancelled'): -qty}` — default to 0. Covered correctly today for the common edges but not defensive against manual transitions. |
+| **D-15** 📋 | Medium | A01 | [views.py:524](../inventory/views.py#L524) | **Reservation-delete has no creator check.** Any tenant-admin can delete any pending or cancelled reservation — but coupled with D-05 any tenant user can delete pending reservations too. | Gate by `is_tenant_admin or reserved_by == request.user`. |
+| **D-16** 📋 | Low | A04 | [models.py:119-126](../inventory/models.py#L119-L126) | **`correction` adjustment ignores `allocated`.** Setting `on_hand = quantity` may leave `allocated > on_hand` and hence `available == 0` — not strictly wrong but should warn user. | Form `clean()`: if `adjustment_type='correction' and quantity < allocated` → warning-level validation. |
+| **D-17** 📋 | Low | A09 | [views.py:552-555](../inventory/views.py#L552-L555) | **Silent `except StockLevel.DoesNotExist: pass`** on reservation transition. If stock record was deleted, reservation flips state without any warning or log. | Replace with `AuditLog` of the inconsistency; raise a `messages.warning` visible to the user. |
+| **D-18** 📋 | Low | A01 | [admin.py:8-60](../inventory/admin.py) | `ModelAdmin.get_queryset` not tenant-scoped for non-superuser staff users — same superuser-trap pattern as other modules. | Override `get_queryset` on all 8 admins to filter by `request.user.tenant` when `not is_superuser`. |
+| **D-19** 📋 | Low | A04 | [models.py:26-30](../inventory/models.py#L26-L30) | `on_hand` / `allocated` / `on_order` are `PositiveIntegerField` — good — but `reorder_point` could legitimately be 0 (meaning "no reorder"). Current code treats `reorder_point == 0` as "no reorder alert", which is correct in `needs_reorder`. `low_stock` filter in list view duplicates this logic — ensure behavior consistent. | Minor: add unit test to lock behaviour. |
+| **D-20** 📋 | Low | A04 | [models.py:255-270](../inventory/models.py#L255-L270) | `ValuationConfig` has no validator on `method` beyond choices, but downstream `valuation_recalculate` has a silent `else: unit_cost = 0` branch — if a misspelled method is saved via shell, unit_cost silently becomes 0. | Add a non-db validator / assertion. |
 
 ### 6.2 Residual risks (post-remediation)
 
-| Risk | Residual likelihood | Residual impact | Mitigation |
+| Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Email backend misconfigured in prod | Low | High (no delivery) | Monitor `send_mail` failure rate; surface a dispatch-failed dashboard panel |
-| Large PO (1000+ items) page-load > 10s | Low | Medium | Paginate line items on detail; add async totals endpoint |
-| Seed data collides with manually-created rules | Low | Low | Adopt D-20 fix |
+| Valuation rewrite introduces new rounding drift | Medium | Medium | Lock formula in unit tests with 4-5 parametrised scenarios |
+| `sweep_expired_reservations` cron missing in prod → stale allocations | Medium | Medium | Document in ops runbook; add a nightly smoke |
+| Concurrent recalc by two admins simultaneously | Low | Medium | D-12 409-on-lock |
 
 ---
 
@@ -968,66 +878,62 @@ class POUser(HttpUser):
 
 | File | Target line % | Target branch % | Notes |
 |---|---|---|---|
-| [models.py](../purchase_orders/models.py) | 95 | 90 | State machine + properties are pure functions |
-| [forms.py](../purchase_orders/forms.py) | 90 | 85 | Add `clean()` methods after D-06 / D-18 |
-| [views.py](../purchase_orders/views.py) | 85 | 75 | Email branches harder to cover end-to-end |
-| **Overall `purchase_orders/`** | **≥ 88 %** line, **≥ 80 %** branch | | |
+| [models.py](../inventory/models.py) | 95 | 90 | Properties + state machine + apply_* |
+| [forms.py](../inventory/forms.py) | 92 | 88 | After D-01, D-02, D-03, D-13 clean() |
+| [views.py](../inventory/views.py) | 85 | 75 | Valuation-recalc branches largest gap |
+| **Overall `inventory/`** | **≥ 88 %** line, **≥ 80 %** branch | — | — |
 
 ### 7.2 KPIs
 
-| KPI | Target (Green) | Amber | Red |
+| KPI | Green | Amber | Red |
 |---|---|---|---|
-| Functional test pass rate | 100 % | 98-99 % | < 98 % |
-| Open **Critical** defects | 0 | — | ≥ 1 |
-| Open **High** defects | 0 | 1 | ≥ 2 |
-| Suite runtime (pytest) | < 30 s | 30-60 s | > 60 s |
-| List page p95 latency @ 500 POs | < 300 ms | 300-600 ms | > 600 ms |
-| Query count `po_list_view` (20 POs) | ≤ 6 | 7-10 | > 10 |
-| Query count `po_detail_view` | ≤ 15 | 16-25 | > 25 |
-| Regression-escape rate / release | 0 | 1 | > 1 |
-| Bandit High findings | 0 | 1 | ≥ 2 |
+| Functional pass rate | 100 % | 98-99 % | < 98 % |
+| Open Critical defects | 0 | — | ≥ 1 |
+| Open High defects | 0 | 1 | ≥ 2 |
+| Suite runtime | < 30 s | 30-60 s | > 60 s |
+| Stock-level list p95 latency @ 500 rows | < 300 ms | 300-600 ms | > 600 ms |
+| Query count `stock_level_list_view` (20 rows) | ≤ 8 | 9-12 | > 12 |
+| Valuation recalc for 1000 entries | < 5 s | 5-15 s | > 15 s |
 
 ### 7.3 Release Exit Gate
 
 All of the following **must** be true:
 
-- [ ] D-01 fixed and `TestResubmitAfterReject::test_resubmit_can_reach_approved` green
-- [ ] D-02 fixed with RBAC decorator and regression tests green
-- [ ] D-03 fixed (creator cannot self-approve) with regression test green
-- [ ] D-04 fixed (recipient pinned or allow-listed) with regression test green
-- [ ] D-05 fixed (email failure does not advance status)
-- [ ] D-06 and D-18 fixed with form validation tests green
-- [ ] D-10 remediated: list-view query count ≤ 6 (test enforced)
-- [ ] D-12 implemented: AuditLog emitted on approve/reject/cancel/close/delete/dispatch
-- [ ] `pytest purchase_orders/tests` green with **≥ 88 %** line coverage
-- [ ] `bandit -r purchase_orders/` → 0 High/Critical
-- [ ] `pip-audit` → 0 High/Critical
-- [ ] Manual smoke of the golden path (create → submit → approve → dispatch → receive → close) passes in a browser
-- [ ] Locust run: list-view p95 < 300 ms @ 500 POs / 50 VU
+- [ ] **D-04 fixed**: `test_views_valuation.py::TestValuationCorrectness` green (FIFO / LIFO / WAVG yield distinct unit_cost on the canonical 2-layer fixture).
+- [ ] **D-02 fixed**: `test_forms.py::TestTransitionForm::test_phantom_source_rejected` green.
+- [ ] **D-03 fixed**: `test_forms.py::TestReservationForm::test_over_reserve_rejected` green.
+- [ ] **D-05 fixed**: `test_security.py::TestRBAC::test_non_admin_cannot_*` all green.
+- [ ] **D-01 fixed**: over-decrement raises instead of clamping.
+- [ ] **D-06 fixed**: adjust / transition / reservation-transition wrapped in `transaction.atomic`.
+- [ ] **D-07 fixed**: AuditLog rows present for each mutation type (test verified).
+- [ ] **D-10 fixed**: `sweep_expired_reservations` command exists, wired to management commands.
+- [ ] `pytest inventory/tests` green with **≥ 88 %** line coverage.
+- [ ] `bandit -r inventory/` → 0 High/Critical.
+- [ ] Manual smoke: create → reserve → confirm → receive → adjust → release → recalculate valuation.
 
 ---
 
 ## 8. Summary
 
-The Purchase Order module is feature-complete and follows NavIMS conventions for multi-tenancy, CRUD, filter retention, and status-badge rendering. However, the module ships with **zero test coverage** and contains **one Critical** and **four High-severity** defects that compromise the integrity of the approval workflow and expose a data-exfiltration vector via dispatch.
+The Inventory Tracking & Control module is broad (4 sub-modules, 8 models, 18 views) and feature-complete, but it ships with **zero test coverage** and contains **one Critical** + **five High** defects that compromise financial correctness, data integrity, and authorisation. The most severe:
 
-### Top 5 defects (priority order)
+### Top 5 defects
 
-1. **D-01 (Critical)** — Rejected POs can never be re-approved because stale rejection records survive resubmission. **Workflow-breaking.** Fix: clear approvals on submit.
-2. **D-02 (High)** — No RBAC; any authenticated tenant user can approve, dispatch, cancel, and delete. Fix: add `@tenant_admin_required` / RBAC gate.
-3. **D-03 (High)** — PO creators can approve their own POs (SOD violation). Fix: block `request.user == po.created_by` in approve view.
-4. **D-04 (High)** — PO dispatch accepts arbitrary external recipients → data-exfiltration. Fix: pin recipient to `vendor.email` or allow-list.
-5. **D-08 (Medium-High)** — PO-number race condition risks `IntegrityError` at scale. Fix: atomic sequence generation.
+1. **D-04 (Critical)** — FIFO / LIFO / Weighted-Average all compute the same unit_cost. Every financial report built on `InventoryValuation` is wrong if config is not `weighted_avg`. Fix requires reworking the valuation algorithm around layer-consumption semantics.
+2. **D-02 (High)** — `StockStatusTransition.apply_transition` fabricates inventory: a transition from a non-existent or under-stocked source silently creates/zeros the source and credits the target the full requested amount. Shell-confirmed `active += 50` from thin air.
+3. **D-03 (High)** — Reservations accept quantities far exceeding available stock. No validator ever checks `quantity ≤ StockLevel.available`. Shell-confirmed RES record of 9999 units against available=0.
+4. **D-05 (High)** — No RBAC anywhere in the module. Non-admin users can adjust stock, transition status, recalculate valuation, and cancel reservations. Fraud / sabotage vector.
+5. **D-01 (High)** — `apply_adjustment` silently clamps over-decrements to zero, masking theft / data errors and producing false on-hand readings.
 
-### Test automation gap
+### Test-automation gap
 
-Adopting the scaffolded suite in §5 (≈ 80 tests across 9 files) raises coverage from 0 % to a projected ≥ 88 % line coverage and, importantly, locks in regressions for every fix above.
+Adopting the scaffolded suite in §5 (≈ 70-80 tests across 9 files) raises coverage from 0 % to a projected ≥ 88 % line coverage and locks the five headline defects behind failing-today regressions that will go green as each fix lands.
 
 ### Recommended follow-ups
 
-- **"Fix the defects"** — implement D-01 through D-06, D-12 (AuditLog), D-15 (timeline), and D-18 (delivery date) first; scaffold `purchase_orders/tests/` with the §5 snippets.
-- **"Build the automation"** — create the 9 test files listed in §5.2, update [pytest.ini](../pytest.ini) `testpaths`, wire into CI.
-- **"Manual verification"** — walk through TRN-07, DSP-03, APP-06, APP-07 manually against `runserver` to confirm remediation.
+- **"Fix the defects"** — prioritise D-04, D-02, D-03, D-05, D-01, D-06, then D-07/D-08/D-10/D-12.
+- **"Build the automation"** — scaffold `inventory/tests/` with the §5 snippets, update [pytest.ini](../pytest.ini), wire into CI, run until green.
+- **"Manual verification"** — reproduce VAL-04, SS-03, RES-02, RBAC-001 against `runserver` to confirm remediation.
 
 ---
 
