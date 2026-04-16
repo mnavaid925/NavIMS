@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">{{ title }}</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'forecasting:forecast_list' %}">Forecasts</a></li>
+                    <li class="breadcrumb-item active">{% if forecast %}Edit{% else %}Create{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Forecast Details</h5></div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        {{ form.name }}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Product <span class="text-danger">*</span></label>
+                            {{ form.product }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Warehouse <span class="text-danger">*</span></label>
+                            {{ form.warehouse }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Forecasting Method <span class="text-danger">*</span></label>
+                            {{ form.method }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Period Type <span class="text-danger">*</span></label>
+                            {{ form.period_type }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">History Periods <span class="text-danger">*</span></label>
+                            {{ form.history_periods }}
+                            <small class="text-muted">Number of past periods used for calculation.</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Forecast Periods <span class="text-danger">*</span></label>
+                            {{ form.forecast_periods }}
+                            <small class="text-muted">Future periods to project.</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Confidence %</label>
+                            {{ form.confidence_pct }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Seasonality Profile</label>
+                            {{ form.seasonality_profile }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status <span class="text-danger">*</span></label>
+                            {{ form.status }}
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if forecast %}Update Forecast{% else %}Create Forecast{% endif %}</button>
+                        <a href="{% url 'forecasting:forecast_list' %}" class="btn btn-light">Cancel</a>
+                    </div>
+                    {% if not forecast %}
+                    <hr>
+                    <p class="small text-muted mb-0"><i class="ri-information-line me-1"></i>After creating the forecast, run "Generate Forecast" to pull historical demand and compute future projections.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
