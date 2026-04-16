@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Demand Forecasts{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Demand Forecasts</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Forecasting & Planning</a></li>
+                    <li class="breadcrumb-item active">Demand Forecasts</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">All Forecasts</h5>
+                <a href="{% url 'forecasting:forecast_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>New Forecast</a>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="search-box">
+                            <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by forecast # / product...">
+                            <i class="ri-search-line search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="status" onchange="this.form.submit()">
+                            <option value="">All Statuses</option>
+                            {% for v, l in status_choices %}<option value="{{ v }}" {% if current_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="method" onchange="this.form.submit()">
+                            <option value="">All Methods</option>
+                            {% for v, l in method_choices %}<option value="{{ v }}" {% if current_method == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="warehouse" onchange="this.form.submit()">
+                            <option value="">All Warehouses</option>
+                            {% for w in warehouses %}<option value="{{ w.pk }}" {% if current_warehouse == w.pk|stringformat:"d" %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'forecasting:forecast_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+                        <thead class="text-muted table-light">
+                            <tr>
+                                <th>Forecast #</th>
+                                <th>Name</th>
+                                <th>Product</th>
+                                <th>Warehouse</th>
+                                <th>Method</th>
+                                <th>Period</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in forecasts %}
+                            <tr>
+                                <td><a href="{% url 'forecasting:forecast_detail' f.pk %}" class="fw-medium text-primary">{{ f.forecast_number }}</a></td>
+                                <td>{{ f.name }}</td>
+                                <td>{{ f.product.name }}</td>
+                                <td>{{ f.warehouse.name }}</td>
+                                <td><span class="badge bg-info-subtle text-info">{{ f.get_method_display }}</span></td>
+                                <td>{{ f.get_period_type_display }}</td>
+                                <td>
+                                    {% if f.status == 'draft' %}<span class="badge bg-secondary-subtle text-secondary">Draft</span>
+                                    {% elif f.status == 'approved' %}<span class="badge bg-success-subtle text-success">Approved</span>
+                                    {% elif f.status == 'archived' %}<span class="badge bg-dark-subtle text-dark">Archived</span>
+                                    {% else %}<span class="badge bg-light">{{ f.get_status_display }}</span>{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{% url 'forecasting:forecast_detail' f.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                                        <a href="{% url 'forecasting:forecast_edit' f.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                                        <form method="post" action="{% url 'forecasting:forecast_delete' f.pk %}" class="d-inline" onsubmit="return confirm('Delete forecast {{ f.forecast_number }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="8" class="text-center py-4 text-muted"><i class="ri-line-chart-line fs-24 d-block mb-2"></i>No forecasts found</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if forecasts.has_other_pages %}
+                <div class="d-flex justify-content-end mt-4">
+                    <nav><ul class="pagination pagination-sm mb-0">
+                        {% if forecasts.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ forecasts.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in forecasts.paginator.page_range %}<li class="page-item {% if forecasts.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+                        {% if forecasts.has_next %}<li class="page-item"><a class="page-link" href="?page={{ forecasts.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                    </ul></nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
