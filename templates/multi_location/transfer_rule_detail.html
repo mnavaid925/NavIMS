@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Transfer Rule{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Transfer Rule</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'multi_location:transfer_rule_list' %}">Transfer Rules</a></li>
+                    <li class="breadcrumb-item active">#{{ rule.pk }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Rule Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Source:</strong> <a href="{% url 'multi_location:location_detail' rule.source_location.pk %}">{{ rule.source_location.name }}</a></p>
+                        <p class="mb-1"><strong>Destination:</strong> <a href="{% url 'multi_location:location_detail' rule.destination_location.pk %}">{{ rule.destination_location.name }}</a></p>
+                        <p class="mb-1"><strong>Allowed:</strong> {% if rule.allowed %}<span class="badge bg-success-subtle text-success">Yes</span>{% else %}<span class="badge bg-danger-subtle text-danger">No</span>{% endif %}</p>
+                        <p class="mb-1"><strong>Priority:</strong> {{ rule.priority }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Max Transfer Qty:</strong> {% if rule.max_transfer_qty %}{{ rule.max_transfer_qty }}{% else %}<span class="text-muted">Unlimited</span>{% endif %}</p>
+                        <p class="mb-1"><strong>Lead Time:</strong> {{ rule.lead_time_days }} day{{ rule.lead_time_days|pluralize }}</p>
+                        <p class="mb-1"><strong>Requires Approval:</strong> {% if rule.requires_approval %}Yes{% else %}No{% endif %}</p>
+                        <p class="mb-1"><strong>Status:</strong> {% if rule.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</p>
+                    </div>
+                </div>
+                {% if rule.notes %}<p class="mb-0 mt-2"><strong>Notes:</strong> {{ rule.notes }}</p>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'multi_location:transfer_rule_edit' rule.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+                    <form method="post" action="{% url 'multi_location:transfer_rule_delete' rule.pk %}" onsubmit="return confirm('Delete?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+                    <a href="{% url 'multi_location:transfer_rule_list' %}" class="btn btn-light">Back to List</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
