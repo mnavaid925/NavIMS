@@ -75,6 +75,16 @@ Here is the text extracted from the image:
 git add 'src/file.js'
 git commit -m 'some example changes'.
 
+**Shell Compatibility (CRITICAL — user runs PowerShell on Windows):**
+
+* The user's shell is **Windows PowerShell (5.x)** — `&&` is NOT a valid statement separator and WILL fail with `ParserError`.
+* When combining commands on one line, use `;` as the separator, NEVER `&&`.
+* When providing "all commits in one copy" / "single copy" / bulk-commit output, ALWAYS output in PowerShell-compatible form:
+  * ✅ Correct: `git add 'file.py'; git commit -m 'msg'`
+  * ❌ Wrong:  `git add 'file.py' && git commit -m 'msg'`
+* Default to PowerShell-safe syntax for ALL shell snippets intended for the user to run directly (not just git).
+* Note: `;` runs the next command even if the first fails. If stop-on-failure is required, output commands on separate lines instead of chaining.
+
 ---
 
 ### Filter Implementation Rules (Preventing Recurring Issues)
