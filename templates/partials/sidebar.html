@@ -403,6 +403,78 @@
                 </ul>
             </li>
 
+            <!-- Module 13: Multi-Location Management -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-building-2-line"></i>
+                    <span class="menu-text">Multi-Location</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'multi_location:location_list' %}">
+                            <span class="menu-text">Locations</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'multi_location:stock_visibility' %}">
+                            <span class="menu-text">Global Stock Visibility</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'multi_location:pricing_rule_list' %}">
+                            <span class="menu-text">Pricing Rules</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'multi_location:transfer_rule_list' %}">
+                            <span class="menu-text">Transfer Rules</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'multi_location:safety_stock_rule_list' %}">
+                            <span class="menu-text">Safety Stock Rules</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- Module 14: Inventory Forecasting & Planning -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-line-chart-line"></i>
+                    <span class="menu-text">Forecasting & Planning</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'forecasting:forecast_list' %}">
+                            <span class="menu-text">Demand Forecasts</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'forecasting:rop_list' %}">
+                            <span class="menu-text">Reorder Points</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'forecasting:alert_list' %}">
+                            <span class="menu-text">Reorder Alerts</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'forecasting:safety_stock_list' %}">
+                            <span class="menu-text">Safety Stock</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'forecasting:profile_list' %}">
+                            <span class="menu-text">Seasonality Profiles</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
             <!-- Module 8: Lot & Serial Number Tracking -->
             <li class="nav-item has-submenu">
                 <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
