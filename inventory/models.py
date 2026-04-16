@@ -121,7 +121,13 @@ class StockAdjustment(models.Model):
         if self.adjustment_type == 'increase':
             sl.on_hand += self.quantity
         elif self.adjustment_type == 'decrease':
-            sl.on_hand = max(sl.on_hand - self.quantity, 0)
+            if self.quantity > sl.on_hand:
+                # D-01: form guards against this, but the model is the last
+                # line of defence. Surface as ValueError rather than silent clamp.
+                raise ValueError(
+                    f'Cannot decrease {self.quantity}: only {sl.on_hand} on hand.'
+                )
+            sl.on_hand -= self.quantity
         elif self.adjustment_type == 'correction':
             sl.on_hand = self.quantity
         sl.save()
@@ -228,14 +234,27 @@ class StockStatusTransition(models.Model):
         return f'SST-{num:05d}'
 
     def apply_transition(self):
-        source, _ = StockStatus.objects.get_or_create(
-            tenant=self.tenant,
-            product=self.product,
-            warehouse=self.warehouse,
-            status=self.from_status,
-            defaults={'quantity': 0},
-        )
-        source.quantity = max(source.quantity - self.quantity, 0)
+        # D-02: require an existing source bucket with enough quantity — no
+        # more phantom-creating source StockStatus rows at 0 qty. The form
+        # is the first line of defence; this is the model-level backstop.
+        try:
+            source = StockStatus.objects.get(
+                tenant=self.tenant,
+                product=self.product,
+                warehouse=self.warehouse,
+                status=self.from_status,
+            )
+        except StockStatus.DoesNotExist:
+            raise ValueError(
+                f'No {self.from_status} inventory exists for '
+                f'{self.product.sku} at {self.warehouse.code}.'
+            )
+        if self.quantity > source.quantity:
+            raise ValueError(
+                f'Cannot transition {self.quantity}: only {source.quantity} '
+                f'in {self.from_status} at {self.warehouse.code}.'
+            )
+        source.quantity -= self.quantity
         source.save()
 
         target, _ = StockStatus.objects.get_or_create(
