@@ -216,6 +216,7 @@
         this._handleMobileInit();
         this._highlightActiveItem();
         this._collapseInactiveSections();
+        this._autoCollapseMenuSections();
     };
 
     Sidebar.prototype._createOverlay = function () {
@@ -383,6 +384,22 @@
         openItems.forEach(function (item) {
             if (!item.querySelector(".menu-link.active")) {
                 self._collapseItem(item);
+            }
+        });
+    };
+
+    Sidebar.prototype._autoCollapseMenuSections = function () {
+        // On page load, collapse every top-level section except the one
+        // containing the currently-active link.
+        var self = this;
+        var titles = this._menuEl.querySelectorAll(".menu-title[data-toggle='section']");
+        titles.forEach(function (title) {
+            var items = self._getSectionItems(title);
+            var hasActive = items.some(function (item) {
+                return item.querySelector(".menu-link.active");
+            });
+            if (!hasActive) {
+                self._collapseSection(title, items);
             }
         });
     };
