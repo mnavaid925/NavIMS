@@ -1,5 +1,21 @@
+from datetime import date
+
 from django import forms
+from django.core.exceptions import ValidationError
+
 from .models import Vendor, VendorPerformance, VendorContract, VendorCommunication
+
+
+# File upload constraints for VendorContract.document (D-06)
+CONTRACT_DOCUMENT_ALLOWED_EXTENSIONS = {
+    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg',
+}
+CONTRACT_DOCUMENT_BLOCKED_CONTENT_TYPES = {
+    'image/svg+xml', 'application/x-msdownload', 'application/x-sh',
+    'application/x-executable', 'application/x-dosexec',
+    'text/html', 'application/javascript', 'application/x-javascript',
+}
+CONTRACT_DOCUMENT_MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 class VendorForm(forms.ModelForm):
@@ -94,6 +110,19 @@ class VendorForm(forms.ModelForm):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
 
+    def clean_company_name(self):
+        # D-01: unique_together(tenant, company_name) cannot be enforced by
+        # Django's default validate_unique because 'tenant' is not a form field.
+        name = (self.cleaned_data.get('company_name') or '').strip()
+        if not name or self.tenant is None:
+            return name
+        qs = Vendor.objects.filter(tenant=self.tenant, company_name__iexact=name)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError('A vendor with this company name already exists for this tenant.')
+        return name
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.tenant:
@@ -163,6 +192,13 @@ class VendorPerformanceForm(forms.ModelForm):
         if tenant:
             self.fields['vendor'].queryset = Vendor.objects.filter(tenant=tenant, is_active=True)
             self.fields['vendor'].empty_label = '— Select Vendor —'
+
+    def clean_review_date(self):
+        # D-05: review_date cannot be in the future (a review is for work already done).
+        value = self.cleaned_data.get('review_date')
+        if value and value > date.today():
+            raise ValidationError('Review date cannot be in the future.')
+        return value
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -239,6 +275,50 @@ class VendorContractForm(forms.ModelForm):
         if tenant:
             self.fields['vendor'].queryset = Vendor.objects.filter(tenant=tenant, is_active=True)
             self.fields['vendor'].empty_label = '— Select Vendor —'
+
+    def clean_contract_number(self):
+        # D-02: unique_together(tenant, contract_number) trap — same pattern as D-01.
+        number = (self.cleaned_data.get('contract_number') or '').strip()
+        if not number or self.tenant is None:
+            return number
+        qs = VendorContract.objects.filter(tenant=self.tenant, contract_number__iexact=number)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError('A contract with this number already exists for this tenant.')
+        return number
+
+    def clean_document(self):
+        # D-06: whitelist extensions, cap size, block dangerous content types.
+        doc = self.cleaned_data.get('document')
+        if not doc:
+            return doc
+        name = getattr(doc, 'name', '') or ''
+        ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+        if ext not in CONTRACT_DOCUMENT_ALLOWED_EXTENSIONS:
+            raise ValidationError(
+                f'File type ".{ext}" is not allowed. Allowed types: '
+                f'{", ".join(sorted(CONTRACT_DOCUMENT_ALLOWED_EXTENSIONS))}.'
+            )
+        content_type = getattr(doc, 'content_type', '') or ''
+        if content_type.lower() in CONTRACT_DOCUMENT_BLOCKED_CONTENT_TYPES:
+            raise ValidationError(f'Content type "{content_type}" is not allowed.')
+        size = getattr(doc, 'size', 0) or 0
+        if size > CONTRACT_DOCUMENT_MAX_SIZE:
+            raise ValidationError(
+                f'File is too large ({size // 1024 // 1024} MB). '
+                f'Maximum allowed size is {CONTRACT_DOCUMENT_MAX_SIZE // 1024 // 1024} MB.'
+            )
+        return doc
+
+    def clean(self):
+        # D-03: end_date must be after start_date when both provided.
+        cleaned = super().clean()
+        start = cleaned.get('start_date')
+        end = cleaned.get('end_date')
+        if start and end and end <= start:
+            raise ValidationError({'end_date': 'End date must be after the start date.'})
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
