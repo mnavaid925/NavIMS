@@ -21,3 +21,10 @@
 **What happened:** Forgot to create `__init__.py` files when creating `management/commands/` directory structure.
 **Root cause:** Created directory with `mkdir` but forgot Django requires `__init__.py` for package discovery.
 **Rule:** Always create both `management/__init__.py` and `management/commands/__init__.py`. Added to CLAUDE.md under "Seed Command Rules".
+
+## 2026-04-17 — Forecasting Module Build
+
+### Issue 5: Used `&&` in Shell Commands — PowerShell ParserError
+**What happened:** When user asked for all git commits in one copy, output used `&&` to chain `git add` + `git commit`. User ran them and got `The token '&&' is not a valid statement separator in this version` because they're on Windows PowerShell 5.x.
+**Root cause:** Defaulted to bash/POSIX syntax without considering the user runs commands in PowerShell on Windows. PowerShell 5 requires `;` as statement separator; `&&` only works in PowerShell 7+.
+**Rule:** ALWAYS use `;` (not `&&`) when chaining commands for the user to run. Applies to git bulk-commit lists and any other shell snippets. If stop-on-failure is required, put commands on separate lines instead of chaining. Added to CLAUDE.md under "GIT Commit Rule → Shell Compatibility".
