@@ -32,6 +32,20 @@ class StocktakeFreezeForm(forms.ModelForm):
             self.fields['zones'].queryset = Zone.objects.filter(tenant=tenant)
             self.fields['zones'].required = False
 
+    def clean(self):
+        # D-13 — every zone must belong to the selected warehouse.
+        cleaned = super().clean()
+        warehouse = cleaned.get('warehouse')
+        zones = cleaned.get('zones')
+        if warehouse and zones:
+            bad = [z for z in zones if z.warehouse_id != warehouse.pk]
+            if bad:
+                names = ', '.join(z.name for z in bad)
+                raise forms.ValidationError(
+                    f'Zone(s) {names} do not belong to warehouse {warehouse.name}.',
+                )
+        return cleaned
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.tenant:
@@ -69,6 +83,20 @@ class CycleCountScheduleForm(forms.ModelForm):
             self.fields['warehouse'].empty_label = '— Select Warehouse —'
             self.fields['zones'].queryset = Zone.objects.filter(tenant=tenant)
             self.fields['zones'].required = False
+
+    def clean(self):
+        # D-13 — every zone must belong to the selected warehouse.
+        cleaned = super().clean()
+        warehouse = cleaned.get('warehouse')
+        zones = cleaned.get('zones')
+        if warehouse and zones:
+            bad = [z for z in zones if z.warehouse_id != warehouse.pk]
+            if bad:
+                names = ', '.join(z.name for z in bad)
+                raise forms.ValidationError(
+                    f'Zone(s) {names} do not belong to warehouse {warehouse.name}.',
+                )
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -122,6 +150,17 @@ class StockCountForm(forms.ModelForm):
             self.fields['assigned_to'].queryset = User.objects.filter(tenant=tenant)
             self.fields['assigned_to'].empty_label = '— Assign Counter —'
             self.fields['assigned_to'].required = False
+
+    def clean(self):
+        # D-13 — zone (if selected) must belong to the chosen warehouse.
+        cleaned = super().clean()
+        warehouse = cleaned.get('warehouse')
+        zone = cleaned.get('zone')
+        if warehouse and zone and zone.warehouse_id != warehouse.pk:
+            raise forms.ValidationError(
+                f'Zone {zone.name} does not belong to warehouse {warehouse.name}.',
+            )
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
