@@ -101,6 +101,39 @@ class TestStockCountItemCountForm:
 
 
 @pytest.mark.django_db
+class TestD13ZoneWarehouseCrossValidation:
+    """D-13 regression — a zone attached to warehouse A must be rejected
+    when the form's warehouse is B."""
+    def test_stock_count_zone_from_wrong_warehouse_rejected(
+        self, tenant,
+    ):
+        from warehousing.models import Warehouse, Zone
+        wh_a = Warehouse.objects.create(tenant=tenant, code='WHA', name='A', is_active=True)
+        wh_b = Warehouse.objects.create(tenant=tenant, code='WHB', name='B', is_active=True)
+        zone_b = Zone.objects.create(tenant=tenant, warehouse=wh_b, code='Z1', name='Z1')
+
+        form = StockCountForm({
+            'type': 'cycle', 'warehouse': wh_a.pk, 'zone': zone_b.pk,
+            'scheduled_date': '2026-04-18',
+        }, tenant=tenant)
+        assert not form.is_valid(), 'Zone from wrong warehouse must be rejected.'
+
+    def test_schedule_zones_from_wrong_warehouse_rejected(
+        self, tenant,
+    ):
+        from warehousing.models import Warehouse, Zone
+        wh_a = Warehouse.objects.create(tenant=tenant, code='WHA', name='A', is_active=True)
+        wh_b = Warehouse.objects.create(tenant=tenant, code='WHB', name='B', is_active=True)
+        zone_b = Zone.objects.create(tenant=tenant, warehouse=wh_b, code='Z1', name='Z1')
+
+        form = CycleCountScheduleForm({
+            'name': 'x', 'frequency': 'weekly', 'abc_class': 'a',
+            'warehouse': wh_a.pk, 'zones': [zone_b.pk],
+        }, tenant=tenant)
+        assert not form.is_valid()
+
+
+@pytest.mark.django_db
 class TestStockVarianceAdjustmentForm:
     def test_queryset_limited_to_counted_or_reviewed(
         self, tenant, warehouse,
