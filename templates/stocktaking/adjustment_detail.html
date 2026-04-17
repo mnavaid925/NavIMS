@@ -33,7 +33,7 @@
                     <div class="col-md-6">
                         <p class="mb-1"><strong>Variance Qty:</strong> {{ adjustment.total_variance_qty }}</p>
                         <p class="mb-1"><strong>Variance Value:</strong> <span class="fs-5">{{ adjustment.total_variance_value }}</span></p>
-                        <p class="mb-1"><strong>Approved By:</strong> {{ adjustment.approved_by.get_full_name|default:adjustment.approved_by.username|default:"—" }}</p>
+                        <p class="mb-1"><strong>Approved By:</strong> {% if adjustment.approved_by %}{{ adjustment.approved_by.get_full_name|default:adjustment.approved_by.username }}{% else %}—{% endif %}</p>
                         <p class="mb-1"><strong>Posted:</strong> {{ adjustment.posted_at|date:"M d, Y H:i"|default:"—" }}</p>
                     </div>
                 </div>
