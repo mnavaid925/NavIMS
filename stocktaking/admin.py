@@ -5,6 +5,10 @@ from .models import (
     StockCount, StockCountItem, StockVarianceAdjustment,
 )
 
+# D-21 — Django admin here is deliberately cross-tenant for superuser
+# troubleshooting. Non-superuser access is governed by `is_staff`; tenant
+# admins use the app's own views, which filter by `request.tenant`.
+
 
 @admin.register(StocktakeFreeze)
 class StocktakeFreezeAdmin(admin.ModelAdmin):
