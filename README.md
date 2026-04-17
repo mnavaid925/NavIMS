@@ -533,7 +533,8 @@ Reference implementation: [receiving/tests/](./receiving/tests/) and [stock_move
 | inventory         | 90    | Stock levels, adjustments, status transitions, valuation, reservations |
 | stock_movements   | 69    | Transfers (inter/intra), approvals, routes, receive flow |
 | lot_tracking      | 115   | Lot/batch, serials, expiry alerts, traceability, idempotent alert-generation command |
-| **Total**         | **642** | |
+| orders            | 83    | Sales orders, pick/pack/ship, waves, carriers — cross-tenant IDOR on inline formsets, state-machine integrity, delivery deduction, audit-log + RBAC gates |
+| **Total**         | **725** | |
 
 Run `pytest` at the project root to execute all modules in one pass (~25 s on a warm cache).
 
