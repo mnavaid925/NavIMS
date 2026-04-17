@@ -85,16 +85,32 @@ class TestRMACreateEdit:
 
 
 class TestRMADelete:
-    def test_delete_draft_rma_works(self, client_admin, draft_rma):
+    def test_delete_draft_rma_soft_deletes(self, client_admin, draft_rma):
+        """D-15: delete sets deleted_at instead of hard-deleting the row."""
         resp = client_admin.post(reverse('returns:rma_delete', args=[draft_rma.pk]))
         assert resp.status_code == 302
-        assert not ReturnAuthorization.objects.filter(pk=draft_rma.pk).exists()
+        draft_rma.refresh_from_db()
+        assert draft_rma.deleted_at is not None
+
+    def test_delete_hides_rma_from_list_and_detail(self, client_admin, draft_rma):
+        """D-15: soft-deleted RMA is invisible through user-facing surface."""
+        post_resp = client_admin.post(reverse('returns:rma_delete', args=[draft_rma.pk]))
+        assert post_resp.status_code == 302
+        draft_rma.refresh_from_db()
+        assert draft_rma.deleted_at is not None, 'delete view did not set deleted_at'
+        list_resp = client_admin.get(reverse('returns:rma_list'))
+        assert list_resp.context['rmas'].paginator.count == 0, (
+            'soft-deleted RMA must not appear in the list queryset'
+        )
+        detail_resp = client_admin.get(reverse('returns:rma_detail', args=[draft_rma.pk]))
+        assert detail_resp.status_code == 404
 
     def test_delete_non_draft_blocked(self, client_admin, approved_rma):
         """D-16: only draft RMAs can be deleted."""
         resp = client_admin.post(reverse('returns:rma_delete', args=[approved_rma.pk]))
         assert resp.status_code == 302
-        assert ReturnAuthorization.objects.filter(pk=approved_rma.pk).exists()
+        approved_rma.refresh_from_db()
+        assert approved_rma.deleted_at is None
 
     def test_delete_with_processed_refund_blocked(self, client_admin, tenant, received_rma):
         """D-19: cannot delete RMA with processed refunds."""
@@ -107,7 +123,8 @@ class TestRMADelete:
         received_rma.save()
         resp = client_admin.post(reverse('returns:rma_delete', args=[received_rma.pk]))
         assert resp.status_code == 302
-        assert ReturnAuthorization.objects.filter(pk=received_rma.pk).exists()
+        received_rma.refresh_from_db()
+        assert received_rma.deleted_at is None
 
 
 class TestRMATransitions:
