@@ -1,8 +1,14 @@
+from datetime import timedelta
+from decimal import Decimal
+
 from django import forms
+from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
+from django.utils import timezone
 
 from catalog.models import Product
 from warehousing.models import Warehouse, Bin
+from core.forms import TenantUniqueCodeMixin
 from core.models import User
 from .models import (
     SalesOrder, SalesOrderItem, PickList, PickListItem,
@@ -76,6 +82,17 @@ class SalesOrderForm(forms.ModelForm):
             )
             self.fields['warehouse'].empty_label = '— Select Warehouse —'
 
+    def clean(self):
+        cleaned = super().clean()
+        order_date = cleaned.get('order_date')
+        required_date = cleaned.get('required_date')
+        if order_date and required_date and required_date < order_date:
+            self.add_error(
+                'required_date',
+                'Required delivery date cannot be earlier than order date.',
+            )
+        return cleaned
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.tenant:
@@ -122,6 +139,41 @@ class SalesOrderItemForm(forms.ModelForm):
                 'placeholder': '0.00',
             }),
         }
+
+    def __init__(self, *args, tenant=None, **kwargs):
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant is not None:
+            self.fields['product'].queryset = Product.objects.filter(
+                tenant=tenant, status='active',
+            )
+            self.fields['product'].empty_label = '— Select Product —'
+
+    def clean_quantity(self):
+        value = self.cleaned_data.get('quantity')
+        if value is not None and value < 1:
+            raise ValidationError('Quantity must be at least 1.')
+        return value
+
+    def clean_unit_price(self):
+        value = self.cleaned_data.get('unit_price')
+        if value is not None and value < Decimal('0'):
+            raise ValidationError('Unit price cannot be negative.')
+        return value
+
+    def clean_tax_rate(self):
+        value = self.cleaned_data.get('tax_rate')
+        if value is None:
+            return value
+        if value < Decimal('0') or value > Decimal('100'):
+            raise ValidationError('Tax rate must be between 0 and 100.')
+        return value
+
+    def clean_discount(self):
+        value = self.cleaned_data.get('discount')
+        if value is not None and value < Decimal('0'):
+            raise ValidationError('Discount cannot be negative.')
+        return value
 
 
 SalesOrderItemFormSet = inlineformset_factory(
@@ -200,6 +252,31 @@ class PickListItemForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, tenant=None, **kwargs):
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant is not None:
+            self.fields['product'].queryset = Product.objects.filter(
+                tenant=tenant, status='active',
+            )
+            self.fields['product'].empty_label = '— Select Product —'
+            self.fields['bin_location'].queryset = Bin.objects.filter(
+                tenant=tenant, is_active=True,
+            )
+            self.fields['bin_location'].empty_label = '— Select Bin (optional) —'
+            self.fields['bin_location'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        ordered = cleaned.get('ordered_quantity') or 0
+        picked = cleaned.get('picked_quantity') or 0
+        if picked > ordered:
+            self.add_error(
+                'picked_quantity',
+                'Picked quantity cannot exceed ordered quantity.',
+            )
+        return cleaned
+
 
 PickListItemFormSet = inlineformset_factory(
     PickList,
@@ -220,7 +297,9 @@ class PickListAssignForm(forms.Form):
     def __init__(self, *args, tenant=None, **kwargs):
         super().__init__(*args, **kwargs)
         if tenant:
-            self.fields['assigned_to'].queryset = User.objects.filter(tenant=tenant)
+            self.fields['assigned_to'].queryset = User.objects.filter(
+                tenant=tenant, is_active=True,
+            )
 
 
 # ──────────────────────────────────────────────
@@ -383,6 +462,12 @@ class ShipmentTrackingForm(forms.ModelForm):
             }),
         }
 
+    def clean_event_date(self):
+        value = self.cleaned_data.get('event_date')
+        if value and value > timezone.now() + timedelta(days=1):
+            raise ValidationError('Event date cannot be in the future.')
+        return value
+
 
 # ──────────────────────────────────────────────
 # Wave Planning Forms
@@ -450,7 +535,9 @@ class WaveOrderSelectionForm(forms.Form):
 # Carrier & Shipping Rate Forms
 # ──────────────────────────────────────────────
 
-class CarrierForm(forms.ModelForm):
+class CarrierForm(TenantUniqueCodeMixin, forms.ModelForm):
+    tenant_unique_field = 'code'
+
     class Meta:
         model = Carrier
         fields = [
