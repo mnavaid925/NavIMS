@@ -2,9 +2,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Count, Q
 from django.utils import timezone
 
+from catalog.models import Product
 from warehousing.models import Warehouse
 from .models import (
     StockTransfer, StockTransferItem,
@@ -19,14 +21,85 @@ from .forms import (
 
 
 # ──────────────────────────────────────────────
+# Helpers
+# ──────────────────────────────────────────────
+
+def _parse_transfer_items(request, tenant):
+    """
+    D-01: tenant-scope every product reference posted via the parallel item
+    arrays. Returns (items, errors) where each item is a dict ready for
+    StockTransferItem.objects.create(...) and errors is a list of human-readable
+    messages. Skips empty rows.
+    """
+    product_ids = request.POST.getlist('item_product')
+    quantities = request.POST.getlist('item_quantity')
+    notes_list = request.POST.getlist('item_notes')
+
+    items = []
+    errors = []
+    valid_pks = set(
+        Product.objects.filter(tenant=tenant, pk__in=[
+            int(pid) for pid in product_ids if pid and pid.isdigit()
+        ]).values_list('pk', flat=True)
+    )
+
+    for i, raw_pid in enumerate(product_ids):
+        raw_qty = quantities[i] if i < len(quantities) else ''
+        if not raw_pid and not raw_qty:
+            continue
+        if not raw_pid or not raw_qty:
+            errors.append(f'Row {i + 1}: product and quantity are both required.')
+            continue
+        try:
+            pid = int(raw_pid)
+            qty = int(raw_qty)
+        except (TypeError, ValueError):
+            errors.append(f'Row {i + 1}: product and quantity must be numeric.')
+            continue
+        if qty < 1:
+            errors.append(f'Row {i + 1}: quantity must be at least 1.')
+            continue
+        if pid not in valid_pks:
+            errors.append(f'Row {i + 1}: product does not belong to your tenant.')
+            continue
+        items.append({
+            'product_id': pid,
+            'quantity': qty,
+            'notes': notes_list[i] if i < len(notes_list) else '',
+        })
+    return items, errors
+
+
+def _resolve_initial_status(tenant, item_count):
+    """
+    D-09: consult the smallest matching active TransferApprovalRule. If a rule
+    matches and requires_approval is True, start the transfer in
+    `pending_approval`; otherwise leave it as `draft`.
+    """
+    rule = (
+        TransferApprovalRule.objects
+        .filter(tenant=tenant, is_active=True, min_items__lte=item_count)
+        .filter(Q(max_items__isnull=True) | Q(max_items__gte=item_count))
+        .order_by('min_items')
+        .first()
+    )
+    if rule and rule.requires_approval:
+        return 'pending_approval'
+    return 'draft'
+
+
+# ──────────────────────────────────────────────
 # Sub-module 1 & 2: Stock Transfers
 # ──────────────────────────────────────────────
 
 @login_required
 def transfer_list_view(request):
     tenant = request.tenant
-    queryset = StockTransfer.objects.filter(tenant=tenant).select_related(
-        'source_warehouse', 'destination_warehouse', 'requested_by',
+    queryset = (
+        StockTransfer.objects.filter(tenant=tenant)
+        .select_related('source_warehouse', 'destination_warehouse', 'requested_by')
+        .annotate(_items_count=Count('items'))
+        .order_by('-created_at')
     )
 
     q = request.GET.get('q', '').strip()
@@ -76,30 +149,27 @@ def transfer_create_view(request):
 
     if request.method == 'POST':
         form = StockTransferForm(request.POST, tenant=tenant)
-        item_form = StockTransferItemForm(request.POST, tenant=tenant, prefix='item')
-        if form.is_valid():
-            transfer = form.save(commit=False)
-            transfer.tenant = tenant
-            transfer.requested_by = request.user
-            transfer.save()
-
-            # Handle multiple items from dynamic form
-            product_ids = request.POST.getlist('item_product')
-            quantities = request.POST.getlist('item_quantity')
-            item_notes_list = request.POST.getlist('item_notes')
-
-            for i in range(len(product_ids)):
-                if product_ids[i] and quantities[i]:
+        # D-01: parse + tenant-validate item rows BEFORE saving the transfer.
+        items, item_errors = _parse_transfer_items(request, tenant)
+        if form.is_valid() and not item_errors and items:
+            with transaction.atomic():
+                transfer = form.save(commit=False)
+                transfer.tenant = tenant
+                transfer.requested_by = request.user
+                # D-09: consult approval rules to choose initial status.
+                transfer.status = _resolve_initial_status(tenant, len(items))
+                transfer.save()
+                for it in items:
                     StockTransferItem.objects.create(
-                        tenant=tenant,
-                        transfer=transfer,
-                        product_id=int(product_ids[i]),
-                        quantity=int(quantities[i]),
-                        notes=item_notes_list[i] if i < len(item_notes_list) else '',
+                        tenant=tenant, transfer=transfer, **it,
                     )
-
             messages.success(request, f'Transfer {transfer.transfer_number} created successfully.')
             return redirect('stock_movements:transfer_detail', pk=transfer.pk)
+        for err in item_errors:
+            messages.error(request, err)
+        if form.is_valid() and not items and not item_errors:
+            messages.error(request, 'Add at least one item with a product and quantity.')
+        item_form = StockTransferItemForm(tenant=tenant, prefix='item')
     else:
         form = StockTransferForm(tenant=tenant)
         item_form = StockTransferItemForm(tenant=tenant, prefix='item')
@@ -147,27 +217,21 @@ def transfer_edit_view(request, pk):
 
     if request.method == 'POST':
         form = StockTransferForm(request.POST, instance=transfer, tenant=tenant)
-        if form.is_valid():
-            form.save()
-
-            # Clear and re-add items
-            transfer.items.all().delete()
-            product_ids = request.POST.getlist('item_product')
-            quantities = request.POST.getlist('item_quantity')
-            item_notes_list = request.POST.getlist('item_notes')
-
-            for i in range(len(product_ids)):
-                if product_ids[i] and quantities[i]:
+        items, item_errors = _parse_transfer_items(request, tenant)
+        if form.is_valid() and not item_errors and items:
+            with transaction.atomic():
+                form.save()
+                transfer.items.all().delete()
+                for it in items:
                     StockTransferItem.objects.create(
-                        tenant=tenant,
-                        transfer=transfer,
-                        product_id=int(product_ids[i]),
-                        quantity=int(quantities[i]),
-                        notes=item_notes_list[i] if i < len(item_notes_list) else '',
+                        tenant=tenant, transfer=transfer, **it,
                     )
-
             messages.success(request, f'Transfer {transfer.transfer_number} updated successfully.')
             return redirect('stock_movements:transfer_detail', pk=transfer.pk)
+        for err in item_errors:
+            messages.error(request, err)
+        if form.is_valid() and not items and not item_errors:
+            messages.error(request, 'Add at least one item with a product and quantity.')
     else:
         form = StockTransferForm(instance=transfer, tenant=tenant)
 
@@ -213,9 +277,28 @@ def transfer_transition_view(request, pk, new_status):
         messages.error(request, f'Cannot transition from {transfer.get_status_display()} to {new_status}.')
         return redirect('stock_movements:transfer_detail', pk=transfer.pk)
 
-    old_status = transfer.status
-    transfer.status = new_status
+    # D-05: requester cannot approve their own transfer.
+    if new_status == 'approved' and transfer.requested_by_id == request.user.id:
+        messages.error(request, 'You cannot approve a transfer you requested.')
+        return redirect('stock_movements:transfer_detail', pk=transfer.pk)
 
+    # D-03: refuse to complete when any item is short-received. Previously the
+    # code force-overwrote received_quantity = quantity, silently destroying
+    # partial-receipt data. Direct the user through the receive flow instead.
+    if new_status == 'completed':
+        short_items = [
+            it for it in transfer.items.all()
+            if it.received_quantity < it.quantity
+        ]
+        if short_items:
+            messages.error(
+                request,
+                f'Cannot complete: {len(short_items)} item(s) are still short-received. '
+                'Use the Receive form to record the remaining quantities.',
+            )
+            return redirect('stock_movements:transfer_detail', pk=transfer.pk)
+
+    transfer.status = new_status
     if new_status == 'approved':
         transfer.approved_by = request.user
         transfer.approved_at = timezone.now()
@@ -223,12 +306,6 @@ def transfer_transition_view(request, pk, new_status):
         transfer.shipped_at = timezone.now()
     elif new_status == 'completed':
         transfer.completed_at = timezone.now()
-        # Mark all items as fully received if not already
-        for item in transfer.items.all():
-            if item.received_quantity < item.quantity:
-                item.received_quantity = item.quantity
-                item.save()
-
     transfer.save()
 
     messages.success(request, f'Transfer status changed to {transfer.get_status_display()}.')
@@ -245,32 +322,54 @@ def transfer_receive_view(request, pk):
         return redirect('stock_movements:transfer_detail', pk=transfer.pk)
 
     if request.method == 'POST':
-        items = transfer.items.all()
+        # D-06: validate every input before persisting; surface field-level
+        # errors instead of silently swallowing ValueError or out-of-range qty.
+        items = list(transfer.items.select_related('product'))
+        errors = {}
+        parsed = {}
         for item in items:
-            qty_key = f'received_qty_{item.pk}'
-            received = request.POST.get(qty_key, '')
-            if received:
-                try:
-                    received_qty = int(received)
-                    if 0 <= received_qty <= item.quantity:
-                        item.received_quantity = received_qty
-                        item.save()
-                except (ValueError, TypeError):
-                    pass
+            raw = request.POST.get(f'received_qty_{item.pk}', '').strip()
+            if raw == '':
+                continue
+            try:
+                qty = int(raw)
+            except (ValueError, TypeError):
+                errors[item.pk] = f'"{raw}" is not a whole number.'
+                continue
+            if qty < 0:
+                errors[item.pk] = 'Received quantity cannot be negative.'
+                continue
+            if qty > item.quantity:
+                errors[item.pk] = (
+                    f'Received quantity ({qty}) exceeds transfer quantity ({item.quantity}).'
+                )
+                continue
+            parsed[item.pk] = qty
 
-        # Check if all items fully received
-        all_received = all(
-            item.received_quantity >= item.quantity
-            for item in transfer.items.all()
-        )
-        if all_received:
-            transfer.status = 'completed'
-            transfer.completed_at = timezone.now()
-            transfer.save()
-            messages.success(request, f'Transfer {transfer.transfer_number} fully received and completed.')
-        else:
-            messages.success(request, f'Received quantities updated for {transfer.transfer_number}.')
+        if errors:
+            for msg in errors.values():
+                messages.error(request, msg)
+            context = {'transfer': transfer, 'items': items, 'errors': errors}
+            return render(request, 'stock_movements/transfer_receive_form.html', context)
 
+        with transaction.atomic():
+            for item in items:
+                if item.pk in parsed:
+                    item.received_quantity = parsed[item.pk]
+                    item.save()
+
+            all_received = all(it.received_quantity >= it.quantity for it in items)
+            if all_received:
+                transfer.status = 'completed'
+                transfer.completed_at = timezone.now()
+                transfer.save()
+                messages.success(
+                    request, f'Transfer {transfer.transfer_number} fully received and completed.',
+                )
+            else:
+                messages.success(
+                    request, f'Received quantities updated for {transfer.transfer_number}.',
+                )
         return redirect('stock_movements:transfer_detail', pk=transfer.pk)
 
     items = transfer.items.select_related('product')
@@ -395,6 +494,11 @@ def transfer_approve_view(request, pk):
         messages.warning(request, 'This transfer is not pending approval.')
         return redirect('stock_movements:transfer_detail', pk=transfer.pk)
 
+    # D-05: requester cannot approve their own transfer (segregation of duties).
+    if transfer.requested_by_id == request.user.id:
+        messages.error(request, 'You cannot approve a transfer you requested.')
+        return redirect('stock_movements:transfer_detail', pk=transfer.pk)
+
     if request.method == 'POST':
         form = TransferApprovalForm(request.POST)
         if form.is_valid():
@@ -499,12 +603,20 @@ def route_detail_view(request, pk):
     tenant = request.tenant
     route = get_object_or_404(TransferRoute, pk=pk, tenant=tenant)
 
-    # Find transfers that used this route
-    related_transfers = StockTransfer.objects.filter(
-        tenant=tenant,
-        source_warehouse=route.source_warehouse,
-        destination_warehouse=route.destination_warehouse,
-    ).order_by('-created_at')[:10]
+    # D-07: select_related + annotated items count to avoid N+1 when the
+    # template iterates and dereferences source/destination/requested_by and
+    # calls `total_items` for each row.
+    related_transfers = (
+        StockTransfer.objects
+        .filter(
+            tenant=tenant,
+            source_warehouse=route.source_warehouse,
+            destination_warehouse=route.destination_warehouse,
+        )
+        .select_related('source_warehouse', 'destination_warehouse', 'requested_by')
+        .annotate(_items_count=Count('items'))
+        .order_by('-created_at')[:10]
+    )
 
     context = {
         'route': route,
