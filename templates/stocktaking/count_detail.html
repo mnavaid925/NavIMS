@@ -35,8 +35,8 @@
                         <p class="mb-1"><strong>Scheduled:</strong> {{ count.scheduled_date|date:"M d, Y" }}</p>
                         <p class="mb-1"><strong>Started:</strong> {{ count.started_at|date:"M d, Y H:i"|default:"—" }}</p>
                         <p class="mb-1"><strong>Completed:</strong> {{ count.completed_at|date:"M d, Y H:i"|default:"—" }}</p>
-                        <p class="mb-1"><strong>Assigned To:</strong> {{ count.assigned_to.get_full_name|default:count.assigned_to.username|default:"—" }}</p>
-                        <p class="mb-1"><strong>Counted By:</strong> {{ count.counted_by.get_full_name|default:count.counted_by.username|default:"—" }}</p>
+                        <p class="mb-1"><strong>Assigned To:</strong> {% if count.assigned_to %}{{ count.assigned_to.get_full_name|default:count.assigned_to.username }}{% else %}—{% endif %}</p>
+                        <p class="mb-1"><strong>Counted By:</strong> {% if count.counted_by %}{{ count.counted_by.get_full_name|default:count.counted_by.username }}{% else %}—{% endif %}</p>
                     </div>
                 </div>
                 {% if count.notes %}<p class="mb-0 mt-2"><strong>Notes:</strong> {{ count.notes }}</p>{% endif %}
