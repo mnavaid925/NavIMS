@@ -34,7 +34,7 @@
                         <p class="mb-1"><strong>Next Run:</strong> {{ schedule.next_run_date|date:"M d, Y"|default:"—" }}</p>
                         <p class="mb-1"><strong>Last Run:</strong> {{ schedule.last_run_date|date:"M d, Y"|default:"—" }}</p>
                         <p class="mb-1"><strong>Status:</strong> {% if schedule.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</p>
-                        <p class="mb-1"><strong>Created By:</strong> {{ schedule.created_by.get_full_name|default:schedule.created_by.username|default:"—" }}</p>
+                        <p class="mb-1"><strong>Created By:</strong> {% if schedule.created_by %}{{ schedule.created_by.get_full_name|default:schedule.created_by.username }}{% else %}—{% endif %}</p>
                     </div>
                 </div>
                 {% if schedule.zones.all %}
