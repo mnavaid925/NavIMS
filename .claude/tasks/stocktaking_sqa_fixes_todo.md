@@ -109,11 +109,40 @@ git add 'stocktaking/models.py'; git commit -m 'fix(stocktaking): MinValueValida
 
 ### Deferred (tracked in review, not fixed in this pass)
 
-| ID | Severity | Reason |
-|---|---|---|
-| D-06 | 🟠 High | Ledger vs. direct-mutation tension needs cross-module architectural alignment (canonical `apply_adjustment` vs. view-level `on_hand = counted_qty`). Parking until the whole valuation path is revisited. |
-| D-13 | 🟡 Medium | Zone-vs-warehouse cross-validation — no test yet hit the divergent-warehouse case; acceptable for the current UX where zones are optional. |
-| D-14, D-16, D-17, D-18, D-19, D-20, D-21 | 🟢 Low / Info | Hygiene items. Noted in review; no functional blocker. |
+_Originally deferred — subsequently closed in the second pass below._
+
+### Second pass — 2026-04-18 — full remediation
+
+After the first pass closed the Critical + High + easy-Medium tranche, the user requested "fix all". The remaining 9 defects (1 High + 8 Medium/Low/Info) were swept in one additional cycle:
+
+| ID | Severity | Status | Verification |
+|---|---|---|---|
+| D-06 | 🟠 High | ✅ Fixed | `adjustment_post_view` now creates `StockAdjustment(adjustment_type='correction', quantity=counted_qty)` and calls `apply_adjustment()` — `on_hand` derives from the ledger row. `test_D06_uses_correction_adjustment_type` asserts ledger.quantity == final on_hand for every posted row. |
+| D-13 | 🟡 Medium | ✅ Fixed | `clean()` on `StocktakeFreezeForm`, `CycleCountScheduleForm`, `StockCountForm` rejects zones whose `warehouse_id` ≠ selected warehouse. Two regression tests in `test_forms.py::TestD13ZoneWarehouseCrossValidation`. |
+| D-14 | 🟡 Medium | ✅ Verified (no fix needed) | Audit of `schedule_list.html` vs. `schedule_list_view` context showed `frequency_choices`, `current_frequency`, `current_active`, `q`, `schedules` all match. The review speculated a mismatch; none exists. |
+| D-16 | 🟢 Low | ✅ Documented | Added comment on `_populate_count_items` explaining that `bin_location` is intentionally NULL until `StockLevel` gains a `bin` FK (multi-bin rollout). No behavioural change. |
+| D-17 | 🟢 Low | ✅ Verified (no fix needed) | Audit of `count_sheet_view` showed `items_with_forms = list(zip(...))` is already computed *outside* the if/else branches (line 415 — top-level fall-through), so errors render on both GET and invalid-POST paths. Review claim was a false positive. |
+| D-18 | 🟢 Low | ✅ Fixed | `random.seed(f'stocktaking-{tenant.pk}')` at start of `_seed_tenant` — reproducible variance patterns for bug reports. |
+| D-19 | 🟢 Info | ✅ Fixed | `@tenant_admin_required` added to all 16 destructive/state-change views (create/edit/delete/release/run/start/review/cancel/approve/reject/post across the 4 entities). 10 regression tests in `test_security.py::TestD19RBAC` — non-admin is 403 on destructive ops, 200 on list + detail. |
+| D-20 | 🟢 Info | ✅ Fixed | Search `q` capped at 100 chars on all 4 list views (`.strip()[:100]`) — prevents pathological `icontains` scans on huge query strings. |
+| D-21 | 🟢 Info | ✅ Documented | Comment in `stocktaking/admin.py` explaining Django-admin cross-tenant visibility is deliberate for superuser troubleshooting; tenant-admin users use the app views which filter by `request.tenant`. |
+
+### Incidental fix — template None-guards
+
+While adding the D-19 non-admin `count_detail` read test, a pre-existing template bug surfaced: `count.assigned_to.get_full_name|default:count.assigned_to.username` crashed with `VariableDoesNotExist` when `assigned_to` was None. The `|default` filter on the first expression couldn't short-circuit the variable resolution of the second. Fixed by wrapping in `{% if <user> %}...{% else %}—{% endif %}` in:
+
+- [templates/stocktaking/count_detail.html](../../templates/stocktaking/count_detail.html) — `assigned_to`, `counted_by`
+- [templates/stocktaking/adjustment_detail.html](../../templates/stocktaking/adjustment_detail.html) — `approved_by`
+- [templates/stocktaking/schedule_detail.html](../../templates/stocktaking/schedule_detail.html) — `created_by`
+
+This also removes the reason the first-pass tests needed `follow=False` — the detail pages now render cleanly regardless of who populated which FK.
+
+### Final state after both passes
+
+- **Stocktaking defects closed:** 21 of 21 (all 3 Critical, all 6 High, all 6 Medium, all 3 Low, all 3 Info). D-14 and D-17 confirmed as false positives in the original review.
+- **Stocktaking suite:** **136 tests** (was 123; +13 for D-06, D-13 x 2, D-19 x 10), all green.
+- **Project-wide suite:** **1011 tests**, all green. No cross-module regressions.
+- **`python manage.py check`:** 0 issues.
 
 ### Automation delivered
 
