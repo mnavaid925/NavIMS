@@ -534,7 +534,9 @@ Reference implementation: [receiving/tests/](./receiving/tests/) and [stock_move
 | stock_movements   | 69    | Transfers (inter/intra), approvals, routes, receive flow |
 | lot_tracking      | 115   | Lot/batch, serials, expiry alerts, traceability, idempotent alert-generation command |
 | orders            | 83    | Sales orders, pick/pack/ship, waves, carriers — cross-tenant IDOR on inline formsets, state-machine integrity, delivery deduction, audit-log + RBAC gates |
-| **Total**         | **725** | |
+| returns           | 126   | RMA, inspection, disposition, refund — refund cap + currency, restock-of-defective refusal, ledger symmetry, 14-endpoint CSRF coverage, formset IDOR across 3 inline formsets |
+| stocktaking       | 123   | Freeze, cycle schedule, stock count, variance adjustment — atomic posting, double-post guard, POST-only transitions, AuditLog, negative-qty validator, schedule-run idempotency |
+| **Total**         | **974** | |
 
 Run `pytest` at the project root to execute all modules in one pass (~25 s on a warm cache).
 
