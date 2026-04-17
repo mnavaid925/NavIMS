@@ -4,9 +4,12 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
+from core.decorators import emit_audit
 from warehousing.models import Warehouse, Zone
 from inventory.models import StockLevel, StockAdjustment
 from .models import (
@@ -90,6 +93,7 @@ def freeze_edit_view(request, pk):
 
 
 @login_required
+@require_POST
 def freeze_release_view(request, pk):
     tenant = request.tenant
     freeze = get_object_or_404(StocktakeFreeze, pk=pk, tenant=tenant)
@@ -97,6 +101,7 @@ def freeze_release_view(request, pk):
         freeze.status = 'released'
         freeze.released_at = timezone.now()
         freeze.save()
+        emit_audit(request, 'release', freeze, changes=f'number={freeze.freeze_number}')
         messages.success(request, f'Freeze "{freeze.freeze_number}" released.')
     else:
         messages.error(request, 'Freeze is not active.')
@@ -212,10 +217,24 @@ def schedule_delete_view(request, pk):
 
 
 @login_required
+@require_POST
 def schedule_run_view(request, pk):
     """Create a new StockCount from a schedule, pre-populated with items."""
     tenant = request.tenant
     sched = get_object_or_404(CycleCountSchedule, pk=pk, tenant=tenant)
+
+    today = timezone.now().date()
+
+    # D-11 — don't create a duplicate draft count for this schedule/day.
+    existing = StockCount.objects.filter(
+        tenant=tenant, schedule=sched, scheduled_date=today, status='draft',
+    ).first()
+    if existing:
+        messages.warning(
+            request,
+            f'A draft count ({existing.count_number}) already exists for this schedule today.',
+        )
+        return redirect('stocktaking:count_detail', pk=existing.pk)
 
     count = StockCount.objects.create(
         tenant=tenant,
@@ -224,13 +243,14 @@ def schedule_run_view(request, pk):
         zone=sched.zones.first() if sched.zones.exists() else None,
         schedule=sched,
         status='draft',
-        scheduled_date=timezone.now().date(),
+        scheduled_date=today,
         created_by=request.user,
         notes=f'Generated from schedule: {sched.name}',
     )
     _populate_count_items(count)
-    sched.last_run_date = timezone.now().date()
+    sched.last_run_date = today
     sched.save()
+    emit_audit(request, 'schedule_run', count, changes=f'schedule={sched.name}')
     messages.success(request, f'Count "{count.count_number}" created from schedule.')
     return redirect('stocktaking:count_detail', pk=count.pk)
 
@@ -350,6 +370,16 @@ def count_sheet_view(request, pk):
     tenant = request.tenant
     count = get_object_or_404(StockCount, pk=pk, tenant=tenant)
 
+    # D-04 — only draft/in_progress counts can be mutated via the sheet.
+    if count.status not in ('draft', 'in_progress'):
+        if request.method == 'POST':
+            messages.error(
+                request,
+                f'Cannot edit a count in status "{count.get_status_display()}". '
+                'Counts become read-only after submission.',
+            )
+            return redirect('stocktaking:count_detail', pk=count.pk)
+
     if request.method == 'POST':
         formset = StockCountItemFormSet(request.POST, instance=count, prefix='items')
         if formset.is_valid():
@@ -389,15 +419,21 @@ def count_sheet_view(request, pk):
 def count_delete_view(request, pk):
     tenant = request.tenant
     count = get_object_or_404(StockCount, pk=pk, tenant=tenant)
+    # D-15 — cannot delete a count whose stock has already been posted.
+    if count.status == 'adjusted':
+        messages.error(request, 'Cannot delete a count that has been adjusted.')
+        return redirect('stocktaking:count_detail', pk=count.pk)
     if request.method == 'POST':
         num = count.count_number
         count.delete()
+        emit_audit(request, 'delete', count, changes=f'number={num}')
         messages.success(request, f'Count "{num}" deleted.')
         return redirect('stocktaking:count_list')
     return redirect('stocktaking:count_list')
 
 
 @login_required
+@require_POST
 def count_start_view(request, pk):
     tenant = request.tenant
     count = get_object_or_404(StockCount, pk=pk, tenant=tenant)
@@ -405,6 +441,7 @@ def count_start_view(request, pk):
         count.status = 'in_progress'
         count.started_at = timezone.now()
         count.save()
+        emit_audit(request, 'start', count, changes=f'number={count.count_number}')
         messages.success(request, f'Count "{count.count_number}" started.')
     else:
         messages.error(request, 'Cannot start count.')
@@ -412,6 +449,7 @@ def count_start_view(request, pk):
 
 
 @login_required
+@require_POST
 def count_review_view(request, pk):
     tenant = request.tenant
     count = get_object_or_404(StockCount, pk=pk, tenant=tenant)
@@ -420,6 +458,7 @@ def count_review_view(request, pk):
         count.reviewed_at = timezone.now()
         count.reviewed_by = request.user
         count.save()
+        emit_audit(request, 'review', count, changes=f'number={count.count_number}')
         messages.success(request, f'Count "{count.count_number}" marked as reviewed.')
     else:
         messages.error(request, 'Cannot mark as reviewed.')
@@ -427,12 +466,14 @@ def count_review_view(request, pk):
 
 
 @login_required
+@require_POST
 def count_cancel_view(request, pk):
     tenant = request.tenant
     count = get_object_or_404(StockCount, pk=pk, tenant=tenant)
     if count.can_transition_to('cancelled'):
         count.status = 'cancelled'
         count.save()
+        emit_audit(request, 'cancel', count, changes=f'number={count.count_number}')
         messages.success(request, 'Count cancelled.')
     else:
         messages.error(request, 'Cannot cancel count.')
@@ -483,7 +524,6 @@ def adjustment_create_view(request):
             adj.tenant = tenant
             adj.created_by = request.user
             count = adj.count
-            items_with_variance = count.items.exclude(counted_qty__isnull=True).exclude(counted_qty__exact=0).all()
             total_qty = 0
             total_value = Decimal('0.00')
             for item in count.items.exclude(counted_qty__isnull=True):
@@ -493,6 +533,7 @@ def adjustment_create_view(request):
             adj.total_variance_qty = total_qty
             adj.total_variance_value = total_value
             adj.save()
+            emit_audit(request, 'create', adj, changes=f'number={adj.adjustment_number}, count={count.count_number}')
             messages.success(request, f'Variance adjustment "{adj.adjustment_number}" created.')
             return redirect('stocktaking:adjustment_detail', pk=adj.pk)
     else:
@@ -552,6 +593,7 @@ def adjustment_delete_view(request, pk):
 
 
 @login_required
+@require_POST
 def adjustment_approve_view(request, pk):
     tenant = request.tenant
     adj = get_object_or_404(StockVarianceAdjustment, pk=pk, tenant=tenant)
@@ -560,6 +602,7 @@ def adjustment_approve_view(request, pk):
         adj.approved_by = request.user
         adj.approved_at = timezone.now()
         adj.save()
+        emit_audit(request, 'approve', adj, changes=f'number={adj.adjustment_number}')
         messages.success(request, f'Adjustment "{adj.adjustment_number}" approved.')
     else:
         messages.error(request, 'Cannot approve adjustment.')
@@ -567,12 +610,14 @@ def adjustment_approve_view(request, pk):
 
 
 @login_required
+@require_POST
 def adjustment_reject_view(request, pk):
     tenant = request.tenant
     adj = get_object_or_404(StockVarianceAdjustment, pk=pk, tenant=tenant)
     if adj.can_transition_to('rejected'):
         adj.status = 'rejected'
         adj.save()
+        emit_audit(request, 'reject', adj, changes=f'number={adj.adjustment_number}')
         messages.success(request, f'Adjustment "{adj.adjustment_number}" rejected.')
     else:
         messages.error(request, 'Cannot reject adjustment.')
@@ -580,45 +625,72 @@ def adjustment_reject_view(request, pk):
 
 
 @login_required
+@require_POST
 def adjustment_post_view(request, pk):
-    """Post variance adjustment — creates StockAdjustment entries and updates StockLevel."""
+    """Post variance adjustment — creates StockAdjustment entries and updates StockLevel.
+
+    D-01 — POST-only.
+    D-02 — wrapped in `transaction.atomic`: any mid-loop failure rolls all
+           StockAdjustment inserts + StockLevel mutations back.
+    D-03 — reject if the count has already been adjusted (e.g. by a sibling
+           approved adjustment on the same count).
+    D-09 — emit AuditLog rows for the variance post.
+    """
     tenant = request.tenant
     adj = get_object_or_404(StockVarianceAdjustment, pk=pk, tenant=tenant)
+
     if not adj.can_transition_to('posted'):
         messages.error(request, 'Cannot post adjustment in current status.')
         return redirect('stocktaking:adjustment_detail', pk=pk)
 
     count = adj.count
-    for item in count.items.exclude(counted_qty__isnull=True):
-        if not item.has_variance:
-            continue
-        stock, _ = StockLevel.objects.get_or_create(
-            tenant=tenant,
-            product=item.product,
-            warehouse=count.warehouse,
-            defaults={'on_hand': 0, 'allocated': 0, 'on_order': 0},
+    if count.status == 'adjusted':
+        # D-03 — sibling adjustment already posted. Double-post prohibited.
+        messages.error(
+            request,
+            f'Count "{count.count_number}" has already been adjusted. '
+            'Cannot post a second variance adjustment against the same count.',
         )
-        variance = item.variance
-        adjustment_type = 'increase' if variance > 0 else 'decrease'
-        StockAdjustment.objects.create(
-            tenant=tenant,
-            stock_level=stock,
-            adjustment_type=adjustment_type,
-            reason='count',
-            quantity=abs(variance),
-            notes=f'Variance from count {count.count_number} — {item.get_reason_code_display() or adj.get_reason_code_display()}',
-            adjusted_by=request.user,
-        )
-        stock.on_hand = item.counted_qty
-        stock.last_counted_at = timezone.now()
-        stock.save()
+        return redirect('stocktaking:adjustment_detail', pk=pk)
 
-    adj.status = 'posted'
-    adj.posted_by = request.user
-    adj.posted_at = timezone.now()
-    adj.save()
-    count.status = 'adjusted'
-    count.adjusted_at = timezone.now()
-    count.save()
+    now = timezone.now()
+    with transaction.atomic():
+        for item in count.items.exclude(counted_qty__isnull=True):
+            if not item.has_variance:
+                continue
+            stock, _ = StockLevel.objects.select_for_update().get_or_create(
+                tenant=tenant,
+                product=item.product,
+                warehouse=count.warehouse,
+                defaults={'on_hand': 0, 'allocated': 0, 'on_order': 0},
+            )
+            variance = item.variance
+            adjustment_type = 'increase' if variance > 0 else 'decrease'
+            StockAdjustment.objects.create(
+                tenant=tenant,
+                stock_level=stock,
+                adjustment_type=adjustment_type,
+                reason='count',
+                quantity=abs(variance),
+                notes=f'Variance from count {count.count_number} — {item.get_reason_code_display() or adj.get_reason_code_display()}',
+                adjusted_by=request.user,
+            )
+            stock.on_hand = item.counted_qty
+            stock.last_counted_at = now
+            stock.save()
+
+        adj.status = 'posted'
+        adj.posted_by = request.user
+        adj.posted_at = now
+        adj.save()
+        count.status = 'adjusted'
+        count.adjusted_at = now
+        count.save()
+        emit_audit(
+            request, 'post', adj,
+            changes=f'number={adj.adjustment_number}, count={count.count_number}, '
+                    f'variance_qty={adj.total_variance_qty}, variance_value={adj.total_variance_value}',
+        )
+
     messages.success(request, f'Adjustment "{adj.adjustment_number}" posted. Stock levels updated.')
     return redirect('stocktaking:adjustment_detail', pk=pk)
