@@ -187,3 +187,29 @@ grep -rn "_generate.*_number" -- */models.py
 # For each match, verify the caller's save() wraps the write in a retry loop.
 ```
 Returns is the first module where this was explicitly fixed; `orders`, `purchase_orders`, `receiving`, `lot_tracking` all have auto-generated numbers and are candidates for the same sweep.
+
+## 2026-04-18 — Stocktaking Module SQA Remediation
+
+### Issue 23: State-change views accepting GET are a CSRF hole, not just a convention gap
+**What happened:** Stocktaking had **eight** state-mutation views (`freeze_release`, `schedule_run`, `count_start`, `count_review`, `count_cancel`, `adjustment_approve`, `adjustment_reject`, `adjustment_post`) that accepted GET. `adjustment_post_view` in particular rewrote `StockLevel.on_hand`. Any authenticated session visiting a third-party page with `<img src="/stocktaking/adjustments/<pk>/post/">` would mutate stock without any CSRF check.
+**Root cause:** The templates *already* used POST forms with `{% csrf_token %}` for all eight — a reviewer reading the HTML would believe the module was safe. But the view itself had no server-side enforcement, so the client was the only line of defence.
+**Rule:** Any view that changes state MUST have `@require_POST` (or equivalent method-check) on the view — never rely on templates alone. Reviewing templates to judge CSRF safety is insufficient; the server must enforce. Pair with `emit_audit` for the audit trail.
+**How to apply:** When auditing a new module, for every view function grep for state mutations (`.save()`, `.delete()`, `.create()`, `.status =`). If found and the view lacks `@require_POST` / an `if request.method != 'POST'` guard, flag as Critical.
+
+### Issue 24: Non-atomic multi-write "post" flows leak partial state
+**What happened:** Stocktaking's `adjustment_post_view` wrote a `StockAdjustment` row, then mutated `StockLevel.on_hand`, inside a `for item in ...` loop. No `@transaction.atomic`. Any exception mid-loop (missing product, concurrent write, validator raise) left half the items posted to stock while the adjustment stayed in `approved` — rerunning would double-apply the first half.
+**Root cause:** Pattern copied from receiving/putaway where each line-item write is naturally independent. Stocktaking has a cross-entity invariant (adjustment + ledger + level must all flip together) that demands atomicity.
+**Rule:** Any view that performs >1 DB mutation spanning multiple models or multiple rows MUST wrap the block in `with transaction.atomic():`. Use `select_for_update()` on the rows that concurrent writers might touch. The audit log emission belongs inside the same atomic block, so a rolled-back mutation leaves no ghost audit row.
+**Verification recipe:** `test_D02_atomic_rollback_on_failure` at [stocktaking/tests/test_views_adjustment.py](../../stocktaking/tests/test_views_adjustment.py) — mock `StockAdjustment.objects.create` to succeed once then raise, then assert `StockLevel.on_hand` is unchanged and `StockAdjustment.objects.count() == 0`.
+
+### Issue 25: Per-parent uniqueness is as important as per-tenant uniqueness
+**What happened:** `StockVarianceAdjustment` had no constraint preventing two adjustments on the same `StockCount`. Both could be approved, both could be posted — the second overwrote stock and inflated the audit ledger. The fix wasn't a DB constraint (would have required a migration and broken existing cancelled/rejected adjustments) but an early-return in the post view: `if count.status == 'adjusted': return error`.
+**Root cause:** Reviewed uniqueness through the `(tenant, number)` lens (lesson #6/#22) and missed the *parent-child* uniqueness invariant ("one posted adjustment per count").
+**Rule:** For every approval/post workflow, ask: "What's the maximum number of successful posts against this parent record?" If the answer is "1", guard the transition — either with a DB constraint (cheapest: add `unique_together` or a partial unique index) or a view-level status check on the *parent*, not just the child.
+**How to apply:** When reviewing a new approval workflow, list every `.status = 'posted'` / `.status = 'completed'` transition and ask: "Could this parent get posted again via a sibling child record?" If yes, add a guard.
+
+### Issue 26: `follow=True` with Django test client hides pre-existing template bugs
+**What happened:** Multiple stocktaking tests used `r = client.post(url, follow=True)` then `assert b'...' in r.content` to check flash messages. These failed with `VariableDoesNotExist: Failed lookup for key [username] in None` — unrelated to the behaviour being tested — because the redirected detail pages dereference `approved_by.username` even when `approved_by` is None.
+**Root cause:** Flash-message assertions against rendered HTML on redirect targets are brittle: they turn every rendering bug in every reachable template into a test failure for an unrelated regression guard.
+**Rule:** Prefer `django.contrib.messages.get_messages(response.wsgi_request)` over `follow=True` + `assert b'...' in r.content`. The assertion becomes: `msgs = [str(m) for m in get_messages(r.wsgi_request)]; assert any('expected' in m for m in msgs)`. This verifies the exact behaviour (the view enqueued the message) without coupling the test to template rendering quality.
+**Scope:** Retrofit the same pattern when writing new tests; existing green tests don't need backfill.
