@@ -62,7 +62,17 @@ class Command(BaseCommand):
         ))
 
     def _seed_tenant(self, tenant):
-        if ReturnAuthorization.objects.filter(tenant=tenant).exists():
+        # Per-sub-model idempotency: if any of the four sub-model tables already
+        # holds rows for this tenant we treat the tenant as seeded. Prevents a
+        # partially-wiped state from double-seeding RMAs without the linked
+        # inspections / dispositions / refunds.
+        already_seeded = any([
+            ReturnAuthorization.objects.filter(tenant=tenant).exists(),
+            ReturnInspection.objects.filter(tenant=tenant).exists(),
+            Disposition.objects.filter(tenant=tenant).exists(),
+            RefundCredit.objects.filter(tenant=tenant).exists(),
+        ])
+        if already_seeded:
             self.stdout.write(f'  [{tenant.name}] Returns data already exists. Use --flush to re-seed.')
             return
 
