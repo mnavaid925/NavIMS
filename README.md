@@ -11,6 +11,7 @@ A comprehensive, multi-tenant Inventory Management System built with Django 4.2 
 - [Project Structure](#project-structure)
 - [Installation](#installation)
 - [Running the Application](#running-the-application)
+- [Testing](#testing)
 - [Demo Credentials](#demo-credentials)
 - [Application Modules](#application-modules)
 - [Dashboard Features](#dashboard-features)
@@ -461,6 +462,106 @@ python manage.py runserver
 ```
 
 Open your browser and navigate to: **http://127.0.0.1:8000**
+
+---
+
+## Testing
+
+NavIMS ships with an automated test suite covering models, forms, views, security (OWASP-aligned), and performance guardrails. Tests run against a separate in-memory SQLite database with a fast password hasher — they do not touch your development DB and require no extra configuration.
+
+### Test stack
+
+| Layer                 | Tool                              |
+|-----------------------|-----------------------------------|
+| Runner                | `pytest` + `pytest-django`        |
+| Test settings         | `config/settings_test.py` (SQLite `:memory:`, MD5 hasher) |
+| Coverage (optional)   | `coverage` + `pytest-cov`         |
+| Security (optional)   | `bandit`, `pip-audit`             |
+
+All testing dependencies are already declared in `requirements.txt`.
+
+### Running the suite
+
+```bash
+# From the project root, with the venv activated
+pytest
+```
+
+Run a specific module's suite:
+
+```bash
+pytest receiving/tests
+pytest stock_movements/tests
+pytest warehousing/tests -k "security"
+```
+
+Run a single test:
+
+```bash
+pytest stock_movements/tests/test_views_transfers.py::TestTransferCreate::test_D01_cross_tenant_product_rejected
+```
+
+### Suite layout
+
+Each tested module follows the same structure:
+
+```
+<module>/tests/
+  __init__.py
+  conftest.py              # shared tenant / user / fixture objects
+  test_models.py           # model invariants, properties, auto-number
+  test_forms.py            # clean() rules, tenant scoping, boundary checks
+  test_views_*.py          # integration + cross-tenant IDOR + status transitions
+  test_security.py         # OWASP A01 / A03 / A08 mapped
+  test_performance.py      # django_assert_max_num_queries N+1 budgets
+```
+
+Reference implementation: [receiving/tests/](./receiving/tests/) and [stock_movements/tests/](./stock_movements/tests/).
+
+### Coverage by module
+
+| Module            | Tests | Focus |
+|-------------------|-------|-------|
+| catalog           | 40    | Product / Category / Attributes / Images / Documents |
+| vendors           | 78    | Vendors, contracts, communications, document upload validation |
+| purchase_orders   | 70    | PO CRUD, approval workflow, dispatch, line-item IDOR |
+| receiving         | 76    | GRN, Vendor Invoice (3-way match), Quality Inspection, Putaway |
+| warehousing       | 104   | Warehouse/Zone/Aisle/Rack/Bin hierarchy, cross-docking, unique-code traps |
+| inventory         | 90    | Stock levels, adjustments, status transitions, valuation, reservations |
+| stock_movements   | 69    | Transfers (inter/intra), approvals, routes, receive flow |
+| lot_tracking      | 108   | Lot/batch, serials, expiry alerts, traceability |
+| **Total**         | **641** | |
+
+Run `pytest` at the project root to execute all modules in one pass (~25 s on a warm cache).
+
+### What the suite guards against
+
+Each module's `test_security.py` + `test_regression.py` files codify real defects that surfaced during SQA review. Notable categories:
+
+- **Cross-tenant IDOR** — foreign-tenant FK injection via `request.POST` on every write path that accepts IDs (products, PO items, GRN items, transfer items).
+- **`unique_together(tenant, X)` form-bypass** — duplicate detection at form layer, before the DB raises `IntegrityError`.
+- **Status-machine transitions** — `can_transition_to` coverage, segregation-of-duties (requester cannot self-approve), terminal-state enforcement.
+- **File upload hygiene** — extension whitelist, size caps, SVG/executable blocks on `VendorInvoice.document` and `VendorContract.document`.
+- **Race conditions** — atomic auto-numbering with `IntegrityError` retry for `GRN-NNNNN`, `TRF-NNNNN`, `PO-NNNNN`, `LOT-NNNNN`, etc.
+- **N+1 queries** — `django_assert_max_num_queries` budgets on every list view and multi-item detail view.
+- **Financial reconciliation** — three-way match must compare all three totals (PO ↔ Invoice ↔ GRN).
+
+### Writing new tests
+
+Use the `conftest.py` fixtures already established — do not redefine `tenant`, `user`, `client_logged_in`, etc. The canonical fixture pattern:
+
+```python
+@pytest.fixture
+def user(db, tenant):
+    return User.objects.create_user(
+        username="qa_user", password="qa_pass_123!",
+        tenant=tenant, is_tenant_admin=True,
+    )
+```
+
+A second-tenant fixture (`other_tenant`, `other_user`, `other_product`, `other_warehouse`) is provided everywhere — use it to exercise cross-tenant IDOR scenarios.
+
+When you fix a defect, add a regression test named `test_D<NN>_<short_description>` so the intent is searchable and traceable back to the SQA review in `.claude/reviews/`.
 
 ---
 
