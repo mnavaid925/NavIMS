@@ -537,8 +537,8 @@ Reference implementation: [receiving/tests/](./receiving/tests/) and [stock_move
 | lot_tracking      | 115   | Lot/batch, serials, expiry alerts, traceability, idempotent alert-generation command |
 | orders            | 83    | Sales orders, pick/pack/ship, waves, carriers — cross-tenant IDOR on inline formsets, state-machine integrity, delivery deduction, audit-log + RBAC gates |
 | returns           | 150   | RMA, inspection, disposition, refund — refund cap + currency, restock-of-defective refusal, ledger symmetry, 14-endpoint CSRF coverage, formset IDOR across 3 inline formsets, soft-delete + admin tenant scope + shared `core.state_machine` mixin |
-| stocktaking       | 123   | Freeze, cycle schedule, stock count, variance adjustment — atomic posting, double-post guard, POST-only transitions, AuditLog, negative-qty validator, schedule-run idempotency |
-| **Total**         | **998** | |
+| stocktaking       | 136   | Freeze, cycle schedule, stock count, variance adjustment — atomic posting via `apply_adjustment('correction')` (single canonical write path), double-post guard, POST-only transitions, `@tenant_admin_required` RBAC across 16 destructive views, AuditLog, negative-qty validator, zone-vs-warehouse cross-validation, schedule-run idempotency |
+| **Total**         | **1011** | |
 
 Run `pytest` at the project root to execute all modules in one pass (~25 s on a warm cache).
 
@@ -809,9 +809,11 @@ The seed command creates the following demo accounts:
 | Stock Count Sheets       | Count document auto-populated from StockLevel snapshot; per-item counted qty entry, with variance and reason code per line; server-side `MinValueValidator(0)` rejects negatives; sheet becomes read-only after submission |
 | Blind Counts             | Per-count flag that hides expected system quantities from counters to prevent bias |
 | Variance Analysis        | Aggregated variance qty and value per count with reason-code classification |
-| Adjustment Workflow      | Pending → Approved → Posted with POST-only `@require_POST` transitions; posting is wrapped in `transaction.atomic()` + `select_for_update()` on `StockLevel` so partial failures roll back; double-post prevented by count-status guard; every state change emits `core.AuditLog` |
+| Adjustment Workflow      | Pending → Approved → Posted with POST-only `@require_POST` transitions; posting is wrapped in `transaction.atomic()` + `select_for_update()` on `StockLevel`; uses `StockAdjustment.apply_adjustment()` with `adjustment_type='correction'` as the single canonical write path, so ledger `quantity` equals resulting `on_hand` by definition; double-post prevented by count-status guard; every state change emits `core.AuditLog` |
 | Status Workflow          | Counts: Draft → In Progress → Counted → Reviewed → Adjusted (adjusted counts cannot be deleted); freezes: Active → Released |
 | Race-safe Numbering      | `FRZ-`, `CNT-`, `VADJ-` numbers generated via `_save_with_number_retry()` — retries on `IntegrityError` so TOCTOU races surface as retries, not 500s |
+| Zone/Warehouse Validation | Form-layer `clean()` on freeze, schedule, and count forms rejects zones that belong to a different warehouse than the selected one |
+| RBAC                     | `@tenant_admin_required` on all 16 destructive/state-change views (create/edit/delete + release/run/start/review/cancel/approve/reject/post); non-admin tenant users retain list + detail reads and count-sheet access |
 
 ### Module 13: Multi-Location Management (Implemented)
 
