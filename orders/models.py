@@ -1,7 +1,25 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db import models, transaction
+
+
+def _next_number(model, tenant, field_name, prefix):
+    last = (
+        model.objects.filter(tenant=tenant)
+        .order_by('-id')
+        .values_list(field_name, flat=True)
+        .first()
+    )
+    if last and last.startswith(prefix):
+        try:
+            num = int(last.split('-')[1]) + 1
+        except (IndexError, ValueError):
+            num = 1
+    else:
+        num = 1
+    return f'{prefix}{num:05d}'
 
 
 # ──────────────────────────────────────────────
@@ -165,25 +183,22 @@ class SalesOrder(models.Model):
         return self.items.count()
 
     def save(self, *args, **kwargs):
-        if not self.order_number:
-            self.order_number = self._generate_order_number()
-        super().save(*args, **kwargs)
-
-    def _generate_order_number(self):
-        last = (
-            SalesOrder.objects.filter(tenant=self.tenant)
-            .order_by('-id')
-            .values_list('order_number', flat=True)
-            .first()
-        )
-        if last and last.startswith('SO-'):
-            try:
-                num = int(last.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                num = 1
-        else:
-            num = 1
-        return f'SO-{num:05d}'
+        if self.pk or self.order_number:
+            super().save(*args, **kwargs)
+            return
+        from django.db import IntegrityError
+        for _ in range(5):
+            with transaction.atomic():
+                self.order_number = _next_number(
+                    SalesOrder, self.tenant, 'order_number', 'SO-',
+                )
+                try:
+                    super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    self.order_number = ''
+                    continue
+        raise RuntimeError('Unable to generate unique order number after retries.')
 
 
 class SalesOrderItem(models.Model):
@@ -203,14 +218,19 @@ class SalesOrderItem(models.Model):
         related_name='sales_order_items',
     )
     description = models.CharField(max_length=500, blank=True, default='')
-    quantity = models.PositiveIntegerField(default=1)
-    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    unit_price = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        validators=[MinValueValidator(Decimal('0'))],
+    )
     tax_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
         help_text='Tax rate as percentage (e.g. 10.00 for 10%)',
     )
     discount = models.DecimalField(
         max_digits=12, decimal_places=2, default=0,
+        validators=[MinValueValidator(Decimal('0'))],
         help_text='Discount amount per unit',
     )
     sort_order = models.PositiveIntegerField(default=0)
@@ -310,25 +330,22 @@ class WavePlan(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.wave_number:
-            self.wave_number = self._generate_wave_number()
-        super().save(*args, **kwargs)
-
-    def _generate_wave_number(self):
-        last = (
-            WavePlan.objects.filter(tenant=self.tenant)
-            .order_by('-id')
-            .values_list('wave_number', flat=True)
-            .first()
-        )
-        if last and last.startswith('WV-'):
-            try:
-                num = int(last.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                num = 1
-        else:
-            num = 1
-        return f'WV-{num:05d}'
+        if self.pk or self.wave_number:
+            super().save(*args, **kwargs)
+            return
+        from django.db import IntegrityError
+        for _ in range(5):
+            with transaction.atomic():
+                self.wave_number = _next_number(
+                    WavePlan, self.tenant, 'wave_number', 'WV-',
+                )
+                try:
+                    super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    self.wave_number = ''
+                    continue
+        raise RuntimeError('Unable to generate unique wave number after retries.')
 
 
 class WaveOrderAssignment(models.Model):
@@ -435,25 +452,22 @@ class PickList(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.pick_number:
-            self.pick_number = self._generate_pick_number()
-        super().save(*args, **kwargs)
-
-    def _generate_pick_number(self):
-        last = (
-            PickList.objects.filter(tenant=self.tenant)
-            .order_by('-id')
-            .values_list('pick_number', flat=True)
-            .first()
-        )
-        if last and last.startswith('PK-'):
-            try:
-                num = int(last.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                num = 1
-        else:
-            num = 1
-        return f'PK-{num:05d}'
+        if self.pk or self.pick_number:
+            super().save(*args, **kwargs)
+            return
+        from django.db import IntegrityError
+        for _ in range(5):
+            with transaction.atomic():
+                self.pick_number = _next_number(
+                    PickList, self.tenant, 'pick_number', 'PK-',
+                )
+                try:
+                    super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    self.pick_number = ''
+                    continue
+        raise RuntimeError('Unable to generate unique pick number after retries.')
 
 
 class PickListItem(models.Model):
@@ -563,25 +577,22 @@ class PackingList(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.packing_number:
-            self.packing_number = self._generate_packing_number()
-        super().save(*args, **kwargs)
-
-    def _generate_packing_number(self):
-        last = (
-            PackingList.objects.filter(tenant=self.tenant)
-            .order_by('-id')
-            .values_list('packing_number', flat=True)
-            .first()
-        )
-        if last and last.startswith('PL-'):
-            try:
-                num = int(last.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                num = 1
-        else:
-            num = 1
-        return f'PL-{num:05d}'
+        if self.pk or self.packing_number:
+            super().save(*args, **kwargs)
+            return
+        from django.db import IntegrityError
+        for _ in range(5):
+            with transaction.atomic():
+                self.packing_number = _next_number(
+                    PackingList, self.tenant, 'packing_number', 'PL-',
+                )
+                try:
+                    super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    self.packing_number = ''
+                    continue
+        raise RuntimeError('Unable to generate unique packing number after retries.')
 
 
 class Shipment(models.Model):
@@ -655,25 +666,22 @@ class Shipment(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.shipment_number:
-            self.shipment_number = self._generate_shipment_number()
-        super().save(*args, **kwargs)
-
-    def _generate_shipment_number(self):
-        last = (
-            Shipment.objects.filter(tenant=self.tenant)
-            .order_by('-id')
-            .values_list('shipment_number', flat=True)
-            .first()
-        )
-        if last and last.startswith('SH-'):
-            try:
-                num = int(last.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                num = 1
-        else:
-            num = 1
-        return f'SH-{num:05d}'
+        if self.pk or self.shipment_number:
+            super().save(*args, **kwargs)
+            return
+        from django.db import IntegrityError
+        for _ in range(5):
+            with transaction.atomic():
+                self.shipment_number = _next_number(
+                    Shipment, self.tenant, 'shipment_number', 'SH-',
+                )
+                try:
+                    super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    self.shipment_number = ''
+                    continue
+        raise RuntimeError('Unable to generate unique shipment number after retries.')
 
 
 class ShipmentTracking(models.Model):
