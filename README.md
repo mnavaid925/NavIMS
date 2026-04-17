@@ -88,6 +88,7 @@ NavIMS/
 │   ├── context_processors.py   # Template context for current tenant
 │   ├── decorators.py           # tenant_admin_required + emit_audit (shared across modules)
 │   ├── forms.py                # TenantUniqueCodeMixin (for unique_together(tenant, X) form-layer guard)
+│   ├── state_machine.py        # StateMachineMixin (shared can_transition_to helper driven by VALID_TRANSITIONS)
 │   ├── admin.py                # Django admin registrations
 │   └── management/
 │       └── commands/
@@ -207,14 +208,14 @@ NavIMS/
 │           └── seed_forecasting.py  # Forecasting seeder with demo data
 │
 ├── returns/                    # Module 11: Returns Management (RMA)
-│   ├── models.py               # ReturnAuthorization, ReturnAuthorizationItem, ReturnInspection, ReturnInspectionItem, Disposition, DispositionItem, RefundCredit
-│   ├── forms.py                # RMA, RMA item formset, Inspection, Inspection item formset, Disposition, Disposition item formset, RefundCredit forms
-│   ├── views.py                # Full CRUD for RMA, Inspection, Disposition, Refund + status transitions + restock/scrap inventory integration
+│   ├── models.py               # ReturnAuthorization, ReturnAuthorizationItem, ReturnInspection, ReturnInspectionItem, Disposition, DispositionItem, RefundCredit (all 4 top-level models mix in core.state_machine.StateMachineMixin + soft-delete via deleted_at)
+│   ├── forms.py                # Tenant-scoped ModelForms + 3 inline formsets with form_kwargs={'tenant': tenant} (closes formset-FK IDOR); refund cap / currency / restock-of-defective guards
+│   ├── views.py                # CRUD + 14 transition endpoints — each wrapped in @tenant_admin_required + @require_POST + emit_audit; disposition process is transaction.atomic() with select_for_update(); scrap path decrements on_hand symmetrically with restock
 │   ├── urls.py                 # Returns URL routes
-│   ├── admin.py                # Admin registration with inlines
+│   ├── admin.py                # TenantScopedAdmin base filters admin queryset by request.user.tenant for non-superusers
 │   └── management/
 │       └── commands/
-│           └── seed_returns.py # Returns seeder with demo data
+│           └── seed_returns.py # Returns seeder with demo data (per sub-model idempotency)
 │
 ├── orders/                     # Module 10: Order Management & Fulfillment
 │   ├── models.py               # Carrier, ShippingRate, SalesOrder, SalesOrderItem, WavePlan, WaveOrderAssignment, PickList, PickListItem, PackingList, Shipment, ShipmentTracking
@@ -556,6 +557,9 @@ Each module's `test_security.py` + `test_regression.py` files codify real defect
 - **Financial reconciliation** — three-way match must compare all three totals (PO ↔ Invoice ↔ GRN).
 - **RBAC on destructive ops** — `@tenant_admin_required` gates every create / edit / delete / status-transition endpoint; non-admin tenant users are limited to reads.
 - **Security-grade audit trail** — `core.AuditLog` rows emitted on every mutating request alongside any domain-level log.
+- **Refund / credit caps** — `RefundCreditForm.clean()` rejects `amount ≤ 0` and `amount > rma.total_value - already_refunded` (sums non-cancelled refunds), closing the over-refund class.
+- **Soft-delete + admin tenant scope** — top-level returns models use `deleted_at` soft-delete; list / detail / transition queries filter `deleted_at__isnull=True`. `TenantScopedAdmin` keeps tenant admins out of other tenants' `/admin/` rows.
+- **Segregation of duties** — `rma_approve_view` refuses if `rma.created_by == request.user`, enforcing the "creator ≠ approver" rule on financial flows.
 
 ### Shared helpers
 
@@ -564,6 +568,9 @@ Recurring cross-cutting fixes have been lifted into `core/` so new modules pick 
 - **[`core.decorators.tenant_admin_required`](./core/decorators.py)** — `@login_required`-compatible decorator that additionally requires `user.is_tenant_admin` (or `is_superuser`). Apply to every create/edit/delete/transition view.
 - **[`core.decorators.emit_audit`](./core/decorators.py)** — one-line `AuditLog` emission: `emit_audit(request, 'delete', instance, changes='…')`. Silently no-ops when `request.tenant` is unset.
 - **[`core.forms.TenantUniqueCodeMixin`](./core/forms.py)** — generalised form-layer guard for `unique_together = ('tenant', <field>)`. Mix into any `ModelForm` whose tenant is injected in `save()` instead of being a form field; set `tenant_unique_field = '<field_name>'` and call `self._clean_tenant_unique_field('<field_name>')` from `clean_<field>()`.
+- **[`core.state_machine.StateMachineMixin`](./core/state_machine.py)** — declare `VALID_TRANSITIONS: dict[str, list[str]]` on a model and mix in `StateMachineMixin` to get `can_transition_to(new_status)` for free. Replaces the copy-paste method that lived in five modules. First adopted in `returns/`; other modules (`vendors`, `orders`, `receiving`, `lot_tracking`, `stock_movements`) can migrate in ~20 lines each.
+- **Soft-delete pattern** — top-level domain models expose a nullable `deleted_at = DateTimeField` and their delete views set `deleted_at = timezone.now()` instead of calling `.delete()`. List + detail + transition queries filter `deleted_at__isnull=True` at every call site; `AuditLog` records the deletion. Adopted in `returns/` (D-15); recommended for any module where audit traceability outweighs storage cost.
+- **Admin tenant scoping (`TenantScopedAdmin` pattern)** — `ModelAdmin.get_queryset` filters rows by `request.user.tenant` when the user is a tenant admin, bypassed for superusers. Closes the "tenant admin sees every tenant in /admin/" cross-tenant exposure. Reference: [returns/admin.py](./returns/admin.py).
 
 ### Writing new tests
 
