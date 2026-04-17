@@ -176,11 +176,12 @@ NavIMS/
 │           └── generate_expiry_alerts.py  # Idempotent daily alert generation (approaching/expired lots)
 │
 ├── stocktaking/                # Module 12: Stocktaking & Cycle Counting
-│   ├── models.py               # StocktakeFreeze, CycleCountSchedule, StockCount, StockCountItem, StockVarianceAdjustment
-│   ├── forms.py                # Freeze, Schedule, StockCount, StockCountItem, VarianceAdjustment forms
-│   ├── views.py                # Full CRUD for counts, schedules, freezes, adjustments + count sheet + inventory posting
+│   ├── models.py               # StocktakeFreeze, CycleCountSchedule, StockCount, StockCountItem, StockVarianceAdjustment + _save_with_number_retry
+│   ├── forms.py                # Freeze, Schedule, StockCount, StockCountItem (clean_counted_qty guard), VarianceAdjustment forms
+│   ├── views.py                # POST-only transitions, atomic posting, double-post + sheet + delete guards, AuditLog emission
 │   ├── urls.py                 # Stocktaking URL routes
 │   ├── admin.py                # Admin registration with inlines
+│   ├── tests/                  # 123 tests — state machines, critical-path posting, D-01/D-02/D-03/D-04/D-05/D-09/D-11/D-15 regression guards
 │   └── management/
 │       └── commands/
 │           └── seed_stocktaking.py  # Stocktaking seeder with demo data
@@ -548,7 +549,9 @@ Each module's `test_security.py` + `test_regression.py` files codify real defect
 - **`unique_together(tenant, X)` form-bypass** — duplicate detection at form layer, before the DB raises `IntegrityError`.
 - **Status-machine transitions** — `can_transition_to` coverage, segregation-of-duties (requester cannot self-approve), terminal-state enforcement.
 - **File upload hygiene** — extension whitelist, size caps, SVG/executable blocks on `VendorInvoice.document` and `VendorContract.document`.
-- **Race conditions** — atomic auto-numbering with `IntegrityError` retry for `GRN-NNNNN`, `TRF-NNNNN`, `PO-NNNNN`, `LOT-NNNNN`, etc.
+- **Race conditions** — atomic auto-numbering with `IntegrityError` retry for `GRN-NNNNN`, `TRF-NNNNN`, `PO-NNNNN`, `LOT-NNNNN`, `FRZ-NNNNN`, `CNT-NNNNN`, `VADJ-NNNNN`, etc.
+- **CSRF via GET** — every state-mutating view carries `@require_POST`; server-side enforcement, never relying on template-level POST forms alone.
+- **Atomic multi-write flows** — stock-level mutations across `StockAdjustment` + `StockLevel` rows wrap in `transaction.atomic()` + `select_for_update()` so partial failures roll back cleanly (stocktaking post, returns process).
 - **N+1 queries** — `django_assert_max_num_queries` budgets on every list view and multi-item detail view.
 - **Financial reconciliation** — three-way match must compare all three totals (PO ↔ Invoice ↔ GRN).
 - **RBAC on destructive ops** — `@tenant_admin_required` gates every create / edit / delete / status-transition endpoint; non-admin tenant users are limited to reads.
@@ -795,12 +798,13 @@ The seed command creates the following demo accounts:
 | Feature                  | Description                                           |
 |--------------------------|-------------------------------------------------------|
 | Full Physical Inventory  | Warehouse freeze tickets to block movements during a complete count; tied to full-type stock counts |
-| Cycle Count Scheduling   | Configurable recurring schedules (daily/weekly/monthly/quarterly) with ABC-class targeting and zone filters; "Run Now" generates a count document |
-| Stock Count Sheets       | Count document auto-populated from StockLevel snapshot; per-item counted qty entry, with variance and reason code per line |
+| Cycle Count Scheduling   | Configurable recurring schedules (daily/weekly/monthly/quarterly) with ABC-class targeting and zone filters; "Run Now" generates a count document and is idempotent per schedule/day |
+| Stock Count Sheets       | Count document auto-populated from StockLevel snapshot; per-item counted qty entry, with variance and reason code per line; server-side `MinValueValidator(0)` rejects negatives; sheet becomes read-only after submission |
 | Blind Counts             | Per-count flag that hides expected system quantities from counters to prevent bias |
 | Variance Analysis        | Aggregated variance qty and value per count with reason-code classification |
-| Adjustment Workflow      | Pending → Approved → Posted; posting creates `inventory.StockAdjustment` records and updates `StockLevel.on_hand` + `last_counted_at` |
-| Status Workflow          | Counts: Draft → In Progress → Counted → Reviewed → Adjusted; freezes: Active → Released |
+| Adjustment Workflow      | Pending → Approved → Posted with POST-only `@require_POST` transitions; posting is wrapped in `transaction.atomic()` + `select_for_update()` on `StockLevel` so partial failures roll back; double-post prevented by count-status guard; every state change emits `core.AuditLog` |
+| Status Workflow          | Counts: Draft → In Progress → Counted → Reviewed → Adjusted (adjusted counts cannot be deleted); freezes: Active → Released |
+| Race-safe Numbering      | `FRZ-`, `CNT-`, `VADJ-` numbers generated via `_save_with_number_retry()` — retries on `IntegrityError` so TOCTOU races surface as retries, not 500s |
 
 ### Module 13: Multi-Location Management (Implemented)
 
