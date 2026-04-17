@@ -1,4 +1,5 @@
 from django import forms
+from django.core.exceptions import ValidationError
 
 from catalog.models import Product
 from warehousing.models import Warehouse, Bin
@@ -81,7 +82,9 @@ class StockTransferItemForm(forms.ModelForm):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
         if tenant:
-            self.fields['product'].queryset = Product.objects.filter(tenant=tenant, is_active=True)
+            # D-12: align with the rest of the codebase — orderable products are
+            # the ones with status='active' (catalog/forms.py, receiving/forms.py).
+            self.fields['product'].queryset = Product.objects.filter(tenant=tenant, status='active')
             self.fields['product'].empty_label = '— Select Product —'
 
 
@@ -121,6 +124,17 @@ class TransferApprovalRuleForm(forms.ModelForm):
     def __init__(self, *args, tenant=None, **kwargs):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
+
+    def clean(self):
+        # D-10: a rule with min_items > max_items would never match anything.
+        cleaned = super().clean()
+        min_items = cleaned.get('min_items')
+        max_items = cleaned.get('max_items')
+        if min_items is not None and max_items is not None and min_items > max_items:
+            raise ValidationError({
+                'max_items': 'Maximum items must be greater than or equal to minimum items.'
+            })
+        return cleaned
 
 
 class TransferApprovalForm(forms.ModelForm):
