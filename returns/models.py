@@ -1,7 +1,31 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import models
+from django.db import IntegrityError, models, transaction
+
+
+MAX_NUMBER_RETRIES = 5
+
+
+def _save_with_number_retry(instance, number_field, generate_fn, *args, **kwargs):
+    """Save `instance`, retrying on IntegrityError from a unique-number clash.
+
+    Two concurrent writers can read the same "last" number and compute the same
+    next value; the DB unique constraint catches the second. We regenerate and
+    retry up to ``MAX_NUMBER_RETRIES`` times before giving up.
+    """
+    for _ in range(MAX_NUMBER_RETRIES):
+        if not getattr(instance, number_field):
+            setattr(instance, number_field, generate_fn())
+        try:
+            with transaction.atomic():
+                models.Model.save(instance, *args, **kwargs)
+            return
+        except IntegrityError:
+            setattr(instance, number_field, '')
+    # Last attempt — let the exception propagate if we still clash.
+    setattr(instance, number_field, generate_fn())
+    models.Model.save(instance, *args, **kwargs)
 
 
 # ──────────────────────────────────────────────
@@ -109,9 +133,7 @@ class ReturnAuthorization(models.Model):
         )
 
     def save(self, *args, **kwargs):
-        if not self.rma_number:
-            self.rma_number = self._generate_rma_number()
-        super().save(*args, **kwargs)
+        _save_with_number_retry(self, 'rma_number', self._generate_rma_number, *args, **kwargs)
 
     def _generate_rma_number(self):
         last = (
@@ -237,9 +259,9 @@ class ReturnInspection(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.inspection_number:
-            self.inspection_number = self._generate_inspection_number()
-        super().save(*args, **kwargs)
+        _save_with_number_retry(
+            self, 'inspection_number', self._generate_inspection_number, *args, **kwargs,
+        )
 
     def _generate_inspection_number(self):
         last = (
@@ -374,9 +396,9 @@ class Disposition(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.disposition_number:
-            self.disposition_number = self._generate_disposition_number()
-        super().save(*args, **kwargs)
+        _save_with_number_retry(
+            self, 'disposition_number', self._generate_disposition_number, *args, **kwargs,
+        )
 
     def _generate_disposition_number(self):
         last = (
@@ -509,9 +531,9 @@ class RefundCredit(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.refund_number:
-            self.refund_number = self._generate_refund_number()
-        super().save(*args, **kwargs)
+        _save_with_number_retry(
+            self, 'refund_number', self._generate_refund_number, *args, **kwargs,
+        )
 
     def _generate_refund_number(self):
         last = (
