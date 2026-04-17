@@ -33,9 +33,9 @@ from .forms import (
 @login_required
 def rma_list_view(request):
     tenant = request.tenant
-    queryset = ReturnAuthorization.objects.filter(tenant=tenant).select_related(
-        'sales_order', 'warehouse', 'created_by',
-    )
+    queryset = ReturnAuthorization.objects.filter(
+        tenant=tenant, deleted_at__isnull=True,
+    ).select_related('sales_order', 'warehouse', 'created_by')
 
     q = request.GET.get('q', '').strip()
     if q:
@@ -109,7 +109,7 @@ def rma_create_view(request):
 @login_required
 def rma_edit_view(request, pk):
     tenant = request.tenant
-    rma = get_object_or_404(ReturnAuthorization, pk=pk, tenant=tenant)
+    rma = get_object_or_404(ReturnAuthorization, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if rma.status not in ('draft', 'rejected'):
         messages.error(request, f'Cannot edit RMA in "{rma.get_status_display()}" status.')
         return redirect('returns:rma_detail', pk=pk)
@@ -148,7 +148,7 @@ def rma_detail_view(request, pk):
     tenant = request.tenant
     rma = get_object_or_404(
         ReturnAuthorization.objects.select_related('sales_order', 'warehouse', 'created_by', 'approved_by'),
-        pk=pk, tenant=tenant,
+        pk=pk, tenant=tenant, deleted_at__isnull=True,
     )
     return render(request, 'returns/rma_detail.html', {
         'rma': rma,
@@ -163,7 +163,9 @@ def rma_detail_view(request, pk):
 @require_POST
 def rma_delete_view(request, pk):
     tenant = request.tenant
-    rma = get_object_or_404(ReturnAuthorization, pk=pk, tenant=tenant)
+    rma = get_object_or_404(
+        ReturnAuthorization, pk=pk, tenant=tenant, deleted_at__isnull=True,
+    )
     if rma.status != 'draft':
         messages.error(request, 'Only draft RMAs can be deleted.')
         return redirect('returns:rma_list')
@@ -171,15 +173,16 @@ def rma_delete_view(request, pk):
         messages.error(request, 'Cannot delete RMA with processed refunds or dispositions.')
         return redirect('returns:rma_detail', pk=pk)
     num = rma.rma_number
-    emit_audit(request, 'rma_deleted', rma, changes=f'rma_number={num}')
-    rma.delete()
+    rma.deleted_at = timezone.now()
+    rma.save(update_fields=['deleted_at', 'updated_at'])
+    emit_audit(request, 'rma_deleted', rma, changes=f'rma_number={num} soft_delete=true')
     messages.success(request, f'RMA "{num}" deleted.')
     return redirect('returns:rma_list')
 
 
 def _transition_rma(request, pk, new_status, action_label, set_fields=None):
     tenant = request.tenant
-    rma = get_object_or_404(ReturnAuthorization, pk=pk, tenant=tenant)
+    rma = get_object_or_404(ReturnAuthorization, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if not rma.can_transition_to(new_status):
         messages.error(request, f'Cannot {action_label} RMA in "{rma.get_status_display()}" status.')
         return redirect('returns:rma_detail', pk=pk)
@@ -204,7 +207,7 @@ def rma_submit_view(request, pk):
 @require_POST
 def rma_approve_view(request, pk):
     tenant = request.tenant
-    rma = get_object_or_404(ReturnAuthorization, pk=pk, tenant=tenant)
+    rma = get_object_or_404(ReturnAuthorization, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if rma.created_by_id and rma.created_by_id == request.user.id and not request.user.is_superuser:
         messages.error(request, 'You cannot approve an RMA you created (segregation of duties).')
         return redirect('returns:rma_detail', pk=pk)
@@ -252,7 +255,9 @@ def rma_cancel_view(request, pk):
 @login_required
 def inspection_list_view(request):
     tenant = request.tenant
-    queryset = ReturnInspection.objects.filter(tenant=tenant).select_related('rma', 'inspector')
+    queryset = ReturnInspection.objects.filter(
+        tenant=tenant, deleted_at__isnull=True,
+    ).select_related('rma', 'inspector')
 
     q = request.GET.get('q', '').strip()
     if q:
@@ -318,7 +323,7 @@ def inspection_create_view(request):
 @login_required
 def inspection_edit_view(request, pk):
     tenant = request.tenant
-    insp = get_object_or_404(ReturnInspection, pk=pk, tenant=tenant)
+    insp = get_object_or_404(ReturnInspection, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if insp.status == 'completed':
         messages.error(request, 'Completed inspections are immutable.')
         return redirect('returns:inspection_detail', pk=pk)
@@ -357,7 +362,7 @@ def inspection_detail_view(request, pk):
     tenant = request.tenant
     insp = get_object_or_404(
         ReturnInspection.objects.select_related('rma', 'inspector'),
-        pk=pk, tenant=tenant,
+        pk=pk, tenant=tenant, deleted_at__isnull=True,
     )
     return render(request, 'returns/inspection_detail.html', {
         'inspection': insp,
@@ -369,13 +374,16 @@ def inspection_detail_view(request, pk):
 @require_POST
 def inspection_delete_view(request, pk):
     tenant = request.tenant
-    insp = get_object_or_404(ReturnInspection, pk=pk, tenant=tenant)
-    if insp.status == 'completed' and insp.dispositions.exists():
+    insp = get_object_or_404(
+        ReturnInspection, pk=pk, tenant=tenant, deleted_at__isnull=True,
+    )
+    if insp.status == 'completed' and insp.dispositions.filter(deleted_at__isnull=True).exists():
         messages.error(request, 'Cannot delete completed inspection with linked dispositions.')
         return redirect('returns:inspection_detail', pk=pk)
     num = insp.inspection_number
-    emit_audit(request, 'inspection_deleted', insp, changes=f'inspection_number={num}')
-    insp.delete()
+    insp.deleted_at = timezone.now()
+    insp.save(update_fields=['deleted_at', 'updated_at'])
+    emit_audit(request, 'inspection_deleted', insp, changes=f'inspection_number={num} soft_delete=true')
     messages.success(request, f'Inspection "{num}" deleted.')
     return redirect('returns:inspection_list')
 
@@ -384,7 +392,7 @@ def inspection_delete_view(request, pk):
 @require_POST
 def inspection_start_view(request, pk):
     tenant = request.tenant
-    insp = get_object_or_404(ReturnInspection, pk=pk, tenant=tenant)
+    insp = get_object_or_404(ReturnInspection, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if not insp.can_transition_to('in_progress'):
         messages.error(request, 'Cannot start inspection in current status.')
         return redirect('returns:inspection_detail', pk=pk)
@@ -401,7 +409,7 @@ def inspection_start_view(request, pk):
 @require_POST
 def inspection_complete_view(request, pk):
     tenant = request.tenant
-    insp = get_object_or_404(ReturnInspection, pk=pk, tenant=tenant)
+    insp = get_object_or_404(ReturnInspection, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if not insp.can_transition_to('completed'):
         messages.error(request, 'Cannot complete inspection in current status.')
         return redirect('returns:inspection_detail', pk=pk)
@@ -423,7 +431,9 @@ def inspection_complete_view(request, pk):
 @login_required
 def disposition_list_view(request):
     tenant = request.tenant
-    queryset = Disposition.objects.filter(tenant=tenant).select_related('rma', 'warehouse', 'processed_by')
+    queryset = Disposition.objects.filter(
+        tenant=tenant, deleted_at__isnull=True,
+    ).select_related('rma', 'warehouse', 'processed_by')
 
     q = request.GET.get('q', '').strip()
     if q:
@@ -495,7 +505,7 @@ def disposition_create_view(request):
 @login_required
 def disposition_edit_view(request, pk):
     tenant = request.tenant
-    disp = get_object_or_404(Disposition, pk=pk, tenant=tenant)
+    disp = get_object_or_404(Disposition, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if disp.status == 'processed':
         messages.error(request, 'Processed dispositions are immutable.')
         return redirect('returns:disposition_detail', pk=pk)
@@ -534,7 +544,7 @@ def disposition_detail_view(request, pk):
     tenant = request.tenant
     disp = get_object_or_404(
         Disposition.objects.select_related('rma', 'warehouse', 'inspection', 'processed_by'),
-        pk=pk, tenant=tenant,
+        pk=pk, tenant=tenant, deleted_at__isnull=True,
     )
     return render(request, 'returns/disposition_detail.html', {
         'disposition': disp,
@@ -546,13 +556,16 @@ def disposition_detail_view(request, pk):
 @require_POST
 def disposition_delete_view(request, pk):
     tenant = request.tenant
-    disp = get_object_or_404(Disposition, pk=pk, tenant=tenant)
+    disp = get_object_or_404(
+        Disposition, pk=pk, tenant=tenant, deleted_at__isnull=True,
+    )
     if disp.status == 'processed':
         messages.error(request, 'Processed dispositions cannot be deleted.')
         return redirect('returns:disposition_detail', pk=pk)
     num = disp.disposition_number
-    emit_audit(request, 'disposition_deleted', disp, changes=f'disposition_number={num}')
-    disp.delete()
+    disp.deleted_at = timezone.now()
+    disp.save(update_fields=['deleted_at', 'updated_at'])
+    emit_audit(request, 'disposition_deleted', disp, changes=f'disposition_number={num} soft_delete=true')
     messages.success(request, f'Disposition "{num}" deleted.')
     return redirect('returns:disposition_list')
 
@@ -568,7 +581,7 @@ def disposition_process_view(request, pk):
     tenant = request.tenant
     # Cheap existence check first so cross-tenant / missing PKs return 404,
     # not 500 from a raw .get() inside the atomic block.
-    get_object_or_404(Disposition, pk=pk, tenant=tenant)
+    get_object_or_404(Disposition, pk=pk, tenant=tenant, deleted_at__isnull=True)
     with transaction.atomic():
         disp = (
             Disposition.objects.select_for_update()
@@ -658,7 +671,7 @@ def disposition_process_view(request, pk):
 @require_POST
 def disposition_cancel_view(request, pk):
     tenant = request.tenant
-    disp = get_object_or_404(Disposition, pk=pk, tenant=tenant)
+    disp = get_object_or_404(Disposition, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if not disp.can_transition_to('cancelled'):
         messages.error(request, 'Cannot cancel disposition.')
         return redirect('returns:disposition_detail', pk=pk)
@@ -677,7 +690,9 @@ def disposition_cancel_view(request, pk):
 @login_required
 def refund_list_view(request):
     tenant = request.tenant
-    queryset = RefundCredit.objects.filter(tenant=tenant).select_related('rma', 'processed_by')
+    queryset = RefundCredit.objects.filter(
+        tenant=tenant, deleted_at__isnull=True,
+    ).select_related('rma', 'processed_by')
 
     q = request.GET.get('q', '').strip()
     if q:
@@ -735,7 +750,7 @@ def refund_create_view(request):
 @login_required
 def refund_edit_view(request, pk):
     tenant = request.tenant
-    refund = get_object_or_404(RefundCredit, pk=pk, tenant=tenant)
+    refund = get_object_or_404(RefundCredit, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if refund.status == 'processed':
         messages.error(request, 'Processed refunds are immutable.')
         return redirect('returns:refund_detail', pk=pk)
@@ -761,7 +776,7 @@ def refund_detail_view(request, pk):
     tenant = request.tenant
     refund = get_object_or_404(
         RefundCredit.objects.select_related('rma', 'processed_by'),
-        pk=pk, tenant=tenant,
+        pk=pk, tenant=tenant, deleted_at__isnull=True,
     )
     return render(request, 'returns/refund_detail.html', {'refund': refund})
 
@@ -770,13 +785,16 @@ def refund_detail_view(request, pk):
 @require_POST
 def refund_delete_view(request, pk):
     tenant = request.tenant
-    refund = get_object_or_404(RefundCredit, pk=pk, tenant=tenant)
+    refund = get_object_or_404(
+        RefundCredit, pk=pk, tenant=tenant, deleted_at__isnull=True,
+    )
     if refund.status == 'processed':
         messages.error(request, 'Processed refunds cannot be deleted.')
         return redirect('returns:refund_detail', pk=pk)
     num = refund.refund_number
-    emit_audit(request, 'refund_deleted', refund, changes=f'refund_number={num}')
-    refund.delete()
+    refund.deleted_at = timezone.now()
+    refund.save(update_fields=['deleted_at', 'updated_at'])
+    emit_audit(request, 'refund_deleted', refund, changes=f'refund_number={num} soft_delete=true')
     messages.success(request, f'Refund "{num}" deleted.')
     return redirect('returns:refund_list')
 
@@ -785,7 +803,7 @@ def refund_delete_view(request, pk):
 @require_POST
 def refund_process_view(request, pk):
     tenant = request.tenant
-    get_object_or_404(RefundCredit, pk=pk, tenant=tenant)
+    get_object_or_404(RefundCredit, pk=pk, tenant=tenant, deleted_at__isnull=True)
     with transaction.atomic():
         refund = RefundCredit.objects.select_for_update().get(pk=pk, tenant=tenant)
         if not refund.can_transition_to('processed'):
@@ -805,7 +823,7 @@ def refund_process_view(request, pk):
 @require_POST
 def refund_fail_view(request, pk):
     tenant = request.tenant
-    refund = get_object_or_404(RefundCredit, pk=pk, tenant=tenant)
+    refund = get_object_or_404(RefundCredit, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if not refund.can_transition_to('failed'):
         messages.error(request, 'Cannot mark refund as failed.')
         return redirect('returns:refund_detail', pk=pk)
@@ -821,7 +839,7 @@ def refund_fail_view(request, pk):
 @require_POST
 def refund_cancel_view(request, pk):
     tenant = request.tenant
-    refund = get_object_or_404(RefundCredit, pk=pk, tenant=tenant)
+    refund = get_object_or_404(RefundCredit, pk=pk, tenant=tenant, deleted_at__isnull=True)
     if not refund.can_transition_to('cancelled'):
         messages.error(request, 'Cannot cancel refund.')
         return redirect('returns:refund_detail', pk=pk)
