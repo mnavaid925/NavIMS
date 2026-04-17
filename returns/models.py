@@ -3,6 +3,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import IntegrityError, models, transaction
 
+from core.state_machine import StateMachineMixin
+
 
 MAX_NUMBER_RETRIES = 5
 
@@ -32,7 +34,7 @@ def _save_with_number_retry(instance, number_field, generate_fn, *args, **kwargs
 # Sub-module 1: Return Merchandise Authorization
 # ──────────────────────────────────────────────
 
-class ReturnAuthorization(models.Model):
+class ReturnAuthorization(StateMachineMixin, models.Model):
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('pending', 'Pending Approval'),
@@ -105,6 +107,7 @@ class ReturnAuthorization(models.Model):
     approved_at = models.DateTimeField(null=True, blank=True)
     received_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -114,9 +117,6 @@ class ReturnAuthorization(models.Model):
 
     def __str__(self):
         return f"{self.rma_number} — {self.customer_name}"
-
-    def can_transition_to(self, new_status):
-        return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     @property
     def total_qty_requested(self):
@@ -198,7 +198,7 @@ class ReturnAuthorizationItem(models.Model):
 # Sub-module 2: Return Inspection
 # ──────────────────────────────────────────────
 
-class ReturnInspection(models.Model):
+class ReturnInspection(StateMachineMixin, models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
@@ -245,6 +245,7 @@ class ReturnInspection(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True, default='')
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -254,9 +255,6 @@ class ReturnInspection(models.Model):
 
     def __str__(self):
         return f"{self.inspection_number} — {self.rma.rma_number}"
-
-    def can_transition_to(self, new_status):
-        return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
         _save_with_number_retry(
@@ -327,7 +325,7 @@ class ReturnInspectionItem(models.Model):
 # Sub-module 3: Disposition Routing
 # ──────────────────────────────────────────────
 
-class Disposition(models.Model):
+class Disposition(StateMachineMixin, models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('processed', 'Processed'),
@@ -382,6 +380,7 @@ class Disposition(models.Model):
     )
     processed_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True, default='')
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -391,9 +390,6 @@ class Disposition(models.Model):
 
     def __str__(self):
         return f"{self.disposition_number} — {self.get_decision_display()}"
-
-    def can_transition_to(self, new_status):
-        return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
         _save_with_number_retry(
@@ -460,7 +456,7 @@ class DispositionItem(models.Model):
 # Sub-module 4: Credit / Refund Processing
 # ──────────────────────────────────────────────
 
-class RefundCredit(models.Model):
+class RefundCredit(StateMachineMixin, models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('processed', 'Processed'),
@@ -517,6 +513,7 @@ class RefundCredit(models.Model):
     )
     processed_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True, default='')
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -526,9 +523,6 @@ class RefundCredit(models.Model):
 
     def __str__(self):
         return f"{self.refund_number} — {self.get_type_display()} {self.amount}"
-
-    def can_transition_to(self, new_status):
-        return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
         _save_with_number_retry(
