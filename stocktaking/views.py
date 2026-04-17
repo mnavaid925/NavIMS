@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from core.decorators import emit_audit
+from core.decorators import emit_audit, tenant_admin_required
 from warehousing.models import Warehouse, Zone
 from inventory.models import StockLevel, StockAdjustment
 from .models import (
@@ -31,7 +31,7 @@ def freeze_list_view(request):
     tenant = request.tenant
     queryset = StocktakeFreeze.objects.filter(tenant=tenant).select_related('warehouse', 'frozen_by')
 
-    q = request.GET.get('q', '').strip()
+    q = request.GET.get('q', '').strip()[:100]  # D-20 — cap scan width
     if q:
         queryset = queryset.filter(Q(freeze_number__icontains=q) | Q(reason__icontains=q))
 
@@ -57,6 +57,7 @@ def freeze_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def freeze_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -76,6 +77,7 @@ def freeze_create_view(request):
 
 
 @login_required
+@tenant_admin_required
 def freeze_edit_view(request, pk):
     tenant = request.tenant
     freeze = get_object_or_404(StocktakeFreeze, pk=pk, tenant=tenant)
@@ -93,6 +95,7 @@ def freeze_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 @require_POST
 def freeze_release_view(request, pk):
     tenant = request.tenant
@@ -109,6 +112,7 @@ def freeze_release_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def freeze_delete_view(request, pk):
     tenant = request.tenant
     freeze = get_object_or_404(StocktakeFreeze, pk=pk, tenant=tenant)
@@ -129,7 +133,7 @@ def schedule_list_view(request):
     tenant = request.tenant
     queryset = CycleCountSchedule.objects.filter(tenant=tenant).select_related('warehouse')
 
-    q = request.GET.get('q', '').strip()
+    q = request.GET.get('q', '').strip()[:100]  # D-20 — cap scan width
     if q:
         queryset = queryset.filter(name__icontains=q)
 
@@ -156,6 +160,7 @@ def schedule_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def schedule_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -174,6 +179,7 @@ def schedule_create_view(request):
 
 
 @login_required
+@tenant_admin_required
 def schedule_edit_view(request, pk):
     tenant = request.tenant
     sched = get_object_or_404(CycleCountSchedule, pk=pk, tenant=tenant)
@@ -205,6 +211,7 @@ def schedule_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def schedule_delete_view(request, pk):
     tenant = request.tenant
     sched = get_object_or_404(CycleCountSchedule, pk=pk, tenant=tenant)
@@ -217,6 +224,7 @@ def schedule_delete_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 @require_POST
 def schedule_run_view(request, pk):
     """Create a new StockCount from a schedule, pre-populated with items."""
@@ -260,7 +268,13 @@ def schedule_run_view(request, pk):
 # ══════════════════════════════════════════════
 
 def _populate_count_items(count):
-    """Snapshot StockLevel rows as count items."""
+    """Snapshot StockLevel rows as count items.
+
+    D-16 — `bin_location` is intentionally left NULL: `inventory.StockLevel`
+    tracks stock at the warehouse level, not the bin level, so the snapshot
+    has no authoritative bin to record. The field is reserved for a future
+    multi-bin rollout (where `StockLevel` gains a `bin` FK).
+    """
     qs = StockLevel.objects.filter(tenant=count.tenant, warehouse=count.warehouse).select_related('product')
     for sl in qs:
         if StockCountItem.objects.filter(count=count, product=sl.product).exists():
@@ -279,7 +293,7 @@ def count_list_view(request):
     tenant = request.tenant
     queryset = StockCount.objects.filter(tenant=tenant).select_related('warehouse', 'zone', 'assigned_to')
 
-    q = request.GET.get('q', '').strip()
+    q = request.GET.get('q', '').strip()[:100]  # D-20 — cap scan width
     if q:
         queryset = queryset.filter(Q(count_number__icontains=q) | Q(notes__icontains=q))
 
@@ -311,6 +325,7 @@ def count_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def count_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -329,6 +344,7 @@ def count_create_view(request):
 
 
 @login_required
+@tenant_admin_required
 def count_edit_view(request, pk):
     tenant = request.tenant
     count = get_object_or_404(StockCount, pk=pk, tenant=tenant)
@@ -416,6 +432,7 @@ def count_sheet_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def count_delete_view(request, pk):
     tenant = request.tenant
     count = get_object_or_404(StockCount, pk=pk, tenant=tenant)
@@ -433,6 +450,7 @@ def count_delete_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 @require_POST
 def count_start_view(request, pk):
     tenant = request.tenant
@@ -449,6 +467,7 @@ def count_start_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 @require_POST
 def count_review_view(request, pk):
     tenant = request.tenant
@@ -466,6 +485,7 @@ def count_review_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 @require_POST
 def count_cancel_view(request, pk):
     tenant = request.tenant
@@ -489,7 +509,7 @@ def adjustment_list_view(request):
     tenant = request.tenant
     queryset = StockVarianceAdjustment.objects.filter(tenant=tenant).select_related('count', 'approved_by', 'posted_by')
 
-    q = request.GET.get('q', '').strip()
+    q = request.GET.get('q', '').strip()[:100]  # D-20 — cap scan width
     if q:
         queryset = queryset.filter(Q(adjustment_number__icontains=q) | Q(count__count_number__icontains=q))
 
@@ -515,6 +535,7 @@ def adjustment_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def adjustment_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -544,6 +565,7 @@ def adjustment_create_view(request):
 
 
 @login_required
+@tenant_admin_required
 def adjustment_edit_view(request, pk):
     tenant = request.tenant
     adj = get_object_or_404(StockVarianceAdjustment, pk=pk, tenant=tenant)
@@ -578,6 +600,7 @@ def adjustment_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def adjustment_delete_view(request, pk):
     tenant = request.tenant
     adj = get_object_or_404(StockVarianceAdjustment, pk=pk, tenant=tenant)
@@ -593,6 +616,7 @@ def adjustment_delete_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 @require_POST
 def adjustment_approve_view(request, pk):
     tenant = request.tenant
@@ -610,6 +634,7 @@ def adjustment_approve_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 @require_POST
 def adjustment_reject_view(request, pk):
     tenant = request.tenant
@@ -625,6 +650,7 @@ def adjustment_reject_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 @require_POST
 def adjustment_post_view(request, pk):
     """Post variance adjustment — creates StockAdjustment entries and updates StockLevel.
@@ -634,6 +660,11 @@ def adjustment_post_view(request, pk):
            StockAdjustment inserts + StockLevel mutations back.
     D-03 — reject if the count has already been adjusted (e.g. by a sibling
            approved adjustment on the same count).
+    D-06 — use `StockAdjustment.apply_adjustment()` as the canonical write
+           path; `on_hand` derives from the ledger row rather than being
+           rewritten by the view. A `correction`-type adjustment lets us
+           pin `on_hand` to the physically counted quantity while keeping
+           ledger + level arithmetically consistent.
     D-09 — emit AuditLog rows for the variance post.
     """
     tenant = request.tenant
@@ -664,20 +695,21 @@ def adjustment_post_view(request, pk):
                 warehouse=count.warehouse,
                 defaults={'on_hand': 0, 'allocated': 0, 'on_order': 0},
             )
-            variance = item.variance
-            adjustment_type = 'increase' if variance > 0 else 'decrease'
-            StockAdjustment.objects.create(
+            stock_adj = StockAdjustment.objects.create(
                 tenant=tenant,
                 stock_level=stock,
-                adjustment_type=adjustment_type,
+                adjustment_type='correction',
                 reason='count',
-                quantity=abs(variance),
+                quantity=item.counted_qty,
                 notes=f'Variance from count {count.count_number} — {item.get_reason_code_display() or adj.get_reason_code_display()}',
                 adjusted_by=request.user,
             )
-            stock.on_hand = item.counted_qty
+            # D-06 — single canonical write path. `apply_adjustment` sets
+            # stock.on_hand via the correction branch, so the ledger row and
+            # the resulting on_hand are reconcilable.
+            stock_adj.apply_adjustment()
             stock.last_counted_at = now
-            stock.save()
+            stock.save(update_fields=['last_counted_at'])
 
         adj.status = 'posted'
         adj.posted_by = request.user
