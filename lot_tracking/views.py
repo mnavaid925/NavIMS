@@ -6,6 +6,7 @@ from django.db.models import Q, Sum, Count
 from django.utils import timezone
 
 from catalog.models import Product
+from core.decorators import emit_audit, tenant_admin_required
 from warehousing.models import Warehouse
 from .models import LotBatch, SerialNumber, ExpiryAlert, TraceabilityLog
 from .forms import (
@@ -57,6 +58,7 @@ def lot_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def lot_create_view(request):
     tenant = request.tenant
 
@@ -80,6 +82,7 @@ def lot_create_view(request):
                 performed_by=request.user,
                 notes=f'Lot {lot.lot_number} created with {lot.quantity} units.',
             )
+            emit_audit(request, 'create', lot, changes=f'number={lot.lot_number}, qty={lot.quantity}')
 
             messages.success(request, f'Lot {lot.lot_number} created successfully.')
             return redirect('lot_tracking:lot_detail', pk=lot.pk)
@@ -108,6 +111,7 @@ def lot_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def lot_edit_view(request, pk):
     tenant = request.tenant
     lot = get_object_or_404(LotBatch, pk=pk, tenant=tenant)
@@ -120,6 +124,7 @@ def lot_edit_view(request, pk):
         form = LotBatchForm(request.POST, instance=lot, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', lot)
             messages.success(request, f'Lot {lot.lot_number} updated successfully.')
             return redirect('lot_tracking:lot_detail', pk=lot.pk)
     else:
@@ -130,6 +135,7 @@ def lot_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def lot_delete_view(request, pk):
     if request.method != 'POST':
         return redirect('lot_tracking:lot_list')
@@ -141,12 +147,15 @@ def lot_delete_view(request, pk):
         messages.warning(request, 'Only quarantined lots can be deleted.')
         return redirect('lot_tracking:lot_detail', pk=lot.pk)
 
+    number = lot.lot_number
+    emit_audit(request, 'delete', lot, changes=f'number={number}')
     lot.delete()
     messages.success(request, 'Lot deleted successfully.')
     return redirect('lot_tracking:lot_list')
 
 
 @login_required
+@tenant_admin_required
 def lot_transition_view(request, pk, new_status):
     if request.method != 'POST':
         return redirect('lot_tracking:lot_list')
@@ -176,6 +185,7 @@ def lot_transition_view(request, pk, new_status):
         performed_by=request.user,
         notes=f'Status changed from {old_status} to {new_status}.',
     )
+    emit_audit(request, 'transition', lot, changes=f'{old_status}->{new_status}')
 
     messages.success(request, f'Lot status changed to {lot.get_status_display()}.')
     return redirect('lot_tracking:lot_detail', pk=lot.pk)
@@ -224,6 +234,7 @@ def serial_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def serial_create_view(request):
     tenant = request.tenant
 
@@ -247,6 +258,7 @@ def serial_create_view(request):
                 performed_by=request.user,
                 notes=f'Serial {serial.serial_number} registered.',
             )
+            emit_audit(request, 'create', serial, changes=f'number={serial.serial_number}')
 
             messages.success(request, f'Serial number {serial.serial_number} created successfully.')
             return redirect('lot_tracking:serial_detail', pk=serial.pk)
@@ -273,6 +285,7 @@ def serial_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def serial_edit_view(request, pk):
     tenant = request.tenant
     serial = get_object_or_404(SerialNumber, pk=pk, tenant=tenant)
@@ -281,6 +294,7 @@ def serial_edit_view(request, pk):
         form = SerialNumberForm(request.POST, instance=serial, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', serial)
             messages.success(request, f'Serial {serial.serial_number} updated successfully.')
             return redirect('lot_tracking:serial_detail', pk=serial.pk)
     else:
@@ -291,6 +305,7 @@ def serial_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def serial_delete_view(request, pk):
     if request.method != 'POST':
         return redirect('lot_tracking:serial_list')
@@ -302,12 +317,24 @@ def serial_delete_view(request, pk):
         messages.warning(request, 'Only available serial numbers can be deleted.')
         return redirect('lot_tracking:serial_detail', pk=serial.pk)
 
+    # D-12 — refuse deletion when parent lot is in a regulated/archived state.
+    if serial.lot and serial.lot.status in ('recalled', 'expired', 'quarantine'):
+        messages.warning(
+            request,
+            f'Cannot delete — parent lot {serial.lot.lot_number} is {serial.lot.get_status_display()}. '
+            f'Serial must stay on record for the audit chain.',
+        )
+        return redirect('lot_tracking:serial_detail', pk=serial.pk)
+
+    number = serial.serial_number
+    emit_audit(request, 'delete', serial, changes=f'number={number}')
     serial.delete()
     messages.success(request, 'Serial number deleted successfully.')
     return redirect('lot_tracking:serial_list')
 
 
 @login_required
+@tenant_admin_required
 def serial_transition_view(request, pk, new_status):
     if request.method != 'POST':
         return redirect('lot_tracking:serial_list')
@@ -338,6 +365,7 @@ def serial_transition_view(request, pk, new_status):
         performed_by=request.user,
         notes=f'Status changed from {old_status} to {new_status}.',
     )
+    emit_audit(request, 'transition', serial, changes=f'{old_status}->{new_status}')
 
     messages.success(request, f'Serial status changed to {serial.get_status_display()}.')
     return redirect('lot_tracking:serial_detail', pk=serial.pk)
@@ -409,6 +437,7 @@ def expiry_alert_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def expiry_acknowledge_view(request, pk):
     tenant = request.tenant
     alert = get_object_or_404(ExpiryAlert, pk=pk, tenant=tenant)
@@ -423,8 +452,13 @@ def expiry_acknowledge_view(request, pk):
             alert.is_acknowledged = True
             alert.acknowledged_by = request.user
             alert.acknowledged_at = timezone.now()
-            alert.notes = form.cleaned_data.get('notes', '')
+            # D-14 — append instead of overwriting existing notes.
+            new_note = form.cleaned_data.get('notes', '').strip()
+            if new_note:
+                stamp = f"[{timezone.now():%Y-%m-%d %H:%M} {request.user}]"
+                alert.notes = (f"{alert.notes}\n{stamp} {new_note}").strip()
             alert.save()
+            emit_audit(request, 'acknowledge', alert, changes=f'lot={alert.lot.lot_number}')
             messages.success(request, f'Alert for {alert.lot.lot_number} acknowledged.')
             return redirect('lot_tracking:expiry_alert_list')
     else:
@@ -481,6 +515,7 @@ def traceability_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def traceability_create_view(request):
     tenant = request.tenant
 
@@ -491,6 +526,7 @@ def traceability_create_view(request):
             log.tenant = tenant
             log.performed_by = request.user
             log.save()
+            emit_audit(request, 'create', log, changes=f'number={log.log_number}, event={log.event_type}')
             messages.success(request, f'Traceability log {log.log_number} created.')
             return redirect('lot_tracking:traceability_detail', pk=log.pk)
     else:
@@ -504,9 +540,13 @@ def traceability_create_view(request):
 def lot_trace_view(request, pk):
     tenant = request.tenant
     lot = get_object_or_404(LotBatch, pk=pk, tenant=tenant)
-    logs = TraceabilityLog.objects.filter(
+    queryset = TraceabilityLog.objects.filter(
         tenant=tenant, lot=lot,
     ).select_related('performed_by', 'from_warehouse', 'to_warehouse').order_by('created_at')
+
+    # D-11 — paginate to 50 rows per page.
+    paginator = Paginator(queryset, 50)
+    logs = paginator.get_page(request.GET.get('page'))
 
     context = {'lot': lot, 'logs': logs}
     return render(request, 'lot_tracking/lot_trace.html', context)
@@ -516,9 +556,13 @@ def lot_trace_view(request, pk):
 def serial_trace_view(request, pk):
     tenant = request.tenant
     serial = get_object_or_404(SerialNumber, pk=pk, tenant=tenant)
-    logs = TraceabilityLog.objects.filter(
+    queryset = TraceabilityLog.objects.filter(
         tenant=tenant, serial_number=serial,
     ).select_related('performed_by', 'from_warehouse', 'to_warehouse').order_by('created_at')
+
+    # D-11 — paginate to 50 rows per page.
+    paginator = Paginator(queryset, 50)
+    logs = paginator.get_page(request.GET.get('page'))
 
     context = {'serial': serial, 'logs': logs}
     return render(request, 'lot_tracking/serial_trace.html', context)
