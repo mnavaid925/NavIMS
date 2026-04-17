@@ -1,6 +1,28 @@
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction, IntegrityError
 from django.utils import timezone
+
+
+def _save_with_generated_number(instance, number_field, generator, *args, **kwargs):
+    """
+    D-04: Serialise auto-number generation. Concurrent `MAX(id)+1` is racy; on
+    conflict we regenerate and retry so the second caller simply gets N+2 rather
+    than failing with an IntegrityError. Mirror of receiving.models helper.
+    """
+    attempts = 5
+    last_exc = None
+    while attempts > 0:
+        if not getattr(instance, number_field):
+            setattr(instance, number_field, generator())
+        try:
+            with transaction.atomic():
+                models.Model.save(instance, *args, **kwargs)
+            return
+        except IntegrityError as exc:
+            last_exc = exc
+            setattr(instance, number_field, '')
+            attempts -= 1
+    raise last_exc
 
 
 # ──────────────────────────────────────────────
@@ -106,6 +128,11 @@ class StockTransfer(models.Model):
 
     @property
     def total_items(self):
+        # Prefer the annotated value when the queryset was annotated with
+        # `_items_count = Count('items')` (used by list views to avoid N+1).
+        annotated = getattr(self, '_items_count', None)
+        if annotated is not None:
+            return annotated
         return self.items.count()
 
     @property
@@ -117,9 +144,7 @@ class StockTransfer(models.Model):
         return self.items.aggregate(total=models.Sum('received_quantity'))['total'] or 0
 
     def save(self, *args, **kwargs):
-        if not self.transfer_number:
-            self.transfer_number = self._generate_transfer_number()
-        super().save(*args, **kwargs)
+        _save_with_generated_number(self, 'transfer_number', self._generate_transfer_number, *args, **kwargs)
 
     def _generate_transfer_number(self):
         last = (
