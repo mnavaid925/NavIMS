@@ -86,6 +86,8 @@ NavIMS/
 │   ├── models.py               # Tenant, User, Role, Permission, Subscription, AuditLog
 │   ├── middleware.py            # TenantMiddleware (sets request.tenant)
 │   ├── context_processors.py   # Template context for current tenant
+│   ├── decorators.py           # tenant_admin_required + emit_audit (shared across modules)
+│   ├── forms.py                # TenantUniqueCodeMixin (for unique_together(tenant, X) form-layer guard)
 │   ├── admin.py                # Django admin registrations
 │   └── management/
 │       └── commands/
@@ -170,7 +172,8 @@ NavIMS/
 │   ├── admin.py                # Admin registration for all 4 models
 │   └── management/
 │       └── commands/
-│           └── seed_lot_tracking.py  # Lot tracking seeder with demo data
+│           ├── seed_lot_tracking.py       # Lot tracking seeder with demo data
+│           └── generate_expiry_alerts.py  # Idempotent daily alert generation (approaching/expired lots)
 │
 ├── stocktaking/                # Module 12: Stocktaking & Cycle Counting
 │   ├── models.py               # StocktakeFreeze, CycleCountSchedule, StockCount, StockCountItem, StockVarianceAdjustment
@@ -529,8 +532,8 @@ Reference implementation: [receiving/tests/](./receiving/tests/) and [stock_move
 | warehousing       | 104   | Warehouse/Zone/Aisle/Rack/Bin hierarchy, cross-docking, unique-code traps |
 | inventory         | 90    | Stock levels, adjustments, status transitions, valuation, reservations |
 | stock_movements   | 69    | Transfers (inter/intra), approvals, routes, receive flow |
-| lot_tracking      | 108   | Lot/batch, serials, expiry alerts, traceability |
-| **Total**         | **641** | |
+| lot_tracking      | 115   | Lot/batch, serials, expiry alerts, traceability, idempotent alert-generation command |
+| **Total**         | **642** | |
 
 Run `pytest` at the project root to execute all modules in one pass (~25 s on a warm cache).
 
@@ -545,6 +548,16 @@ Each module's `test_security.py` + `test_regression.py` files codify real defect
 - **Race conditions** — atomic auto-numbering with `IntegrityError` retry for `GRN-NNNNN`, `TRF-NNNNN`, `PO-NNNNN`, `LOT-NNNNN`, etc.
 - **N+1 queries** — `django_assert_max_num_queries` budgets on every list view and multi-item detail view.
 - **Financial reconciliation** — three-way match must compare all three totals (PO ↔ Invoice ↔ GRN).
+- **RBAC on destructive ops** — `@tenant_admin_required` gates every create / edit / delete / status-transition endpoint; non-admin tenant users are limited to reads.
+- **Security-grade audit trail** — `core.AuditLog` rows emitted on every mutating request alongside any domain-level log.
+
+### Shared helpers
+
+Recurring cross-cutting fixes have been lifted into `core/` so new modules pick them up by default instead of reinventing them:
+
+- **[`core.decorators.tenant_admin_required`](./core/decorators.py)** — `@login_required`-compatible decorator that additionally requires `user.is_tenant_admin` (or `is_superuser`). Apply to every create/edit/delete/transition view.
+- **[`core.decorators.emit_audit`](./core/decorators.py)** — one-line `AuditLog` emission: `emit_audit(request, 'delete', instance, changes='…')`. Silently no-ops when `request.tenant` is unset.
+- **[`core.forms.TenantUniqueCodeMixin`](./core/forms.py)** — generalised form-layer guard for `unique_together = ('tenant', <field>)`. Mix into any `ModelForm` whose tenant is injected in `save()` instead of being a form field; set `tenant_unique_field = '<field_name>'` and call `self._clean_tenant_unique_field('<field_name>')` from `clean_<field>()`.
 
 ### Writing new tests
 
