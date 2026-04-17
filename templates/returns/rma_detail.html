@@ -173,7 +173,7 @@
                     {% if rma.status == 'received' %}
                     <form method="post" action="{% url 'returns:rma_close' rma.pk %}">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-archive-line me-1"></i>Close RMA</button></form>
                     {% endif %}
-                    {% if rma.status in 'draft,pending,approved' %}
+                    {% if rma.status == 'draft' or rma.status == 'pending' or rma.status == 'approved' %}
                     <form method="post" action="{% url 'returns:rma_cancel' rma.pk %}" onsubmit="return confirm('Cancel this RMA?');">{% csrf_token %}<button class="btn btn-soft-danger w-100">Cancel RMA</button></form>
                     {% endif %}
                     {% if rma.status == 'draft' %}
