@@ -164,8 +164,10 @@
                                         <span class="badge bg-success-subtle text-success">{{ lot.get_status_display }}</span>
                                     {% elif lot.status == 'expired' %}
                                         <span class="badge bg-danger-subtle text-danger">{{ lot.get_status_display }}</span>
-                                    {% elif lot.status == 'quarantined' %}
+                                    {% elif lot.status == 'quarantine' %}
                                         <span class="badge bg-warning-subtle text-warning">{{ lot.get_status_display }}</span>
+                                    {% elif lot.status == 'consumed' %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ lot.get_status_display }}</span>
                                     {% elif lot.status == 'recalled' %}
                                         <span class="badge bg-danger-subtle text-danger">{{ lot.get_status_display }}</span>
                                     {% else %}
