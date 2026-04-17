@@ -141,3 +141,49 @@ grep -rn "inlineformset_factory" <module>/forms.py
 ```
 Post-construction `field.queryset = filtered` on pre-rendered forms is a known false positive — it does not survive POST revalidation.
 **Scope still outstanding:** `returns`, `stocktaking`, `multi_location`. Clear after this pass: `purchase_orders`, `receiving`, `warehousing`, `stock_movements`, `orders`.
+
+
+## 2026-04-18 — Returns Management (RMA) Module SQA Remediation
+
+### Issue 20: `@require_POST` hygiene on state-transition endpoints — defect class reaches four modules
+**What happened:** Returns shipped 14 state-transition views (rma submit/approve/reject/receive/close/cancel; inspection start/complete; disposition process/cancel; refund process/fail/cancel) guarded only by `@login_required`, with no `@require_POST`. Django-shell probe confirmed `GET /returns/<pk>/submit/` changed status `draft → pending`; worse, `GET /returns/refunds/<pk>/process/` ran the financial write. Because GET requests are not CSRF-protected, any logged-in user loading an `<img src>` or `<a href>` from a hostile page would trigger a drive-by state change. Same family as vendors/receiving/warehousing "status-transition without role gate" captured in lesson #12, plus the GET-vs-POST dimension.
+**Root cause:** The triad "require_POST + tenant_admin_required + emit_audit" is now a well-known pattern — but the *missing-require_POST* half of it keeps getting shipped because the module scaffolding starts by copying a plain `@login_required` view. Nothing forces the `@require_POST` decorator onto transition endpoints.
+**Rule:** The state-transition triad captured in lesson #12 is now **four decorators**, in this exact order (outside-in: auth first, then method, then view logic):
+```python
+@tenant_admin_required
+@require_POST
+def transition_view(request, pk):
+    obj = get_object_or_404(Model, pk=pk, tenant=request.tenant)
+    if not obj.can_transition_to(new_status):
+        messages.error(...); return redirect(...)
+    old = obj.status; obj.status = new_status; obj.save()
+    emit_audit(request, 'model_transitioned', obj, changes=f'{old}->{new_status}')
+    ...
+```
+Audit sweep going forward: `grep -rn "def [a-z_]*_view.*status" <module>/views.py` then confirm each match has `@require_POST` + `@tenant_admin_required`. Missing either is a defect.
+**Scope still outstanding:** `administration`, `stocktaking` (partial), `multi_location`, `forecasting`. Clear after this pass: `catalog`, `vendors`, `purchase_orders`, `receiving`, `warehousing`, `stock_movements`, `orders`, `lot_tracking`, `returns`.
+
+### Issue 21: Stock-ledger asymmetry between increase and decrease paths
+**What happened:** `returns/views.py:disposition_process_view` had two code paths — restock (increase) and scrap (decrease). The restock path wrote `StockAdjustment(increase)` AND incremented `StockLevel.on_hand`. The scrap path wrote `StockAdjustment(decrease)` but **did not** decrement `on_hand`. Adjustments are an audit ledger; `on_hand` is the physical balance. Writing only to the ledger but not the balance means the two tables drift apart over time until stock reports no longer match physical counts. Identical shape to lesson #17 (orders D-10): decrement was picked from reservation qty when it should have come from picked qty.
+**Root cause:** Whoever writes the decrease branch assumes "StockAdjustment will be applied later by a background job" (it isn't). There's no single helper that writes a paired `StockAdjustment` + `on_hand` update; every module hand-rolls it and forgets half.
+**Rule:** Every time a module writes a `StockAdjustment`, the surrounding transaction MUST mutate `StockLevel.on_hand` in the same direction by the same amount, clamped at 0. Audit pattern:
+```
+grep -rn "StockAdjustment.objects.create" -- */views.py
+# For each match, verify the immediately surrounding code also mutates
+# StockLevel.on_hand. A `select_for_update()` is required for concurrency.
+```
+Until a `core.inventory.apply_adjustment(stock_level, adjustment_type, qty, reason, actor)` helper lands, every hand-rolled write is a candidate defect.
+**Scope sweep target:** `inventory`, `receiving`, `orders` (shipment_delivered), `stock_movements`, `returns` — already covered. Remaining unreviewed: `stocktaking`, `multi_location`.
+
+### Issue 22: `unique_together + tenant` trap — 5 modules scope closed; returns out of scope
+**What happened:** Returns has `unique_together('tenant', 'rma_number')` on four models but the trap does NOT apply here — those fields are internally auto-generated via `_generate_rma_number()` / `_generate_refund_number()` etc., never exposed as form fields. So the form layer never needs a `clean_<field>` guard. Instead the defect shape is "two concurrent writers compute the same next number" — which manifests as a 500 `IntegrityError` under race. Fixed by `_save_with_number_retry()` at [returns/models.py:9-27](../../returns/models.py#L9-L27) — a `transaction.atomic()` + retry-on-IntegrityError loop.
+**Rule:** When evaluating lesson #6 / #7 / #11 / #14 against a new module, first determine whether the unique field is **user-visible** or **auto-generated**:
+- User-visible field (SKU, code, company_name) → needs `clean_<field>` on the form or `TenantUniqueCodeMixin`.
+- Auto-generated number (RMA-00001, PO-00001, SO-00001) → needs `transaction.atomic()` + retry loop in `save()`.
+Both are tenant-scoped uniqueness problems, but they surface in different layers and need different fixes. Conflating them costs time.
+**Scope for number-generation race:** Audit every `_generate_<X>_number()` method for the same race-and-retry pattern:
+```
+grep -rn "_generate.*_number" -- */models.py
+# For each match, verify the caller's save() wraps the write in a retry loop.
+```
+Returns is the first module where this was explicitly fixed; `orders`, `purchase_orders`, `receiving`, `lot_tracking` all have auto-generated numbers and are candidates for the same sweep.
