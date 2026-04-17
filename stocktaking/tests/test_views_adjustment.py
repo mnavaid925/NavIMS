@@ -115,6 +115,24 @@ class TestAdjustmentPost:
         # StockAdjustment rows: one per variance item (3)
         assert StockAdjustment.objects.filter(tenant=tenant).count() == 3
 
+    def test_D06_uses_correction_adjustment_type(
+        self, client_admin, tenant, counted_count, approved_adj, stock_levels,
+    ):
+        """D-06 regression — ledger rows must use the canonical
+        `apply_adjustment()` write path via adjustment_type='correction'
+        with quantity=counted_qty. Ensures ledger.quantity and resulting
+        on_hand are arithmetically reconcilable (both equal counted_qty)."""
+        url = reverse('stocktaking:adjustment_post', args=[approved_adj.pk])
+        client_admin.post(url)
+        rows = StockAdjustment.objects.filter(tenant=tenant).order_by('stock_level__product__sku')
+        for row in rows:
+            assert row.adjustment_type == 'correction', (
+                'D-06 regression: posting must use correction-type adjustments, '
+                'not increase/decrease — otherwise ledger drifts from on_hand.'
+            )
+            # quantity in the ledger equals the final on_hand of that product.
+            assert row.quantity == row.stock_level.on_hand
+
     def test_post_blocked_when_pending(self, client_admin, pending_adj):
         url = reverse('stocktaking:adjustment_post', args=[pending_adj.pk])
         r = client_admin.post(url)
