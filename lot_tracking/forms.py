@@ -1,6 +1,9 @@
 from django import forms
+from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 from catalog.models import Product
+from core.forms import TenantUniqueCodeMixin
 from warehousing.models import Warehouse
 from receiving.models import GoodsReceiptNote
 from .models import LotBatch, SerialNumber, ExpiryAlert, TraceabilityLog
@@ -47,6 +50,32 @@ class LotBatchForm(forms.ModelForm):
             self.fields['grn'].empty_label = '— Select GRN (optional) —'
             self.fields['grn'].required = False
 
+    def clean_quantity(self):
+        """D-04 — quantity must be ≥ 1.
+        D-13 — on edit, quantity cannot drop below available_quantity (invariant).
+        """
+        value = self.cleaned_data.get('quantity')
+        if value is None or value < 1:
+            raise ValidationError('Quantity must be at least 1.')
+        if self.instance.pk and value < self.instance.available_quantity:
+            raise ValidationError(
+                f'Quantity ({value}) cannot be less than the available quantity '
+                f'({self.instance.available_quantity}).'
+            )
+        return value
+
+    def clean(self):
+        """D-03 — manufacturing_date must not be after expiry_date."""
+        cleaned = super().clean()
+        mfg = cleaned.get('manufacturing_date')
+        exp = cleaned.get('expiry_date')
+        if mfg and exp and mfg > exp:
+            self.add_error(
+                'expiry_date',
+                'Expiry date must be on or after manufacturing date.',
+            )
+        return cleaned
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.tenant:
@@ -58,7 +87,9 @@ class LotBatchForm(forms.ModelForm):
         return instance
 
 
-class SerialNumberForm(forms.ModelForm):
+class SerialNumberForm(TenantUniqueCodeMixin, forms.ModelForm):
+    tenant_unique_field = 'serial_number'
+
     class Meta:
         model = SerialNumber
         fields = [
@@ -89,11 +120,27 @@ class SerialNumberForm(forms.ModelForm):
         if tenant:
             self.fields['product'].queryset = Product.objects.filter(tenant=tenant, is_active=True)
             self.fields['product'].empty_label = '— Select Product —'
-            self.fields['lot'].queryset = LotBatch.objects.filter(tenant=tenant, status='active')
+            # D-02 — preserve the current lot in the queryset even if its status
+            # is no longer 'active', so editing a serial tied to a
+            # quarantine/expired/recalled lot does not silently clear the FK.
+            lot_qs = LotBatch.objects.filter(tenant=tenant, status='active')
+            if self.instance.pk and self.instance.lot_id:
+                lot_qs = LotBatch.objects.filter(
+                    Q(tenant=tenant, status='active') | Q(pk=self.instance.lot_id)
+                )
+            self.fields['lot'].queryset = lot_qs.distinct()
             self.fields['lot'].empty_label = '— Select Lot (optional) —'
             self.fields['lot'].required = False
             self.fields['warehouse'].queryset = Warehouse.objects.filter(tenant=tenant, is_active=True)
             self.fields['warehouse'].empty_label = '— Select Warehouse —'
+
+    def clean_serial_number(self):
+        """D-01 — reject duplicate (tenant, serial_number) at form layer."""
+        return self._clean_tenant_unique_field('serial_number')
+
+    # Override the mixin's default `clean_code` — this model has no `code` field.
+    def clean_code(self):
+        return None
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -114,6 +161,9 @@ class ExpiryAlertAcknowledgeForm(forms.Form):
 
 
 class TraceabilityLogForm(forms.ModelForm):
+    # D-10 — event types that demand a positive quantity.
+    QUANTITY_REQUIRED_EVENTS = {'received', 'sold', 'scrapped', 'expired', 'adjusted'}
+
     class Meta:
         model = TraceabilityLog
         fields = [
@@ -164,5 +214,31 @@ class TraceabilityLogForm(forms.ModelForm):
         lot = cleaned_data.get('lot')
         serial = cleaned_data.get('serial_number')
         if not lot and not serial:
-            raise forms.ValidationError('At least one of Lot or Serial Number is required.')
+            raise ValidationError('At least one of Lot or Serial Number is required.')
+
+        # D-10 — event-type-specific guards.
+        event_type = cleaned_data.get('event_type')
+        quantity = cleaned_data.get('quantity')
+        frm = cleaned_data.get('from_warehouse')
+        to = cleaned_data.get('to_warehouse')
+
+        if event_type == 'transferred':
+            if not frm or not to:
+                self.add_error(
+                    'to_warehouse',
+                    'Transfers require both From Warehouse and To Warehouse.',
+                )
+            elif frm == to:
+                self.add_error(
+                    'to_warehouse',
+                    'To Warehouse must differ from From Warehouse.',
+                )
+
+        if event_type in self.QUANTITY_REQUIRED_EVENTS:
+            if quantity is None or quantity <= 0:
+                self.add_error(
+                    'quantity',
+                    f'Quantity must be a positive number for "{event_type}" events.',
+                )
+
         return cleaned_data
