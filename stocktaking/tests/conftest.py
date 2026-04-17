@@ -120,9 +120,10 @@ def freeze(db, tenant, warehouse):
 
 
 @pytest.fixture
-def draft_count(db, tenant, warehouse):
+def draft_count(db, tenant, warehouse, tenant_admin):
     return StockCount.objects.create(
         tenant=tenant, warehouse=warehouse, scheduled_date=date.today(),
+        created_by=tenant_admin,
     )
 
 
