@@ -55,6 +55,10 @@ class Command(BaseCommand):
             self.stdout.write(f'  [{tenant.name}] Stocktaking data already exists. Use --flush to re-seed.')
             return
 
+        # D-18 — deterministic per-tenant variance pattern so bug reports
+        # are reproducible against a freshly seeded environment.
+        random.seed(f'stocktaking-{tenant.pk}')
+
         self.stdout.write(f'  [{tenant.name}] Seeding stocktaking data...')
 
         warehouses = list(Warehouse.objects.filter(tenant=tenant, is_active=True)[:2])
