@@ -101,13 +101,15 @@
                 </div>
 
                 {% if dispositions.has_other_pages %}
+                {% with filter_qs="&q="|add:q|add:"&status="|add:current_status|add:"&decision="|add:current_decision|add:"&warehouse="|add:current_warehouse %}
                 <div class="d-flex justify-content-end mt-4">
                     <nav><ul class="pagination pagination-sm mb-0">
-                        {% if dispositions.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ dispositions.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
-                        {% for num in dispositions.paginator.page_range %}<li class="page-item {% if dispositions.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
-                        {% if dispositions.has_next %}<li class="page-item"><a class="page-link" href="?page={{ dispositions.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                        {% if dispositions.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ dispositions.previous_page_number }}{{ filter_qs }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in dispositions.paginator.page_range %}<li class="page-item {% if dispositions.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}{{ filter_qs }}">{{ num }}</a></li>{% endfor %}
+                        {% if dispositions.has_next %}<li class="page-item"><a class="page-link" href="?page={{ dispositions.next_page_number }}{{ filter_qs }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
                     </ul></nav>
                 </div>
+                {% endwith %}
                 {% endif %}
             </div>
         </div>

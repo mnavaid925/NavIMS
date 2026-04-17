@@ -102,13 +102,15 @@
                 </div>
 
                 {% if refunds.has_other_pages %}
+                {% with filter_qs="&q="|add:q|add:"&status="|add:current_status|add:"&type="|add:current_type|add:"&method="|add:current_method %}
                 <div class="d-flex justify-content-end mt-4">
                     <nav><ul class="pagination pagination-sm mb-0">
-                        {% if refunds.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ refunds.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
-                        {% for num in refunds.paginator.page_range %}<li class="page-item {% if refunds.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
-                        {% if refunds.has_next %}<li class="page-item"><a class="page-link" href="?page={{ refunds.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                        {% if refunds.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ refunds.previous_page_number }}{{ filter_qs }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in refunds.paginator.page_range %}<li class="page-item {% if refunds.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}{{ filter_qs }}">{{ num }}</a></li>{% endfor %}
+                        {% if refunds.has_next %}<li class="page-item"><a class="page-link" href="?page={{ refunds.next_page_number }}{{ filter_qs }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
                     </ul></nav>
                 </div>
+                {% endwith %}
                 {% endif %}
             </div>
         </div>

@@ -131,21 +131,23 @@
                 </div>
 
                 {% if rmas.has_other_pages %}
+                {% with filter_qs="&q="|add:q|add:"&status="|add:current_status|add:"&reason="|add:current_reason|add:"&warehouse="|add:current_warehouse %}
                 <div class="d-flex justify-content-end mt-4">
                     <nav>
                         <ul class="pagination pagination-sm mb-0">
                             {% if rmas.has_previous %}
-                            <li class="page-item"><a class="page-link" href="?page={{ rmas.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}"><i class="ri-arrow-left-s-line"></i></a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ rmas.previous_page_number }}{{ filter_qs }}"><i class="ri-arrow-left-s-line"></i></a></li>
                             {% endif %}
                             {% for num in rmas.paginator.page_range %}
-                            <li class="page-item {% if rmas.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}">{{ num }}</a></li>
+                            <li class="page-item {% if rmas.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}{{ filter_qs }}">{{ num }}</a></li>
                             {% endfor %}
                             {% if rmas.has_next %}
-                            <li class="page-item"><a class="page-link" href="?page={{ rmas.next_page_number }}{% if q %}&q={{ q }}{% endif %}"><i class="ri-arrow-right-s-line"></i></a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ rmas.next_page_number }}{{ filter_qs }}"><i class="ri-arrow-right-s-line"></i></a></li>
                             {% endif %}
                         </ul>
                     </nav>
                 </div>
+                {% endwith %}
                 {% endif %}
             </div>
         </div>
