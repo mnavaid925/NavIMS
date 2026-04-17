@@ -108,3 +108,36 @@
 **What happened:** `LotBatch.is_expired` and `SerialNumber.is_warranty_expired` compute their reference day via `timezone.now().date()` — which is UTC when `USE_TZ=True`. The first `pytest` run produced three failures because the test file used `date.today()` (local time). Local time was `2026-04-18`, but UTC was still `2026-04-17`, so `expiry_date = date.today() - 1day = 2026-04-17` was not less-than `timezone.now().date() = 2026-04-17`, and `is_expired` returned `False` against the test expectation.
 **Root cause:** The model speaks tenant-wall-clock time (or UTC); the test wrote local-wall-clock time. On most days they are equal and the bug is invisible; on a day when the developer is running tests across midnight UTC-vs-local, three tests flake simultaneously.
 **Rule:** Any test asserting a timezone-aware model property that uses `timezone.now()` internally MUST derive its reference day from `timezone.now().date()` too — never from `datetime.date.today()`. Helper pattern adopted in `lot_tracking/tests/test_models.py`: `def today(): return timezone.now().date()` and use it everywhere. Lint-worthy but low enough priority to stay a convention for now.
+
+
+## 2026-04-18 — Orders Module SQA Remediation
+
+### Issue 16: Auto-progress state-machine bypass (orders D-08/D-09)
+**What happened:** `shipment_dispatch_view` unconditionally set `so.status = 'shipped'` when the SO was in `packed`/`in_fulfillment`/`picked` — but `in_fulfillment→shipped` and `picked→shipped` are NOT in `SalesOrder.VALID_TRANSITIONS`. The view wrote state the model explicitly forbade. Same class on `so_resume_view`: smart-picked `resume_to='shipped'` from `on_hold`, which is not in `VALID_TRANSITIONS['on_hold']`. Both paths silently corrupted the state machine.
+**Root cause:** "Auto-progress" branches in auxiliary views (shipment/pick/pack completion) bypass the `can_transition_to` guard they rely on elsewhere. When a module declares a `VALID_TRANSITIONS` table, every state write in every view — including auto-progress cascades — must go through that gate.
+**Rule:** For every module with a `VALID_TRANSITIONS` table, grep `<module>/views.py` for literal `\.status = '[^']*'` and, for each match, verify the immediately preceding line calls `.can_transition_to(...)`. If auto-progress is legitimate, refuse the whole upstream action when the downstream transition would be invalid; do not silently downgrade to a "skip the SO update" fallback (which is what the reviewer will notice as a correctness bug, not a UX bug). Reference fix: [orders/views.py:shipment_dispatch_view](../../orders/views.py) refuses to dispatch when `so.status != 'packed'`.
+
+### Issue 17: Inventory deduction used reservation qty instead of picked qty (orders D-10)
+**What happened:** `shipment_delivered_view` decremented `StockLevel.on_hand` by `InventoryReservation.quantity` — which is the originally-reserved amount, not what pickers actually picked. When `PickListItem.picked_quantity < ordered_quantity` (short-pick / shrinkage), the view over-deducted `on_hand` by the missing delta, making stock records drift vs physical.
+**Root cause:** `on_hand` and `allocated` are semantically different: `allocated` tracks commitment (released by reservation qty); `on_hand` tracks physical stock (deducted by what left the shelf). Conflating them is easy because they share the reservation record.
+**Rule:** When a fulfillment event closes a reservation, the two decrements must be driven by different sources: `allocated -= reservation.quantity`, `on_hand -= SUM(PickListItem.picked_quantity)` grouped by `(product, warehouse)`. Any shortfall (reservation > picked) becomes a stock adjustment for shrinkage tracking, not an `on_hand` under-count. Audit any other module that decrements `StockLevel.on_hand` inside a status-change view (`inventory`, `returns`, `stock_movements`) for the same conflation.
+
+### Issue 18: `unique_together + tenant` trap sweep — now clear for 8 modules, `TenantUniqueCodeMixin` import density check is viable
+**What happened:** Orders became the 5th module to hit the same trap (`Carrier.code` + `unique_together(tenant, code)` with no form guard). Fixed in one line by mixing `core.forms.TenantUniqueCodeMixin` into `CarrierForm` — the helper was already centralised by lesson #14.
+**Observation (worth codifying):** Since `TenantUniqueCodeMixin` is now in `core/forms.py` and byte-stable, the audit can be compressed from "inspect every ModelForm that backs a model with `unique_together` that contains `tenant`" to the much cheaper grep:
+```
+# any form backing a model with unique_together that contains 'tenant' MUST either import TenantUniqueCodeMixin or define a clean_<field>() for the unique field.
+grep -L "TenantUniqueCodeMixin\|clean_code\|clean_sku\|clean_serial_number\|clean_company_name\|clean_contract_number" <module>/forms.py
+```
+If the forms file matches `unique_together.*tenant` in models.py but returns non-empty from the grep above, it's the bug.
+**Scope still outstanding:** `administration`, `inventory` (re-audit after latest inventory fixes), `returns`, `stocktaking`, `multi_location`, `forecasting`. Clear after this pass: `catalog`, `vendors`, `purchase_orders`, `receiving`, `warehousing`, `lot_tracking`, `stock_movements`, `orders`.
+
+### Issue 19: Inline-formset IDOR scope audit — now clear for 5 modules
+**What happened:** Orders is the 3rd module where lesson #9's outstanding audit actually caught a bug in production. Two formsets needed the fix: `SalesOrderItemFormSet` (product FK) and `PickListItemFormSet` (product + bin FKs — the first 2-FK case).
+**Reaffirmed rule:** The sweep that closes this class is:
+```
+grep -rn "inlineformset_factory" <module>/forms.py
+# For each match, verify: child form __init__ accepts tenant; every FK queryset is filtered; views use form_kwargs={'tenant': tenant} on BOTH GET and POST.
+```
+Post-construction `field.queryset = filtered` on pre-rendered forms is a known false positive — it does not survive POST revalidation.
+**Scope still outstanding:** `returns`, `stocktaking`, `multi_location`. Clear after this pass: `purchase_orders`, `receiving`, `warehousing`, `stock_movements`, `orders`.
