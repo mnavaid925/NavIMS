@@ -98,13 +98,15 @@
                 </div>
 
                 {% if adjustments.has_other_pages %}
+                {% with filter_qs="q="|add:q|add:"&status="|add:current_status|add:"&reason="|add:current_reason %}
                 <div class="d-flex justify-content-end mt-4">
                     <nav><ul class="pagination pagination-sm mb-0">
-                        {% if adjustments.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ adjustments.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
-                        {% for num in adjustments.paginator.page_range %}<li class="page-item {% if adjustments.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
-                        {% if adjustments.has_next %}<li class="page-item"><a class="page-link" href="?page={{ adjustments.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                        {% if adjustments.has_previous %}<li class="page-item"><a class="page-link" href="?{{ filter_qs }}&page={{ adjustments.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in adjustments.paginator.page_range %}<li class="page-item {% if adjustments.number == num %}active{% endif %}"><a class="page-link" href="?{{ filter_qs }}&page={{ num }}">{{ num }}</a></li>{% endfor %}
+                        {% if adjustments.has_next %}<li class="page-item"><a class="page-link" href="?{{ filter_qs }}&page={{ adjustments.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
                     </ul></nav>
                 </div>
+                {% endwith %}
                 {% endif %}
             </div>
         </div>
