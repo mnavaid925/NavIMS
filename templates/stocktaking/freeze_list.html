@@ -90,13 +90,15 @@
                 </div>
 
                 {% if freezes.has_other_pages %}
+                {% with filter_qs="q="|add:q|add:"&status="|add:current_status|add:"&warehouse="|add:current_warehouse %}
                 <div class="d-flex justify-content-end mt-4">
                     <nav><ul class="pagination pagination-sm mb-0">
-                        {% if freezes.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ freezes.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
-                        {% for num in freezes.paginator.page_range %}<li class="page-item {% if freezes.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
-                        {% if freezes.has_next %}<li class="page-item"><a class="page-link" href="?page={{ freezes.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                        {% if freezes.has_previous %}<li class="page-item"><a class="page-link" href="?{{ filter_qs }}&page={{ freezes.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in freezes.paginator.page_range %}<li class="page-item {% if freezes.number == num %}active{% endif %}"><a class="page-link" href="?{{ filter_qs }}&page={{ num }}">{{ num }}</a></li>{% endfor %}
+                        {% if freezes.has_next %}<li class="page-item"><a class="page-link" href="?{{ filter_qs }}&page={{ freezes.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
                     </ul></nav>
                 </div>
+                {% endwith %}
                 {% endif %}
             </div>
         </div>
