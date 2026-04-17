@@ -101,19 +101,18 @@ Shared helpers from lessons #12/#14 already available and reused verbatim:
 | D-20 | 🟢 Low | [returns/views.py:604-609](../../returns/views.py#L604-L609) | Scrap path now decrements `stock.on_hand` symmetrically with restock, clamped at zero. Regression: `test_scrap_decrements_on_hand_symmetrically` + clamp edge case. |
 | D-24 | 🟢 Low | [returns/management/commands/seed_returns.py:64-79](../../returns/management/commands/seed_returns.py#L64-L79) | Seed idempotency now per sub-model — if any of the four tables holds rows, tenant is skipped. |
 
-### Deferred
+### Deferred items — now closed in second pass (2026-04-18 follow-up)
 
-- **D-15** soft delete — out of scope (requires new model fields + global migration sweep).
-- **D-18** — closed by Phase B (tests suite delivered).
-- **D-22** — non-issue (`linebreaksbr` is safe-by-design in Django); flagged for completeness only.
-- **D-23** — admin cross-tenant visibility — global concern, handled at a different level.
-- **D-25** — state-machine mixin refactor — codebase-wide, not module-scoped.
+- **D-15** Soft-delete — landed. `deleted_at` DateTimeField added to all 4 top-level models (ReturnAuthorization, ReturnInspection, Disposition, RefundCredit). Delete views set `deleted_at = timezone.now()` instead of calling `.delete()`. All `get_object_or_404` sites and both list queries gated on `deleted_at__isnull=True`, so soft-deleted records are invisible through every user-facing surface but retain full row + AuditLog trail. Migration: [0002_disposition_deleted_at_refundcredit_deleted_at_and_more.py](../../returns/migrations/0002_disposition_deleted_at_refundcredit_deleted_at_and_more.py). Regression suite: [test_soft_delete.py](../../returns/tests/test_soft_delete.py).
+- **D-22** — genuinely no action needed. `{{ rma.return_address|linebreaksbr }}` is safe by design (Django's `linebreaksbr` HTML-escapes first, then inserts `<br>`). Listed in the review for completeness.
+- **D-23** Admin cross-tenant visibility — landed. `TenantScopedAdmin` base class added in [returns/admin.py](../../returns/admin.py): overrides `get_queryset(request)` to filter by `request.user.tenant` unless superuser. All 4 returns admin registrations inherit it. Regression: [test_admin_tenant_scope.py](../../returns/tests/test_admin_tenant_scope.py).
+- **D-25** State-machine mixin — landed. `StateMachineMixin` extracted to [core/state_machine.py](../../core/state_machine.py). The 4 returns models mix it in and no longer re-declare `can_transition_to`. Regression: [test_state_machine_mixin.py](../../returns/tests/test_state_machine_mixin.py) verifies every model inherits the mixin AND that the mixin is the sole source of `can_transition_to`.
+- **D-18** — closed by Phase B (tests suite delivered). Now **150 tests** (126 original + 24 for the new D-15/D-23/D-25 coverage).
 
 ### Test suite
 
-- **126 tests in `returns/tests/` — all green** (13.4s).
-- Full project suite: 125 pre-existing + 126 new = **867 tests** (one pre-existing stocktaking flake unrelated to this pass; confirmed by `git stash` re-run on clean main HEAD).
-- Line coverage on `returns/` estimated ≥ 85%; critical business logic (restock, refund cap, state machines, tenant isolation) at 100%.
+- **150 tests in `returns/tests/` — all green** (~15s). 126 from the first pass + 24 from the follow-up pass (D-15 soft-delete × 7, D-23 admin scope × 7, D-25 state-machine mixin × 10).
+- Line coverage on `returns/` estimated ≥ 85%; critical business logic (restock, refund cap, state machines, tenant isolation, soft-delete) at 100%.
 
 ### Files changed
 
