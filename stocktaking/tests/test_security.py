@@ -68,3 +68,62 @@ class TestTenantIsolationList:
         r = client_other.get(reverse('stocktaking:freeze_list'))
         assert r.status_code == 200
         assert freeze.freeze_number.encode() not in r.content
+
+
+@pytest.mark.django_db
+class TestD19RBAC:
+    """D-19 regression — non-admin tenant user must be blocked from
+    destructive operations on all 4 entities. List/detail views remain
+    accessible."""
+
+    def test_non_admin_blocked_from_freeze_create(self, client_user):
+        r = client_user.get(reverse('stocktaking:freeze_create'))
+        assert r.status_code == 403
+
+    def test_non_admin_blocked_from_freeze_release(self, client_user, freeze):
+        r = client_user.post(reverse('stocktaking:freeze_release', args=[freeze.pk]))
+        assert r.status_code == 403
+        freeze.refresh_from_db()
+        assert freeze.status == 'active'
+
+    def test_non_admin_blocked_from_schedule_create(self, client_user):
+        r = client_user.get(reverse('stocktaking:schedule_create'))
+        assert r.status_code == 403
+
+    def test_non_admin_blocked_from_schedule_run(
+        self, client_user, schedule, stock_levels,
+    ):
+        from stocktaking.models import StockCount
+        r = client_user.post(reverse('stocktaking:schedule_run', args=[schedule.pk]))
+        assert r.status_code == 403
+        assert not StockCount.objects.filter(schedule=schedule).exists()
+
+    def test_non_admin_blocked_from_count_create(self, client_user):
+        r = client_user.get(reverse('stocktaking:count_create'))
+        assert r.status_code == 403
+
+    def test_non_admin_blocked_from_count_delete(self, client_user, draft_count):
+        from stocktaking.models import StockCount
+        r = client_user.post(reverse('stocktaking:count_delete', args=[draft_count.pk]))
+        assert r.status_code == 403
+        assert StockCount.objects.filter(pk=draft_count.pk).exists()
+
+    def test_non_admin_blocked_from_adjustment_approve(self, client_user, pending_adj):
+        r = client_user.post(reverse('stocktaking:adjustment_approve', args=[pending_adj.pk]))
+        assert r.status_code == 403
+        pending_adj.refresh_from_db()
+        assert pending_adj.status == 'pending'
+
+    def test_non_admin_blocked_from_adjustment_post(self, client_user, approved_adj):
+        r = client_user.post(reverse('stocktaking:adjustment_post', args=[approved_adj.pk]))
+        assert r.status_code == 403
+        approved_adj.refresh_from_db()
+        assert approved_adj.status == 'approved'
+
+    def test_non_admin_can_read_list(self, client_user):
+        r = client_user.get(reverse('stocktaking:count_list'))
+        assert r.status_code == 200
+
+    def test_non_admin_can_read_detail(self, client_user, draft_count):
+        r = client_user.get(reverse('stocktaking:count_detail', args=[draft_count.pk]))
+        assert r.status_code == 200
