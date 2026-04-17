@@ -1,4 +1,9 @@
+import re
+from decimal import Decimal
+
 from django import forms
+from django.core.exceptions import ValidationError
+from django.db.models import Sum
 from django.forms import inlineformset_factory
 
 from catalog.models import Product
@@ -10,6 +15,9 @@ from .models import (
     Disposition, DispositionItem,
     RefundCredit,
 )
+
+
+CURRENCY_RE = re.compile(r'^[A-Z]{3}$')
 
 
 # ──────────────────────────────────────────────
@@ -48,6 +56,14 @@ class ReturnAuthorizationForm(forms.ModelForm):
             self.fields['warehouse'].queryset = Warehouse.objects.filter(tenant=tenant, is_active=True)
             self.fields['warehouse'].empty_label = '— Select Warehouse —'
 
+    def clean(self):
+        cleaned = super().clean()
+        req = cleaned.get('requested_date')
+        exp = cleaned.get('expected_return_date')
+        if req and exp and exp < req:
+            self.add_error('expected_return_date', 'Expected return date cannot precede requested date.')
+        return cleaned
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.tenant:
@@ -68,6 +84,25 @@ class ReturnAuthorizationItemForm(forms.ModelForm):
             'unit_price': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'reason_note': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Notes'}),
         }
+
+    def __init__(self, *args, tenant=None, **kwargs):
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant:
+            self.fields['product'].queryset = Product.objects.filter(tenant=tenant, status='active')
+            self.fields['product'].empty_label = '— Select Product —'
+
+    def clean_qty_requested(self):
+        qty = self.cleaned_data.get('qty_requested') or 0
+        if qty < 1:
+            raise ValidationError('Quantity must be at least 1.')
+        return qty
+
+    def clean_unit_price(self):
+        price = self.cleaned_data.get('unit_price') or Decimal('0')
+        if price < 0:
+            raise ValidationError('Unit price cannot be negative.')
+        return price
 
 
 ReturnAuthorizationItemFormSet = inlineformset_factory(
@@ -131,6 +166,31 @@ class ReturnInspectionItemForm(forms.ModelForm):
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Notes'}),
         }
 
+    def __init__(self, *args, tenant=None, **kwargs):
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant:
+            self.fields['rma_item'].queryset = ReturnAuthorizationItem.objects.filter(tenant=tenant)
+            self.fields['rma_item'].empty_label = '— Select Return Item —'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.cleaned_data.get('DELETE'):
+            return cleaned
+        q_ins = cleaned.get('qty_inspected') or 0
+        q_pass = cleaned.get('qty_passed') or 0
+        q_fail = cleaned.get('qty_failed') or 0
+        rma_item = cleaned.get('rma_item')
+        if q_pass + q_fail != q_ins:
+            raise ValidationError(
+                f'qty_passed ({q_pass}) + qty_failed ({q_fail}) must equal qty_inspected ({q_ins}).'
+            )
+        if rma_item is not None and q_ins > rma_item.qty_received:
+            raise ValidationError(
+                f'qty_inspected ({q_ins}) cannot exceed qty_received on RMA item ({rma_item.qty_received}).'
+            )
+        return cleaned
+
 
 ReturnInspectionItemFormSet = inlineformset_factory(
     ReturnInspection,
@@ -182,6 +242,11 @@ class DispositionForm(forms.ModelForm):
         return instance
 
 
+# Condition values that cannot be restocked regardless of the flag —
+# keeps D-02 enforcement in one place.
+NON_RESTOCKABLE_CONDITIONS = frozenset({'defective', 'unusable', 'major_damage', 'missing_parts'})
+
+
 class DispositionItemForm(forms.ModelForm):
     class Meta:
         model = DispositionItem
@@ -193,6 +258,54 @@ class DispositionItemForm(forms.ModelForm):
             'destination_bin': forms.Select(attrs={'class': 'form-select form-select-sm'}),
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Notes'}),
         }
+
+    def __init__(self, *args, tenant=None, **kwargs):
+        self.tenant = tenant
+        super().__init__(*args, **kwargs)
+        if tenant:
+            self.fields['product'].queryset = Product.objects.filter(tenant=tenant, status='active')
+            self.fields['product'].empty_label = '— Select Product —'
+            self.fields['destination_bin'].queryset = Bin.objects.filter(tenant=tenant, is_active=True)
+            self.fields['destination_bin'].empty_label = '— Select Bin (optional) —'
+            self.fields['destination_bin'].required = False
+            self.fields['inspection_item'].queryset = ReturnInspectionItem.objects.filter(tenant=tenant)
+            self.fields['inspection_item'].empty_label = '— Select Inspection Item —'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.cleaned_data.get('DELETE'):
+            return cleaned
+        qty = cleaned.get('qty') or 0
+        ins_item = cleaned.get('inspection_item')
+        # Inline formsets pre-populate the parent FK on every child form's
+        # instance before clean() runs, so `self.instance.disposition_id` is
+        # reliable whether the row is new or existing.
+        decision = None
+        if getattr(self.instance, 'disposition_id', None):
+            parent = Disposition.objects.filter(pk=self.instance.disposition_id).first()
+            if parent is not None:
+                decision = parent.decision
+        if decision is None:
+            # Fallback: the parent form is being submitted alongside the formset;
+            # read the decision from the raw POST data.
+            decision = (self.data or {}).get('decision')
+        if qty < 0:
+            raise ValidationError('Quantity cannot be negative.')
+        if ins_item is not None and qty > ins_item.qty_inspected:
+            raise ValidationError(
+                f'Disposition qty ({qty}) cannot exceed inspected qty ({ins_item.qty_inspected}).'
+            )
+        if ins_item is not None and decision == 'restock':
+            if not ins_item.restockable or ins_item.condition in NON_RESTOCKABLE_CONDITIONS:
+                raise ValidationError(
+                    'Cannot restock an inspection item flagged non-restockable or with '
+                    f'condition "{ins_item.get_condition_display()}".'
+                )
+            if qty > ins_item.qty_passed:
+                raise ValidationError(
+                    f'Restock qty ({qty}) cannot exceed qty_passed ({ins_item.qty_passed}).'
+                )
+        return cleaned
 
 
 DispositionItemFormSet = inlineformset_factory(
@@ -216,7 +329,7 @@ class RefundCreditForm(forms.ModelForm):
             'rma': forms.Select(attrs={'class': 'form-select'}),
             'type': forms.Select(attrs={'class': 'form-select'}),
             'method': forms.Select(attrs={'class': 'form-select'}),
-            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01', 'placeholder': '0.00'}),
             'currency': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'USD'}),
             'reference_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Transaction or credit note reference'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Notes (optional)'}),
@@ -230,6 +343,34 @@ class RefundCreditForm(forms.ModelForm):
                 tenant=tenant, status__in=['received', 'closed'],
             )
             self.fields['rma'].empty_label = '— Select RMA —'
+
+    def clean_currency(self):
+        currency = (self.cleaned_data.get('currency') or '').strip().upper()
+        if not CURRENCY_RE.match(currency):
+            raise ValidationError('Currency must be a 3-letter ISO 4217 code (e.g. USD, EUR, GBP).')
+        return currency
+
+    def clean(self):
+        cleaned = super().clean()
+        amount = cleaned.get('amount')
+        rma = cleaned.get('rma')
+        if amount is not None and amount <= 0:
+            self.add_error('amount', 'Amount must be greater than zero.')
+        if rma is not None and amount is not None and amount > 0:
+            # Sum non-cancelled, non-failed refunds already issued against this RMA,
+            # excluding the current instance on edit.
+            qs = RefundCredit.objects.filter(rma=rma).exclude(status__in=['cancelled', 'failed'])
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            already = qs.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            cap = rma.total_value - already
+            if amount > cap:
+                self.add_error(
+                    'amount',
+                    f'Amount {amount} exceeds remaining refundable balance {cap} '
+                    f'(RMA total {rma.total_value} minus {already} already refunded).',
+                )
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
