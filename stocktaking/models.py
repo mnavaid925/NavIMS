@@ -1,7 +1,37 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import models
+from django.core.validators import MinValueValidator
+from django.db import IntegrityError, models, transaction
+
+
+# D-07/D-08 — auto-number generation is read-then-increment and therefore
+# TOCTOU-racy. The DB `unique_together (tenant, <number>)` is the ultimate
+# guard; this helper retries the whole save on IntegrityError so a race
+# surfaces as a retry, not a 500.
+_NUMBER_RETRY_ATTEMPTS = 5
+
+
+def _save_with_number_retry(instance, number_field, save_super):
+    """Call `save_super(*args, **kwargs)` up to N times on IntegrityError.
+
+    Only retries when the caller left the number field blank (server-generated
+    path). If the number was user-supplied, the IntegrityError propagates so the
+    caller sees the real uniqueness violation.
+    """
+    user_supplied_number = bool(getattr(instance, number_field))
+    last_error = None
+    for _ in range(_NUMBER_RETRY_ATTEMPTS):
+        try:
+            with transaction.atomic():
+                save_super()
+            return
+        except IntegrityError as exc:
+            last_error = exc
+            if user_supplied_number or instance.pk is not None:
+                raise
+            setattr(instance, number_field, '')
+    raise last_error  # type: ignore[misc]
 
 
 # ──────────────────────────────────────────────
@@ -52,9 +82,15 @@ class StocktakeFreeze(models.Model):
         return f"{self.freeze_number} — {self.warehouse.name}"
 
     def save(self, *args, **kwargs):
-        if not self.freeze_number:
-            self.freeze_number = self._generate_freeze_number()
-        super().save(*args, **kwargs)
+        def _do():
+            if not self.freeze_number:
+                self.freeze_number = self._generate_freeze_number()
+            super(StocktakeFreeze, self).save(*args, **kwargs)
+
+        if self.pk is not None:
+            _do()
+        else:
+            _save_with_number_retry(self, 'freeze_number', _do)
 
     def _generate_freeze_number(self):
         last = (
@@ -258,9 +294,15 @@ class StockCount(models.Model):
         return total
 
     def save(self, *args, **kwargs):
-        if not self.count_number:
-            self.count_number = self._generate_count_number()
-        super().save(*args, **kwargs)
+        def _do():
+            if not self.count_number:
+                self.count_number = self._generate_count_number()
+            super(StockCount, self).save(*args, **kwargs)
+
+        if self.pk is not None:
+            _do()
+        else:
+            _save_with_number_retry(self, 'count_number', _do)
 
     def _generate_count_number(self):
         last = (
@@ -320,7 +362,11 @@ class StockCountItem(models.Model):
         related_name='stock_count_items',
     )
     system_qty = models.IntegerField(default=0, help_text='Expected quantity from system at snapshot time.')
-    counted_qty = models.IntegerField(null=True, blank=True, help_text='Actual counted quantity.')
+    counted_qty = models.IntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0)],
+        help_text='Actual counted quantity. Non-negative.',
+    )
     unit_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     reason_code = models.CharField(max_length=30, choices=REASON_CODE_CHOICES, blank=True, default='')
     notes = models.TextField(blank=True, default='')
@@ -436,9 +482,15 @@ class StockVarianceAdjustment(models.Model):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def save(self, *args, **kwargs):
-        if not self.adjustment_number:
-            self.adjustment_number = self._generate_adjustment_number()
-        super().save(*args, **kwargs)
+        def _do():
+            if not self.adjustment_number:
+                self.adjustment_number = self._generate_adjustment_number()
+            super(StockVarianceAdjustment, self).save(*args, **kwargs)
+
+        if self.pk is not None:
+            _do()
+        else:
+            _save_with_number_retry(self, 'adjustment_number', _do)
 
     def _generate_adjustment_number(self):
         last = (
