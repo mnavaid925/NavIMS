@@ -143,6 +143,13 @@ class StockCountItemCountForm(forms.ModelForm):
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Notes'}),
         }
 
+    def clean_counted_qty(self):
+        # D-05 — HTML min="0" is bypassable. Enforce server-side.
+        qty = self.cleaned_data.get('counted_qty')
+        if qty is not None and qty < 0:
+            raise forms.ValidationError('Counted quantity must be zero or greater.')
+        return qty
+
 
 StockCountItemFormSet = inlineformset_factory(
     StockCount,
