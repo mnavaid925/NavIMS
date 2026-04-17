@@ -1,5 +1,6 @@
 from django.conf import settings
-from django.db import models
+from django.core.validators import MinValueValidator
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
 
@@ -48,7 +49,11 @@ class LotBatch(models.Model):
         related_name='lot_batches',
         verbose_name='Goods Receipt Note',
     )
-    quantity = models.PositiveIntegerField(default=0, verbose_name='Initial Quantity')
+    quantity = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(1)],
+        verbose_name='Initial Quantity',
+    )
     available_quantity = models.PositiveIntegerField(default=0, verbose_name='Available Quantity')
     manufacturing_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True, blank=True)
@@ -89,18 +94,28 @@ class LotBatch(models.Model):
         return delta
 
     def save(self, *args, **kwargs):
-        if not self.lot_number:
+        """D-07 — retry-on-collision for concurrent LOT-NNNNN generation."""
+        if self.lot_number:
+            super().save(*args, **kwargs)
+            return
+        for _ in range(5):
             self.lot_number = self._generate_lot_number()
+            try:
+                with transaction.atomic():
+                    super().save(*args, **kwargs)
+                return
+            except IntegrityError:
+                self.lot_number = ''
         super().save(*args, **kwargs)
 
     def _generate_lot_number(self):
         last = (
-            LotBatch.objects.filter(tenant=self.tenant)
+            LotBatch.objects.filter(tenant=self.tenant, lot_number__startswith='LOT-')
             .order_by('-id')
             .values_list('lot_number', flat=True)
             .first()
         )
-        if last and last.startswith('LOT-'):
+        if last:
             try:
                 num = int(last.split('-')[1]) + 1
             except (IndexError, ValueError):
@@ -303,18 +318,28 @@ class TraceabilityLog(models.Model):
         return f"{self.log_number} — {self.get_event_type_display()} — {subject}"
 
     def save(self, *args, **kwargs):
-        if not self.log_number:
+        """D-07 — retry-on-collision for concurrent TRC-NNNNN generation."""
+        if self.log_number:
+            super().save(*args, **kwargs)
+            return
+        for _ in range(5):
             self.log_number = self._generate_log_number()
+            try:
+                with transaction.atomic():
+                    super().save(*args, **kwargs)
+                return
+            except IntegrityError:
+                self.log_number = ''
         super().save(*args, **kwargs)
 
     def _generate_log_number(self):
         last = (
-            TraceabilityLog.objects.filter(tenant=self.tenant)
+            TraceabilityLog.objects.filter(tenant=self.tenant, log_number__startswith='TRC-')
             .order_by('-id')
             .values_list('log_number', flat=True)
             .first()
         )
-        if last and last.startswith('TRC-'):
+        if last:
             try:
                 num = int(last.split('-')[1]) + 1
             except (IndexError, ValueError):
