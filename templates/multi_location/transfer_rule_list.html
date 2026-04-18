@@ -99,13 +99,15 @@
                 </div>
 
                 {% if rules.has_other_pages %}
+                {% with qs='&q='|add:q|add:'&source='|add:current_source|add:'&destination='|add:current_destination|add:'&allowed='|add:current_allowed %}
                 <div class="d-flex justify-content-end mt-4">
                     <nav><ul class="pagination pagination-sm mb-0">
-                        {% if rules.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ rules.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
-                        {% for num in rules.paginator.page_range %}<li class="page-item {% if rules.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
-                        {% if rules.has_next %}<li class="page-item"><a class="page-link" href="?page={{ rules.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                        {% if rules.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ rules.previous_page_number }}{{ qs }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                        {% for num in rules.paginator.page_range %}<li class="page-item {% if rules.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}{{ qs }}">{{ num }}</a></li>{% endfor %}
+                        {% if rules.has_next %}<li class="page-item"><a class="page-link" href="?page={{ rules.next_page_number }}{{ qs }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
                     </ul></nav>
                 </div>
+                {% endwith %}
                 {% endif %}
             </div>
         </div>
