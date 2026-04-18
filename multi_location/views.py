@@ -4,9 +4,9 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q, Sum, F, DecimalField, ExpressionWrapper
+from django.db.models import Q, Sum, Count, F, DecimalField, ExpressionWrapper, Case, When, IntegerField
 
-from core.decorators import tenant_admin_required
+from core.decorators import tenant_admin_required, emit_audit
 from catalog.models import Product, Category
 from inventory.models import StockLevel
 from warehousing.models import Warehouse
@@ -93,6 +93,7 @@ def location_create_view(request):
         form = LocationForm(request.POST, tenant=tenant)
         if form.is_valid():
             location = form.save()
+            emit_audit(request, 'create', location, changes=f'code={location.code}')
             messages.success(request, f'Location "{location.name}" created.')
             return redirect('multi_location:location_detail', pk=location.pk)
     else:
@@ -150,6 +151,7 @@ def location_edit_view(request, pk):
         form = LocationForm(request.POST, instance=location, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', location)
             messages.success(request, f'Location "{location.name}" updated.')
             return redirect('multi_location:location_detail', pk=location.pk)
     else:
@@ -168,7 +170,9 @@ def location_delete_view(request, pk):
     location = get_object_or_404(Location, pk=pk, tenant=tenant)
     if request.method == 'POST':
         name = location.name
+        code = location.code
         location.delete()
+        emit_audit(request, 'delete', location, changes=f'code={code}, name={name}')
         messages.success(request, f'Location "{name}" deleted.')
         return redirect('multi_location:location_list')
     return redirect('multi_location:location_list')
@@ -224,12 +228,29 @@ def stock_visibility_view(request):
     )
     levels_qs = levels_qs.annotate(total_value=total_value_expr)
 
-    total_on_hand = levels_qs.aggregate(s=Sum('on_hand'))['s'] or 0
-    total_allocated = levels_qs.aggregate(s=Sum('allocated'))['s'] or 0
-    total_value = levels_qs.aggregate(s=Sum('total_value'))['s'] or Decimal('0.00')
-    low_stock_count = levels_qs.filter(
-        reorder_point__gt=0, on_hand__lte=F('reorder_point'),
-    ).count()
+    # D-15 — collapse 4 queries (3 Sums + 1 count) into one aggregate call.
+    # Inline the value expression in `Sum` (aggregating an annotation inside
+    # the same `.aggregate()` call does not produce a correct SUM on all
+    # backends — it silently yields 0).
+    low_case = Case(
+        When(reorder_point__gt=0, on_hand__lte=F('reorder_point'), then=1),
+        default=0, output_field=IntegerField(),
+    )
+    agg = levels_qs.aggregate(
+        total_on_hand=Sum('on_hand'),
+        total_allocated=Sum('allocated'),
+        total_value=Sum(
+            ExpressionWrapper(
+                F('on_hand') * F('product__purchase_cost'),
+                output_field=DecimalField(max_digits=16, decimal_places=2),
+            ),
+        ),
+        low_stock_count=Sum(low_case),
+    )
+    total_on_hand = agg['total_on_hand'] or 0
+    total_allocated = agg['total_allocated'] or 0
+    total_value = agg['total_value'] or Decimal('0.00')
+    low_stock_count = agg['low_stock_count'] or 0
 
     paginator = Paginator(levels_qs.order_by('warehouse__name', 'product__name'), 25)
     levels = paginator.get_page(request.GET.get('page'))
@@ -316,6 +337,8 @@ def pricing_rule_create_view(request):
         form = LocationPricingRuleForm(request.POST, tenant=tenant)
         if form.is_valid():
             rule = form.save()
+            emit_audit(request, 'create', rule,
+                       changes=f'location={rule.location.code}, type={rule.rule_type}, value={rule.value}')
             messages.success(request, 'Pricing rule created.')
             return redirect('multi_location:pricing_rule_detail', pk=rule.pk)
     else:
@@ -345,6 +368,8 @@ def pricing_rule_edit_view(request, pk):
         form = LocationPricingRuleForm(request.POST, instance=rule, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', rule,
+                       changes=f'type={rule.rule_type}, value={rule.value}')
             messages.success(request, 'Pricing rule updated.')
             return redirect('multi_location:pricing_rule_detail', pk=rule.pk)
     else:
@@ -362,7 +387,9 @@ def pricing_rule_delete_view(request, pk):
     tenant = request.tenant
     rule = get_object_or_404(LocationPricingRule, pk=pk, tenant=tenant)
     if request.method == 'POST':
+        snapshot = f'location={rule.location.code}, type={rule.rule_type}, value={rule.value}'
         rule.delete()
+        emit_audit(request, 'delete', rule, changes=snapshot)
         messages.success(request, 'Pricing rule deleted.')
         return redirect('multi_location:pricing_rule_list')
     return redirect('multi_location:pricing_rule_list')
@@ -426,6 +453,8 @@ def transfer_rule_create_view(request):
         form = LocationTransferRuleForm(request.POST, tenant=tenant)
         if form.is_valid():
             rule = form.save()
+            emit_audit(request, 'create', rule,
+                       changes=f'{rule.source_location.code}->{rule.destination_location.code}, allowed={rule.allowed}')
             messages.success(request, 'Transfer rule created.')
             return redirect('multi_location:transfer_rule_detail', pk=rule.pk)
     else:
@@ -455,6 +484,8 @@ def transfer_rule_edit_view(request, pk):
         form = LocationTransferRuleForm(request.POST, instance=rule, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', rule,
+                       changes=f'allowed={rule.allowed}, max_qty={rule.max_transfer_qty}')
             messages.success(request, 'Transfer rule updated.')
             return redirect('multi_location:transfer_rule_detail', pk=rule.pk)
     else:
@@ -472,7 +503,9 @@ def transfer_rule_delete_view(request, pk):
     tenant = request.tenant
     rule = get_object_or_404(LocationTransferRule, pk=pk, tenant=tenant)
     if request.method == 'POST':
+        snapshot = f'{rule.source_location.code}->{rule.destination_location.code}, allowed={rule.allowed}'
         rule.delete()
+        emit_audit(request, 'delete', rule, changes=snapshot)
         messages.success(request, 'Transfer rule deleted.')
         return redirect('multi_location:transfer_rule_list')
     return redirect('multi_location:transfer_rule_list')
@@ -528,6 +561,8 @@ def safety_stock_rule_create_view(request):
         form = LocationSafetyStockRuleForm(request.POST, tenant=tenant)
         if form.is_valid():
             rule = form.save()
+            emit_audit(request, 'create', rule,
+                       changes=f'location={rule.location.code}, product={rule.product.sku}, ss={rule.safety_stock_qty}')
             messages.success(request, 'Safety stock rule created.')
             return redirect('multi_location:safety_stock_rule_detail', pk=rule.pk)
     else:
@@ -565,6 +600,8 @@ def safety_stock_rule_edit_view(request, pk):
         form = LocationSafetyStockRuleForm(request.POST, instance=rule, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', rule,
+                       changes=f'ss={rule.safety_stock_qty}, rop={rule.reorder_point}, max={rule.max_stock_qty}')
             messages.success(request, 'Safety stock rule updated.')
             return redirect('multi_location:safety_stock_rule_detail', pk=rule.pk)
     else:
@@ -582,7 +619,9 @@ def safety_stock_rule_delete_view(request, pk):
     tenant = request.tenant
     rule = get_object_or_404(LocationSafetyStockRule, pk=pk, tenant=tenant)
     if request.method == 'POST':
+        snapshot = f'location={rule.location.code}, product={rule.product.sku}, ss={rule.safety_stock_qty}'
         rule.delete()
+        emit_audit(request, 'delete', rule, changes=snapshot)
         messages.success(request, 'Safety stock rule deleted.')
         return redirect('multi_location:safety_stock_rule_list')
     return redirect('multi_location:safety_stock_rule_list')
