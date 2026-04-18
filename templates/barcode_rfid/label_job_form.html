@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'barcode_rfid:label_job_list' %}">Print Jobs</a></li>
+        <li class="breadcrumb-item active">{% if job %}Edit{% else %}Create{% endif %}</li>
+    </ol></div>
+</div></div></div>
+
+<form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    <div class="row">
+        <div class="col-lg-8"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Print Job Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Label Template <span class="text-danger">*</span></label>{{ form.template }}{% if form.template.errors %}<div class="text-danger small">{{ form.template.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Target Type <span class="text-danger">*</span></label>{{ form.target_type }}{% if form.target_type.errors %}<div class="text-danger small">{{ form.target_type.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Target ID</label>{{ form.target_id }}{% if form.target_id.errors %}<div class="text-danger small">{{ form.target_id.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-8 mb-3"><label class="form-label">Target Display</label>{{ form.target_display }}{% if form.target_display.errors %}<div class="text-danger small">{{ form.target_display.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Quantity <span class="text-danger">*</span></label>{{ form.quantity }}{% if form.quantity.errors %}<div class="text-danger small">{{ form.quantity.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="mb-0"><label class="form-label">Notes</label>{{ form.notes }}</div>
+            </div>
+        </div></div>
+        <div class="col-lg-4"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if job %}Update Job{% else %}Create Job{% endif %}</button>
+                    {% if job %}<a href="{% url 'barcode_rfid:label_job_detail' job.pk %}" class="btn btn-light">Cancel</a>
+                    {% else %}<a href="{% url 'barcode_rfid:label_job_list' %}" class="btn btn-light">Cancel</a>{% endif %}
+                </div>
+            </div>
+        </div></div>
+    </div>
+</form>
+{% endblock %}
