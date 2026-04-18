@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'barcode_rfid:rfid_reader_list' %}">RFID Readers</a></li>
+        <li class="breadcrumb-item active">{% if reader %}Edit{% else %}Register{% endif %}</li>
+    </ol></div>
+</div></div></div>
+
+<form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    <div class="row">
+        <div class="col-lg-8"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Reader Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Reader Code <span class="text-danger">*</span></label>{{ form.reader_code }}{% if form.reader_code.errors %}<div class="text-danger small">{{ form.reader_code.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-8 mb-3"><label class="form-label">Name <span class="text-danger">*</span></label>{{ form.name }}{% if form.name.errors %}<div class="text-danger small">{{ form.name.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Reader Type</label>{{ form.reader_type }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Frequency Band</label>{{ form.frequency_band }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Antenna Count</label>{{ form.antenna_count }}</div>
+                </div>
+                <hr><h6 class="mb-3">Location</h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Warehouse <span class="text-danger">*</span></label>{{ form.warehouse }}{% if form.warehouse.errors %}<div class="text-danger small">{{ form.warehouse.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Zone</label>{{ form.zone }}{% if form.zone.errors %}<div class="text-danger small">{{ form.zone.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <hr><h6 class="mb-3">Network & Status</h6>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">IP Address</label>{{ form.ip_address }}{% if form.ip_address.errors %}<div class="text-danger small">{{ form.ip_address.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Status</label>{{ form.status }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Firmware Version</label>{{ form.firmware_version }}</div>
+                </div>
+                <div class="mb-0"><label class="form-label">Notes</label>{{ form.notes }}</div>
+            </div>
+        </div></div>
+        <div class="col-lg-4"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">{{ form.is_active }}<label class="form-check-label">Active</label></div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if reader %}Update Reader{% else %}Register Reader{% endif %}</button>
+                    {% if reader %}<a href="{% url 'barcode_rfid:rfid_reader_detail' reader.pk %}" class="btn btn-light">Cancel</a>
+                    {% else %}<a href="{% url 'barcode_rfid:rfid_reader_list' %}" class="btn btn-light">Cancel</a>{% endif %}
+                </div>
+            </div>
+        </div></div>
+    </div>
+</form>
+{% endblock %}
