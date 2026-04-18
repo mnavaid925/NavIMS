@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Scan Event #{{ event.pk }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Scan Event #{{ event.pk }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'barcode_rfid:scan_event_list' %}">Scan Events</a></li>
+        <li class="breadcrumb-item active">#{{ event.pk }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8"><div class="card"><div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">Scan Event Details</h5>
+        {% if event.status == 'success' %}<span class="badge bg-success-subtle text-success">Success</span>
+        {% elif event.status == 'unmatched' %}<span class="badge bg-warning-subtle text-warning">Unmatched</span>
+        {% elif event.status == 'error' %}<span class="badge bg-danger-subtle text-danger">Error</span>
+        {% else %}<span class="badge bg-light">{{ event.get_status_display }}</span>{% endif %}
+    </div><div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Barcode Value</dt><dd class="col-sm-8 font-monospace">{{ event.barcode_value }}</dd>
+            <dt class="col-sm-4">Symbology</dt><dd class="col-sm-8">{{ event.symbology|default:"—" }}</dd>
+            <dt class="col-sm-4">Scan Type</dt><dd class="col-sm-8">{{ event.get_scan_type_display }}</dd>
+            <dt class="col-sm-4">Device</dt><dd class="col-sm-8">{% if event.device %}<a href="{% url 'barcode_rfid:device_detail' event.device.pk %}">{{ event.device.device_code }} — {{ event.device.name }}</a>{% else %}—{% endif %}</dd>
+            <dt class="col-sm-4">User</dt><dd class="col-sm-8">{% if event.user %}{{ event.user.get_full_name|default:event.user.username }}{% else %}—{% endif %}</dd>
+            <dt class="col-sm-4">Warehouse</dt><dd class="col-sm-8">{% if event.warehouse %}{{ event.warehouse.name }}{% else %}—{% endif %}</dd>
+            <dt class="col-sm-4">Resolved Type</dt><dd class="col-sm-8">{{ event.get_resolved_object_type_display }}</dd>
+            <dt class="col-sm-4">Resolved ID</dt><dd class="col-sm-8">{% if event.resolved_object_id %}{{ event.resolved_object_id }}{% else %}—{% endif %}</dd>
+            <dt class="col-sm-4">Resolved Display</dt><dd class="col-sm-8">{{ event.resolved_display|default:"—" }}</dd>
+            <dt class="col-sm-4">Scanned At</dt><dd class="col-sm-8">{{ event.scanned_at|date:"Y-m-d H:i:s" }}</dd>
+            <dt class="col-sm-4">IP Address</dt><dd class="col-sm-8">{% if event.ip_address %}{{ event.ip_address }}{% else %}—{% endif %}</dd>
+            {% if event.error_message %}<dt class="col-sm-4">Error</dt><dd class="col-sm-8 text-danger">{{ event.error_message }}</dd>{% endif %}
+        </dl>
+    </div></div></div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div><div class="card-body">
+        <div class="d-grid gap-2">
+            <a href="{% url 'barcode_rfid:scan_event_list' %}" class="btn btn-light">Back to List</a>
+        </div>
+        <p class="small text-muted mt-3 mb-0">Scan events are immutable ledger entries — they cannot be edited or deleted.</p>
+    </div></div></div>
+</div>
+{% endblock %}
