@@ -59,8 +59,10 @@ Skipped (rationale inline):
 
 ### Outcome
 
-- **11 defects closed** across the Critical/High/Medium tiers: D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10, D-11, D-13. (The report listed D-13 as a Medium; it was included because RBAC via `@tenant_admin_required` is now the canonical pattern — lessons #12/#20/#29.) D-12 (AuditLog), D-14 (unconsumed transfer fields — design gap), D-15 (query collapse), D-16 (subsumed by D-01's unified `_int_or_none`), D-17, D-18 deferred with rationale in the plan.
-- **132 pytest cases** (67 new test classes across 9 files) — all green on the first clean run after a one-line dual-mode integer-coercion fix (see lesson #30).
+- **17 of 18 defects closed** (only D-14 — the unconsumed transfer-rule fields — remains, because it is a product-design gap rather than a code bug).
+  - First pass (11): D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10, D-11, D-13, D-16.
+  - Follow-up pass (4): **D-12** (AuditLog on 12 mutating endpoints via `core.decorators.emit_audit`), **D-15** (single-call aggregate collapsing 4 sums + 1 count in `stock_visibility_view`), **D-17** (`RegexValidator` on `Location.code` + migration `0002_add_code_validator`), **D-18** (deterministic seed via `random.Random(42)`).
+- **147 pytest cases** (up from 132 after follow-up regression tests for D-12/D-15/D-17).
 - **Every High/Critical shell repro from the review** now resolves cleanly:
   - D-01: `GET /multi-location/?parent=abc` → 200 across all 5 list views.
   - D-02: `Location` auto-code no longer collides with non-LOC-prefixed imports.
@@ -110,12 +112,9 @@ Five new lessons (issues #30–#34 in [.claude/tasks/lessons.md](../lessons.md))
 
 ### What was NOT done (deferred)
 
-- **D-12 AuditLog** — would add `emit_audit(request, 'X_created', ...)` across 12 mutating views. Safe additive change, but out of scope for this pass.
-- **D-14** Design gap — `LocationTransferRule.max_transfer_qty` / `requires_approval` etc. unconsumed.
-- **D-15 Perf** — `stock_visibility_view` 5-aggregate collapse to single query.
-- **D-17, D-18** — cosmetic.
+- **D-14** — Design gap: `LocationTransferRule.max_transfer_qty`, `lead_time_days`, `requires_approval` are stored but no downstream caller enforces them. Needs a transfer-order workflow decision before any code change.
 
 ### Exit-gate status
 
-All bullets of §7.3 "Release Exit Gate" in [.claude/reviews/multi_location-review.md](../reviews/multi_location-review.md) are now green **except** the three deferred items above; the gate should pass once D-12 is added if that's required for release. Test runtime 18.75s for 132 tests (target was <30s — green).
+All bullets of §7.3 "Release Exit Gate" in [.claude/reviews/multi_location-review.md](../reviews/multi_location-review.md) are green. D-14 is not a code defect — left open for product sign-off. Suite runtime 19.4s for 147 tests (target was <30s — green).
 
