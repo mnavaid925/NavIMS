@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'barcode_rfid:rfid_tag_list' %}">RFID Tags</a></li>
+        <li class="breadcrumb-item active">{% if tag %}Edit{% else %}Register{% endif %}</li>
+    </ol></div>
+</div></div></div>
+
+<form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    <div class="row">
+        <div class="col-lg-8"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Tag Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12 mb-3"><label class="form-label">EPC Code <span class="text-danger">*</span></label>{{ form.epc_code }}{% if form.epc_code.errors %}<div class="text-danger small">{{ form.epc_code.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Tag Type</label>{{ form.tag_type }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Frequency Band</label>{{ form.frequency_band }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Status</label>{{ form.status }}</div>
+                </div>
+                <hr><h6 class="mb-3">Link to Object</h6>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Linked Type</label>{{ form.linked_object_type }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Linked Object ID</label>{{ form.linked_object_id }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Linked Display</label>{{ form.linked_display }}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Battery Voltage (V)</label>{{ form.battery_voltage }}{% if form.battery_voltage.errors %}<div class="text-danger small">{{ form.battery_voltage.errors.0 }}</div>{% endif %}<small class="text-muted">Active tags only</small></div>
+                </div>
+                <div class="mb-0"><label class="form-label">Notes</label>{{ form.notes }}</div>
+            </div>
+        </div></div>
+        <div class="col-lg-4"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if tag %}Update Tag{% else %}Register Tag{% endif %}</button>
+                    {% if tag %}<a href="{% url 'barcode_rfid:rfid_tag_detail' tag.pk %}" class="btn btn-light">Cancel</a>
+                    {% else %}<a href="{% url 'barcode_rfid:rfid_tag_list' %}" class="btn btn-light">Cancel</a>{% endif %}
+                </div>
+            </div>
+        </div></div>
+    </div>
+</form>
+{% endblock %}
