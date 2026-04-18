@@ -3,7 +3,16 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
+
+
+# D-17 — `Location.code` must be uppercase alphanumerics + dashes, starting
+# with an alphanumeric (e.g. `LOC-00001`, `STORE-01`, `DC-TOR-02`).
+LOCATION_CODE_VALIDATOR = RegexValidator(
+    regex=r'^[A-Z0-9][A-Z0-9\-]*$',
+    message='Code must be uppercase letters, digits, and dashes only; must start with a letter or digit.',
+)
 
 
 # ──────────────────────────────────────────────
@@ -31,7 +40,11 @@ class Location(models.Model):
         related_name='children',
     )
     name = models.CharField(max_length=255)
-    code = models.CharField(max_length=20, verbose_name='Location Code')
+    code = models.CharField(
+        max_length=20,
+        verbose_name='Location Code',
+        validators=[LOCATION_CODE_VALIDATOR],
+    )
     location_type = models.CharField(
         max_length=30, choices=LOCATION_TYPE_CHOICES, default='retail_store',
     )
