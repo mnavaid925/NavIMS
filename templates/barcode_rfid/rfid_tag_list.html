@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}RFID Tags{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">RFID Tags</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="#">Barcode & RFID</a></li>
+        <li class="breadcrumb-item active">RFID Tags</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row"><div class="col-lg-12"><div class="card">
+    <div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">All RFID Tags</h5>
+        <a href="{% url 'barcode_rfid:rfid_tag_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>Register Tag</a>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-md-4"><div class="search-box">
+                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search EPC / linked display...">
+                <i class="ri-search-line search-icon"></i>
+            </div></div>
+            <div class="col-md-3"><select class="form-select" name="status" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                {% for v, l in status_choices %}<option value="{{ v }}" {% if current_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-3"><select class="form-select" name="tag_type" onchange="this.form.submit()">
+                <option value="">All Types</option>
+                {% for v, l in tag_type_choices %}<option value="{{ v }}" {% if current_tag_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-2"><a href="{% url 'barcode_rfid:rfid_tag_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+        </form>
+
+        <div class="table-responsive"><table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+            <thead class="text-muted table-light"><tr>
+                <th>EPC Code</th><th>Type</th><th>Freq. Band</th><th>Linked</th><th>Status</th><th>Read Count</th><th>Last Read</th><th class="text-center">Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for t in tags %}
+            <tr>
+                <td><a href="{% url 'barcode_rfid:rfid_tag_detail' t.pk %}" class="fw-medium text-primary font-monospace">{{ t.epc_code }}</a></td>
+                <td>{{ t.get_tag_type_display }}</td>
+                <td>{{ t.get_frequency_band_display }}</td>
+                <td>
+                    <span class="badge bg-light text-dark me-1">{{ t.get_linked_object_type_display }}</span>
+                    {% if t.linked_display %}{{ t.linked_display }}{% endif %}
+                </td>
+                <td>
+                    {% if t.status == 'unassigned' %}<span class="badge bg-secondary-subtle text-secondary">Unassigned</span>
+                    {% elif t.status == 'active' %}<span class="badge bg-success-subtle text-success">Active</span>
+                    {% elif t.status == 'inactive' %}<span class="badge bg-warning-subtle text-warning">Inactive</span>
+                    {% elif t.status == 'lost' %}<span class="badge bg-danger-subtle text-danger">Lost</span>
+                    {% elif t.status == 'damaged' %}<span class="badge bg-danger-subtle text-danger">Damaged</span>
+                    {% elif t.status == 'retired' %}<span class="badge bg-dark-subtle text-dark">Retired</span>
+                    {% else %}<span class="badge bg-light">{{ t.get_status_display }}</span>{% endif %}
+                </td>
+                <td>{{ t.read_count }}</td>
+                <td>{% if t.last_read_at %}{{ t.last_read_at|date:"Y-m-d H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                    <a href="{% url 'barcode_rfid:rfid_tag_detail' t.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                    <a href="{% url 'barcode_rfid:rfid_tag_edit' t.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                    <form method="post" action="{% url 'barcode_rfid:rfid_tag_delete' t.pk %}" class="d-inline" onsubmit="return confirm('Delete tag {{ t.epc_code }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                </div></td>
+            </tr>
+            {% empty %}<tr><td colspan="8" class="text-center py-4 text-muted"><i class="ri-rfid-line fs-24 d-block mb-2"></i>No RFID tags registered</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+
+        {% if tags.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
+            {% if tags.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ tags.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in tags.paginator.page_range %}<li class="page-item {% if tags.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+            {% if tags.has_next %}<li class="page-item"><a class="page-link" href="?page={{ tags.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+        </ul></nav></div>{% endif %}
+    </div>
+</div></div></div>
+{% endblock %}
