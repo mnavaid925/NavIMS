@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'barcode_rfid:label_template_list' %}">Label Templates</a></li>
+        <li class="breadcrumb-item active">{% if template %}Edit{% else %}Create{% endif %}</li>
+    </ol></div>
+</div></div></div>
+
+<form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    <div class="row">
+        <div class="col-lg-8"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Template Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8 mb-3"><label class="form-label">Name <span class="text-danger">*</span></label>{{ form.name }}{% if form.name.errors %}<div class="text-danger small">{{ form.name.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Code <span class="text-danger">*</span></label>{{ form.code }}{% if form.code.errors %}<div class="text-danger small">{{ form.code.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Label Type</label>{{ form.label_type }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Symbology</label>{{ form.symbology }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Paper Size</label>{{ form.paper_size }}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Width (mm)</label>{{ form.width_mm }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Height (mm)</label>{{ form.height_mm }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Copies per Label</label>{{ form.copies_per_label }}</div>
+                </div>
+                <hr><h6 class="mb-3">Content to Include</h6>
+                <div class="row">
+                    <div class="col-md-3 mb-3"><div class="form-check">{{ form.includes_name }}<label class="form-check-label">Name</label></div></div>
+                    <div class="col-md-3 mb-3"><div class="form-check">{{ form.includes_sku }}<label class="form-check-label">SKU</label></div></div>
+                    <div class="col-md-3 mb-3"><div class="form-check">{{ form.includes_price }}<label class="form-check-label">Price</label></div></div>
+                    <div class="col-md-3 mb-3"><div class="form-check">{{ form.includes_date }}<label class="form-check-label">Date</label></div></div>
+                </div>
+                <div class="mb-0"><label class="form-label">Notes</label>{{ form.notes }}</div>
+            </div>
+        </div></div>
+        <div class="col-lg-4"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Status & Actions</h5></div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">{{ form.is_active }}<label class="form-check-label">Active</label></div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if template %}Update Template{% else %}Create Template{% endif %}</button>
+                    <a href="{% url 'barcode_rfid:label_template_list' %}" class="btn btn-light">Cancel</a>
+                </div>
+            </div>
+        </div></div>
+    </div>
+</form>
+{% endblock %}
