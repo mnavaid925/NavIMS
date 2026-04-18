@@ -34,7 +34,7 @@
                     </div>
                     <div class="col-md-6">
                         <p class="mb-2"><strong>Created:</strong> {{ profile.created_at|date:"M d, Y" }}</p>
-                        <p class="mb-2"><strong>Created By:</strong> {{ profile.created_by.get_full_name|default:profile.created_by.username|default:"—" }}</p>
+                        <p class="mb-2"><strong>Created By:</strong> {% if profile.created_by %}{{ profile.created_by.get_full_name|default:profile.created_by.username }}{% else %}—{% endif %}</p>
                         <p class="mb-2"><strong>Total Periods:</strong> {{ periods|length }}</p>
                     </div>
                 </div>
