@@ -80,3 +80,31 @@ class TestLocationStr:
     def test_str_combines_code_and_name(self, tenant):
         loc = Location.objects.create(tenant=tenant, name="HQ")
         assert str(loc) == f"{loc.code} - HQ"
+
+
+@pytest.mark.django_db
+class TestLocationCodeValidator:
+    """D-17 — code must match the uppercase-alnum-dash pattern."""
+
+    def test_auto_generated_code_passes_validator(self, tenant):
+        loc = Location.objects.create(tenant=tenant, name="HQ")
+        loc.full_clean()  # must not raise
+
+    @pytest.mark.parametrize("code", ["LOC-00001", "STORE-01", "DC-TOR-02", "HQ"])
+    def test_valid_codes_pass(self, tenant, code):
+        loc = Location(tenant=tenant, name="Loc", code=code)
+        loc.full_clean()
+
+    @pytest.mark.parametrize("code", [
+        "loc-001",           # lowercase
+        "-LEADING",          # leading dash
+        "LOC 01",            # space
+        "LOC_01",            # underscore
+        "LOC/01",            # slash (path-traversal flavour)
+        "<script>",          # HTML
+    ])
+    def test_invalid_codes_rejected(self, tenant, code):
+        from django.core.exceptions import ValidationError
+        loc = Location(tenant=tenant, name="Loc", code=code)
+        with pytest.raises(ValidationError):
+            loc.full_clean()
