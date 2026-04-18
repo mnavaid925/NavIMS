@@ -1,6 +1,8 @@
+import re
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -67,24 +69,52 @@ class Location(models.Model):
     @property
     def full_path(self):
         parts = [self.name]
+        visited = {self.pk} if self.pk is not None else set()
         node = self.parent
-        guard = 0
-        while node and guard < 10:
+        while node is not None:
+            if node.pk in visited:
+                parts.append('…')  # cycle detected — D-09 guard
+                break
+            visited.add(node.pk)
             parts.append(node.name)
             node = node.parent
-            guard += 1
         return ' > '.join(reversed(parts))
 
     def get_descendant_ids(self, include_self=False):
+        """Return all descendant PKs, tolerating accidental parent cycles.
+
+        A visited-set guards against the A↔B cycle case where direct-.save() or
+        raw SQL bypassed the form's descendant exclusion — D-08.
+        """
         ids = [self.pk] if include_self else []
+        visited = {self.pk} if self.pk is not None else set()
         stack = list(self.children.values_list('pk', flat=True))
         while stack:
             current_id = stack.pop()
+            if current_id in visited:
+                continue
+            visited.add(current_id)
             ids.append(current_id)
             stack.extend(
                 Location.objects.filter(parent_id=current_id).values_list('pk', flat=True)
             )
         return ids
+
+    def _walks_into_cycle(self):
+        """True if walking parent-chain from self revisits self."""
+        seen = {self.pk} if self.pk is not None else set()
+        node = self.parent
+        while node is not None:
+            if node.pk in seen:
+                return True
+            seen.add(node.pk)
+            node = node.parent
+        return False
+
+    def clean(self):
+        super().clean()
+        if self.parent_id and self._walks_into_cycle():
+            raise ValidationError({'parent': 'Parent assignment would create a hierarchy cycle.'})
 
     def save(self, *args, **kwargs):
         if not self.code:
@@ -92,20 +122,23 @@ class Location(models.Model):
         super().save(*args, **kwargs)
 
     def _generate_code(self):
-        last = (
-            Location.objects.filter(tenant=self.tenant)
-            .order_by('-id')
-            .values_list('code', flat=True)
-            .first()
-        )
-        if last and last.startswith('LOC-'):
-            try:
-                num = int(last.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                num = 1
-        else:
-            num = 1
-        return f'LOC-{num:05d}'
+        """Pick the next unused LOC-NNNNN for this tenant.
+
+        Scans only rows whose code matches `^LOC-\\d+$` and takes max(num)+1.
+        This is robust to imported rows with non-LOC prefixes (D-02 regression).
+        """
+        max_num = 0
+        codes = Location.objects.filter(
+            tenant=self.tenant, code__regex=r'^LOC-\d+$',
+        ).values_list('code', flat=True)
+        for code in codes:
+            match = re.match(r'^LOC-(\d+)$', code)
+            if match:
+                try:
+                    max_num = max(max_num, int(match.group(1)))
+                except ValueError:
+                    continue
+        return f'LOC-{max_num + 1:05d}'
 
 
 # ──────────────────────────────────────────────
