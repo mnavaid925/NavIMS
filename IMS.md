@@ -1,6 +1,15 @@
-Here is a comprehensive breakdown of 20 modules and their sub-modules for a robust, modern Inventory Management System (IMS), covering the entire lifecycle from procurement to reporting and system administration.
+Here is a comprehensive breakdown of 21 modules and their sub-modules for a robust, modern Inventory Management System (IMS), covering the entire lifecycle from multi-tenant administration and procurement through reporting and system security.
 
-### 1. Product & Catalog Management
+### 1. Multi-Tenant Administration
+
+| Sr. # | Submodule | Description |
+|-------|-----------|-------------|
+| 1 | Tenant Onboarding | Automated provisioning of new tenant environments on signup, with auto-generated slugs and default subscriptions. |
+| 2 | Subscription Management | Pricing plans, billing cycles, feature access and per-tenant subscription status. |
+| 3 | Role-Based Access Control | Granular permission settings for users within each tenant (Admin, Manager, Warehouse Staff, Viewer). |
+| 4 | Theme & Customization | White-labeling with custom branding, logo, and primary/secondary brand colors per tenant. |
+
+### 2. Product & Catalog Management
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -10,7 +19,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 4 | Pricing & Costing | Define retail price, wholesale price, purchase cost, and markup percentages. |
 | 5 | Product Imagery & Documents | Attachment of photos, safety sheets, and manuals. |
 
-### 2. Vendor / Supplier Management
+### 3. Vendor / Supplier Management
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -19,7 +28,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Contract & Terms Management | Storage of payment terms, lead times, and minimum order quantities (MOQs). |
 | 4 | Vendor Communication Log | Tracking emails, notes, and historical interactions. |
 
-### 3. Purchase Order (PO) Management
+### 4. Purchase Order (PO) Management
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -28,7 +37,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | PO Dispatch | Sending POs to vendors directly via email or EDI (Electronic Data Interchange). |
 | 4 | PO Tracking | Real-time status tracking (Draft, Sent, Partially Received, Closed). |
 
-### 4. Receiving & Putaway
+### 5. Receiving & Putaway
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -37,7 +46,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Quality Inspection (Receiving) | Accept, reject, or quarantine incoming goods. |
 | 4 | Putaway Logic | System-guided suggestions for the optimal bin/location to store newly received items. |
 
-### 5. Warehousing & Bin Management
+### 6. Warehousing & Bin Management
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -46,7 +55,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Warehouse Mapping | Visual representation or blueprint of warehouse layout. |
 | 4 | Cross-Docking | Bypassing storage to move goods directly from receiving to shipping. |
 
-### 6. Inventory Tracking & Control
+### 7. Inventory Tracking & Control
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -55,7 +64,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Inventory Valuation | Calculating total inventory value using FIFO, LIFO, or Weighted Average methods. |
 | 4 | Inventory Reservations | Locking specific quantities of stock for specific sales orders or jobs. |
 
-### 7. Stock Movement & Transfers
+### 8. Stock Movement & Transfers
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -64,7 +73,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Transfer Approval Workflow | Request and approval process to prevent unauthorized movements. |
 | 4 | Transfer Routing | Defining the best path or transit methods for transfers. |
 
-### 8. Lot & Serial Number Tracking
+### 9. Lot & Serial Number Tracking
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -73,7 +82,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Shelf-Life & Expiry Management | Tracking expiration dates and enforcing FEFO (First Expired, First Out). |
 | 4 | Traceability & Genealogy | Full forward and backward tracing of a lot/serial number for recalls. |
 
-### 9. Order Management & Fulfillment
+### 10. Order Management & Fulfillment
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -82,7 +91,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Wave Planning | Grouping multiple orders into efficient "waves" for warehouse pickers. |
 | 4 | Shipping Integration | Connecting with carriers (FedEx, UPS, etc.) for rate shopping and label generation. |
 
-### 10. Returns Management (RMA)
+### 11. Returns Management (RMA)
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -91,7 +100,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Disposition Routing | Deciding whether to restock, repair, liquidate, or scrap returned items. |
 | 4 | Credit/Refund Processing | Triggering refunds or credit notes back to the customer's account. |
 
-### 11. Stocktaking & Cycle Counting
+### 12. Stocktaking & Cycle Counting
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -100,7 +109,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Blind Counts | Hiding expected system quantities from counters to prevent bias. |
 | 4 | Variance Analysis & Adjustments | Identifying discrepancies, investigating causes, and posting adjustments with reason codes. |
 
-### 12. Multi-Location Management
+### 13. Multi-Location Management
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -108,7 +117,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 2 | Global Stock Visibility | Viewing aggregate stock levels across the entire enterprise network. |
 | 3 | Location-Specific Rules | Setting unique pricing, transfer rules, and safety stock levels per location. |
 
-### 13. Inventory Forecasting & Planning
+### 14. Inventory Forecasting & Planning
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -117,7 +126,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Safety Stock Calculation | Determining buffer stock to prevent stockouts during lead time variability. |
 | 4 | Seasonality Planning | Adjusting inventory targets based on seasonal peaks and troughs. |
 
-### 14. Barcode & RFID Integration
+### 15. Barcode & RFID Integration
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -126,7 +135,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | RFID Tag Management | Passive/active RFID tracking for bulk scanning without line-of-sight. |
 | 4 | Batch Scanning | Scanning multiple items at once for rapid receiving or counting. |
 
-### 15. Quality Control (QC) & Inspection
+### 16. Quality Control (QC) & Inspection
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -135,7 +144,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Quarantine Management | Holding defective or suspicious items in a restricted area. |
 | 4 | Defect & Scrap Reporting | Logging defect types, taking photos, and writing off scrapped items. |
 
-### 16. Alerts & Notifications
+### 17. Alerts & Notifications
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -144,7 +153,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Expiry Alerts | Notifications for items approaching their expiration dates. |
 | 4 | Workflow Triggers | Alerts for pending PO approvals, delayed shipments, or failed imports. |
 
-### 17. Reporting & Analytics
+### 18. Reporting & Analytics
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -153,7 +162,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Aging Analysis | Identifying slow-moving or dead stock sitting in the warehouse for too long. |
 | 4 | ABC Analysis | Categorizing inventory by value and velocity (A = high value/low qty, C = low value/high qty). |
 
-### 18. Accounting & Financial Integration
+### 19. Accounting & Financial Integration
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -162,7 +171,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Journal Entry Automation | Automatically posting inventory adjustments, cost of goods sold (COGS), and valuation changes. |
 | 4 | Tax Management | Applying correct tax rules based on product type and geography. |
 
-### 19. Third-Party Integrations & API
+### 20. Third-Party Integrations & API
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
@@ -171,7 +180,7 @@ Here is a comprehensive breakdown of 20 modules and their sub-modules for a robu
 | 3 | Accounting Software Integration | Direct sync with QuickBooks, Xero, or Sage. |
 | 4 | API Management | RESTful or GraphQL APIs for custom integrations with proprietary tools. |
 
-### 20. System Administration & Security
+### 21. System Administration & Security
 
 | Sr. # | Submodule | Description |
 |-------|-----------|-------------|
