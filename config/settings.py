@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'stocktaking',
     'multi_location',
     'forecasting',
+    'barcode_rfid',
 ]
 
 MIDDLEWARE = [
