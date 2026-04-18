@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}RFID Read #{{ read.pk }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">RFID Read Event #{{ read.pk }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'barcode_rfid:rfid_read_list' %}">Read Events</a></li>
+        <li class="breadcrumb-item active">#{{ read.pk }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8"><div class="card"><div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">Read Event Details</h5>
+        {% if read.direction == 'in' %}<span class="badge bg-success-subtle text-success">Inbound</span>
+        {% elif read.direction == 'out' %}<span class="badge bg-warning-subtle text-warning">Outbound</span>
+        {% elif read.direction == 'unknown' %}<span class="badge bg-secondary-subtle text-secondary">Unknown</span>
+        {% else %}<span class="badge bg-light">{{ read.get_direction_display }}</span>{% endif %}
+    </div><div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Tag (EPC)</dt><dd class="col-sm-8 font-monospace"><a href="{% url 'barcode_rfid:rfid_tag_detail' read.tag.pk %}">{{ read.tag.epc_code }}</a></dd>
+            <dt class="col-sm-4">Reader</dt><dd class="col-sm-8"><a href="{% url 'barcode_rfid:rfid_reader_detail' read.reader.pk %}">{{ read.reader.reader_code }} — {{ read.reader.name }}</a></dd>
+            <dt class="col-sm-4">Read At</dt><dd class="col-sm-8">{{ read.read_at|date:"Y-m-d H:i:s" }}</dd>
+            <dt class="col-sm-4">Direction</dt><dd class="col-sm-8">{{ read.get_direction_display }}</dd>
+            <dt class="col-sm-4">Signal Strength</dt><dd class="col-sm-8">{% if read.signal_strength_dbm is not None %}{{ read.signal_strength_dbm }} dBm{% else %}—{% endif %}</dd>
+            <dt class="col-sm-4">Antenna Number</dt><dd class="col-sm-8">{{ read.antenna_number }}</dd>
+            <dt class="col-sm-4">Read Count @ Event</dt><dd class="col-sm-8">{{ read.read_count_at_event }}</dd>
+        </dl>
+    </div></div></div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div><div class="card-body">
+        <div class="d-grid gap-2">
+            <a href="{% url 'barcode_rfid:rfid_read_list' %}" class="btn btn-light">Back to List</a>
+        </div>
+        <p class="small text-muted mt-3 mb-0">RFID read events are immutable ledger entries — they cannot be edited or deleted.</p>
+    </div></div></div>
+</div>
+{% endblock %}
