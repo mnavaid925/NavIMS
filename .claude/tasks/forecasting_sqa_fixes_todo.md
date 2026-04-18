@@ -68,15 +68,31 @@ Target: close defects D-01..D-19 from [.claude/Test.md](../Test.md) and scaffold
 
 ### Defects closed
 
-All 19 defects from [`.claude/Test.md`](../Test.md) addressed:
+All 19 / 19 defects from [`.claude/Test.md`](../Test.md) addressed:
 
 | Tier | Count | IDs |
 |---|---|---|
 | Critical | 3 / 3 | D-01, D-02, D-04 |
 | High | 3 / 3 | D-03, D-05, D-06 |
 | Medium | 6 / 6 | D-07, D-08, D-09, D-10, D-11, D-12 |
-| Low | 4 / 5 | D-13, D-15, D-16, D-17 (D-14 deferred — defensive-only, no current exposure) |
-| Info | 0 / 2 | D-18 (composite index) + D-19 (admin ergonomics) — filed for follow-up, not blockers |
+| Low | 5 / 5 | D-13, D-14, D-15, D-16, D-17 |
+| Info | 2 / 2 | D-18 (composite index on SalesOrder + SalesOrderItem), D-19 (admin `list_per_page` + `raw_id_fields`) |
+
+**Second-pass additions:**
+
+| Defect | Fix location | Test |
+|---|---|---|
+| D-14 | [forecasting/models.py:444](../../forecasting/models.py#L444) — defensive `.filter(tenant=self.tenant)` on `multiplier_for_date` | `test_defect_closures.py::TestD14TenantIsolation` |
+| D-18 | [orders/models.py:158-165](../../orders/models.py#L158) + [orders/models.py:243-248](../../orders/models.py#L243) + [orders/migrations/0003_forecasting_indexes.py](../../orders/migrations/0003_forecasting_indexes.py) | Indexes landed via migration; forecasting perf tests still within ≤10-query budget |
+| D-19 | [forecasting/admin.py](../../forecasting/admin.py) — `list_per_page = 50`, `raw_id_fields` on all 5 ModelAdmins | — (admin UX only) |
+
+**Direct test assertions added for previously-review-only fixes:**
+
+- D-11: `test_defect_closures.py::TestD11NumericValidators` — 6 parametrised `full_clean()` rejections
+- D-12: `test_defect_closures.py::TestD12AuditLog` — 6 assertions on `core.AuditLog` emission across create/delete/recalc/close/delete-profile paths
+- D-13: `test_defect_closures.py::TestD13WeeklyLabel` — ISO-year boundary (2020-W53, 2026-W53)
+- D-15: `test_defect_closures.py::TestD15SuggestedOrderQtyClamp` — suggested qty non-negative + clamped-delta formula
+- D-16: `test_defect_closures.py::TestD16SeasonalityAppliesRegardlessOfMethod` — multiplier applies on `moving_avg` (non-seasonal) when profile attached
 
 ### Shell-verified regressions
 
@@ -94,8 +110,8 @@ D-08 ack of closed alert rejected: True
 ### Suite green
 
 ```
-forecasting/tests:   104 passed
-repo-wide:          1247 passed, 1 warning (DEFAULT_FILE_STORAGE Django 5.1 deprecation)
+forecasting/tests:   121 passed  (104 first-pass + 17 second-pass defect closures)
+repo-wide:          1437 passed, 1 warning (DEFAULT_FILE_STORAGE Django 5.1 deprecation)
 ```
 
 ### Exit Gate (from Test.md §7.3)
@@ -109,10 +125,7 @@ repo-wide:          1247 passed, 1 warning (DEFAULT_FILE_STORAGE Django 5.1 depr
 - [x] Seeder idempotency test green
 - [x] Audit log emitted on all destructive actions (D-12)
 
-### Follow-ups not shipped in this PR
+### Follow-ups not shipped
 
-- D-14 (defensive tenant filter on `multiplier_for_date`) — cosmetic hardening, no current exposure.
-- D-18 (composite index on `SalesOrderItem` for historical demand) — requires a SalesOrderItem migration; schedule with the next orders/forecasting cross-cut.
-- D-19 (admin `list_per_page`, `raw_id_fields`) — UX-only nit.
-- Replace float arithmetic in `SafetyStock.recalc` statistical branch with `Decimal.sqrt()` for determinism (RR-06). No reproduction in production to date.
+- Replace float arithmetic in `SafetyStock.recalc` statistical branch with `Decimal.sqrt()` for determinism (RR-06). No production reproduction to date.
 
