@@ -21,6 +21,8 @@ urlpatterns = [
     path('stocktaking/', include('stocktaking.urls')),
     path('multi-location/', include('multi_location.urls')),
     path('forecasting/', include('forecasting.urls')),
+    path('barcode-rfid/', include('barcode_rfid.urls')),
+    path('api/barcode-rfid/', include('barcode_rfid.api_urls')),
 ]
 
 if settings.DEBUG:
