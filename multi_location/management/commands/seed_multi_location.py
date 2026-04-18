@@ -1,6 +1,9 @@
 import random
 from decimal import Decimal
 
+# D-18 — deterministic seed so tests and demos see the same values each run.
+_rng = random.Random(42)
+
 from django.core.management.base import BaseCommand
 
 from core.models import Tenant
@@ -193,18 +196,18 @@ class Command(BaseCommand):
                 location = dcs[idx % len(dcs)]
                 LocationSafetyStockRule.objects.create(
                     tenant=tenant, location=location, product=product,
-                    safety_stock_qty=random.choice([10, 20, 30, 50]),
-                    reorder_point=random.choice([20, 40, 60, 100]),
-                    max_stock_qty=random.choice([200, 500, 1000]),
+                    safety_stock_qty=_rng.choice([10, 20, 30, 50]),
+                    reorder_point=_rng.choice([20, 40, 60, 100]),
+                    max_stock_qty=_rng.choice([200, 500, 1000]),
                     notes='Seeded demo rule',
                 )
             for idx, product in enumerate(products[:4]):
                 store = stores[idx % len(stores)]
                 LocationSafetyStockRule.objects.create(
                     tenant=tenant, location=store, product=product,
-                    safety_stock_qty=random.choice([5, 10, 15]),
-                    reorder_point=random.choice([10, 20, 30]),
-                    max_stock_qty=random.choice([50, 100, 200]),
+                    safety_stock_qty=_rng.choice([5, 10, 15]),
+                    reorder_point=_rng.choice([10, 20, 30]),
+                    max_stock_qty=_rng.choice([50, 100, 200]),
                 )
 
         self.stdout.write(f'  [{tenant.name}] Seeded 7 locations, 4 pricing rules, 4 transfer rules, 10 safety stock rules')
