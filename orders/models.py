@@ -155,6 +155,13 @@ class SalesOrder(models.Model):
     class Meta:
         ordering = ['-created_at']
         unique_together = ('tenant', 'order_number')
+        indexes = [
+            # D-18: forecasting's historical-demand query joins on
+            # (tenant, warehouse, order_date). Without this index, the
+            # forecasting/views.py::_historical_demand_for scan grows
+            # O(n) with order volume per period.
+            models.Index(fields=['tenant', 'warehouse', 'order_date']),
+        ]
 
     def __str__(self):
         return f"{self.order_number} — {self.customer_name}"
@@ -239,6 +246,12 @@ class SalesOrderItem(models.Model):
 
     class Meta:
         ordering = ['sort_order', 'id']
+        indexes = [
+            # D-18: forecasting filters SalesOrderItem by (tenant, product)
+            # before the JOIN to SalesOrder — this index lets that pre-filter
+            # resolve without a scan of the full item table.
+            models.Index(fields=['tenant', 'product']),
+        ]
 
     def __str__(self):
         return f"{self.product.name} x {self.quantity}"
