@@ -6,8 +6,12 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
+from django.views.decorators.http import require_POST
+
+from core.decorators import tenant_admin_required, emit_audit
 
 from catalog.models import Product, Category
 from warehousing.models import Warehouse
@@ -38,7 +42,8 @@ def _period_bounds(reference_date, period_index, period_type):
         start = reference_date - timedelta(days=reference_date.weekday())
         start = start + timedelta(weeks=period_index)
         end = start + timedelta(days=6)
-        label = f"W{start.isocalendar()[1]:02d}-{start.year}"
+        iso_year, iso_week, _ = start.isocalendar()
+        label = f"W{iso_week:02d}-{iso_year}"
         return start, end, label
 
     if period_type == 'quarterly':
@@ -174,6 +179,7 @@ def forecast_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def forecast_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -183,6 +189,7 @@ def forecast_create_view(request):
             forecast.tenant = tenant
             forecast.created_by = request.user
             forecast.save()
+            emit_audit(request, 'create', forecast)
             messages.success(request, f'Forecast "{forecast.forecast_number}" created. Generate lines to populate data.')
             return redirect('forecasting:forecast_detail', pk=forecast.pk)
     else:
@@ -191,6 +198,7 @@ def forecast_create_view(request):
 
 
 @login_required
+@tenant_admin_required
 def forecast_edit_view(request, pk):
     tenant = request.tenant
     forecast = get_object_or_404(DemandForecast, pk=pk, tenant=tenant)
@@ -198,6 +206,7 @@ def forecast_edit_view(request, pk):
         form = DemandForecastForm(request.POST, instance=forecast, tenant=tenant)
         if form.is_valid():
             form.save()
+            emit_audit(request, 'update', forecast)
             messages.success(request, f'Forecast "{forecast.forecast_number}" updated.')
             return redirect('forecasting:forecast_detail', pk=forecast.pk)
     else:
@@ -225,11 +234,17 @@ def forecast_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def forecast_delete_view(request, pk):
     tenant = request.tenant
     forecast = get_object_or_404(DemandForecast, pk=pk, tenant=tenant)
     if request.method == 'POST':
+        # D-17: block deletion of approved forecasts; only drafts/archived may be removed.
+        if forecast.status == 'approved':
+            messages.error(request, 'Approved forecasts cannot be deleted. Archive first.')
+            return redirect('forecasting:forecast_detail', pk=pk)
         num = forecast.forecast_number
+        emit_audit(request, 'delete', forecast)
         forecast.delete()
         messages.success(request, f'Forecast "{num}" deleted.')
         return redirect('forecasting:forecast_list')
@@ -237,6 +252,7 @@ def forecast_delete_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def forecast_generate_view(request, pk):
     """Pull historical demand from sales orders and compute future projections."""
     tenant = request.tenant
@@ -245,56 +261,56 @@ def forecast_generate_view(request, pk):
     if request.method == 'POST':
         form = GenerateForecastForm(request.POST)
         if form.is_valid():
-            if form.cleaned_data.get('regenerate'):
-                forecast.lines.all().delete()
+            # D-09 — wrap the entire regenerate + create cycle atomically.
+            with transaction.atomic():
+                if form.cleaned_data.get('regenerate'):
+                    forecast.lines.all().delete()
 
-            today = timezone.now().date()
-            history = []
-            # Build history lines (oldest → most recent)
-            for i in range(forecast.history_periods, 0, -1):
-                period_index = -i
-                start, end, label = _period_bounds(today, period_index, forecast.period_type)
-                qty = _historical_demand_for(forecast.product, forecast.warehouse, start, end)
-                history.append(qty)
-                DemandForecastLine.objects.create(
-                    tenant=tenant,
-                    forecast=forecast,
-                    period_index=period_index,
-                    period_label=label,
-                    period_start_date=start,
-                    period_end_date=end,
-                    historical_qty=qty,
-                )
+                today = timezone.now().date()
+                history = []
+                for i in range(forecast.history_periods, 0, -1):
+                    period_index = -i
+                    start, end, label = _period_bounds(today, period_index, forecast.period_type)
+                    qty = _historical_demand_for(forecast.product, forecast.warehouse, start, end)
+                    history.append(qty)
+                    DemandForecastLine.objects.create(
+                        tenant=tenant,
+                        forecast=forecast,
+                        period_index=period_index,
+                        period_label=label,
+                        period_start_date=start,
+                        period_end_date=end,
+                        historical_qty=qty,
+                    )
 
-            # Future projections
-            generator = _generate_forecast_values(history, forecast.method)
-            future_values = generator(forecast.forecast_periods)
+                generator = _generate_forecast_values(history, forecast.method)
+                future_values = generator(forecast.forecast_periods)
 
-            profile = forecast.seasonality_profile
-            for k, val in enumerate(future_values, start=1):
-                period_index = k - 1
-                start, end, label = _period_bounds(today, k, forecast.period_type)
-                adjusted = val
-                if forecast.method == 'seasonal' and profile:
-                    mult = float(profile.multiplier_for_date(start))
-                    adjusted = int(round(val * mult))
-                elif profile:
-                    mult = float(profile.multiplier_for_date(start))
-                    adjusted = int(round(val * mult))
+                profile = forecast.seasonality_profile
+                for k, val in enumerate(future_values, start=1):
+                    period_index = k - 1
+                    start, end, label = _period_bounds(today, k, forecast.period_type)
+                    adjusted = val
+                    # D-16 — single branch: apply multiplier whenever a profile is attached.
+                    if profile:
+                        mult = float(profile.multiplier_for_date(start))
+                        adjusted = int(round(val * mult))
 
-                DemandForecastLine.objects.create(
-                    tenant=tenant,
-                    forecast=forecast,
-                    period_index=period_index,
-                    period_label=label,
-                    period_start_date=start,
-                    period_end_date=end,
-                    forecast_qty=val,
-                    adjusted_qty=adjusted,
-                )
+                    DemandForecastLine.objects.create(
+                        tenant=tenant,
+                        forecast=forecast,
+                        period_index=period_index,
+                        period_label=label,
+                        period_start_date=start,
+                        period_end_date=end,
+                        forecast_qty=val,
+                        adjusted_qty=adjusted,
+                    )
 
-            forecast.generated_at = timezone.now()
-            forecast.save()
+                forecast.generated_at = timezone.now()
+                forecast.save()
+                emit_audit(request, 'generate', forecast,
+                           changes=f'{forecast.history_periods}h/{forecast.forecast_periods}f')
             messages.success(request, f'Forecast "{forecast.forecast_number}" generated with {forecast.history_periods} history + {forecast.forecast_periods} future periods.')
             return redirect('forecasting:forecast_detail', pk=forecast.pk)
     else:
@@ -343,6 +359,7 @@ def rop_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def rop_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -352,6 +369,7 @@ def rop_create_view(request):
             rop.tenant = tenant
             rop.last_calculated_at = timezone.now()
             rop.save()
+            emit_audit(request, 'create', rop)
             messages.success(request, f'Reorder point saved (ROP = {rop.rop_qty}).')
             return redirect('forecasting:rop_detail', pk=rop.pk)
     else:
@@ -360,6 +378,7 @@ def rop_create_view(request):
 
 
 @login_required
+@tenant_admin_required
 def rop_edit_view(request, pk):
     tenant = request.tenant
     rop = get_object_or_404(ReorderPoint, pk=pk, tenant=tenant)
@@ -369,6 +388,7 @@ def rop_edit_view(request, pk):
             rop = form.save(commit=False)
             rop.last_calculated_at = timezone.now()
             rop.save()
+            emit_audit(request, 'update', rop)
             messages.success(request, f'Reorder point updated (ROP = {rop.rop_qty}).')
             return redirect('forecasting:rop_detail', pk=rop.pk)
     else:
@@ -397,10 +417,12 @@ def rop_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def rop_delete_view(request, pk):
     tenant = request.tenant
     rop = get_object_or_404(ReorderPoint, pk=pk, tenant=tenant)
     if request.method == 'POST':
+        emit_audit(request, 'delete', rop)
         rop.delete()
         messages.success(request, 'Reorder point deleted.')
         return redirect('forecasting:rop_list')
@@ -408,12 +430,14 @@ def rop_delete_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
+@require_POST
 def rop_check_alerts_view(request):
     """Scan all active ROPs, compare against StockLevel, create new alerts where needed."""
     tenant = request.tenant
     created = 0
     skipped = 0
-    for rop in ReorderPoint.objects.filter(tenant=tenant, is_active=True):
+    for rop in ReorderPoint.objects.filter(tenant=tenant, is_active=True).select_related('product', 'warehouse'):
         stock = StockLevel.objects.filter(
             tenant=tenant, product=rop.product, warehouse=rop.warehouse,
         ).first()
@@ -431,7 +455,11 @@ def rop_check_alerts_view(request):
             skipped += 1
             continue
 
-        suggested = max(rop.reorder_qty, rop.max_qty - current_qty) if rop.max_qty else rop.reorder_qty
+        # D-15 — clamp max_qty delta at 0 to prevent negative-current over-orders.
+        if rop.max_qty:
+            suggested = max(rop.reorder_qty, max(0, rop.max_qty - current_qty))
+        else:
+            suggested = rop.reorder_qty
         ReorderAlert.objects.create(
             tenant=tenant,
             rop=rop,
@@ -494,6 +522,7 @@ def alert_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def alert_acknowledge_view(request, pk):
     tenant = request.tenant
     alert = get_object_or_404(ReorderAlert, pk=pk, tenant=tenant)
@@ -509,6 +538,7 @@ def alert_acknowledge_view(request, pk):
             alert.acknowledged_by = request.user
             alert.acknowledged_at = timezone.now()
             alert.save()
+            emit_audit(request, 'acknowledge', alert)
             messages.success(request, f'Alert "{alert.alert_number}" acknowledged.')
             return redirect('forecasting:alert_detail', pk=pk)
     else:
@@ -519,12 +549,15 @@ def alert_acknowledge_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
+@require_POST
 def alert_mark_ordered_view(request, pk):
     tenant = request.tenant
     alert = get_object_or_404(ReorderAlert, pk=pk, tenant=tenant)
     if alert.can_transition_to('ordered'):
         alert.status = 'ordered'
         alert.save()
+        emit_audit(request, 'mark_ordered', alert)
         messages.success(request, f'Alert "{alert.alert_number}" marked as ordered.')
     else:
         messages.error(request, 'Cannot mark alert as ordered.')
@@ -532,6 +565,8 @@ def alert_mark_ordered_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
+@require_POST
 def alert_close_view(request, pk):
     tenant = request.tenant
     alert = get_object_or_404(ReorderAlert, pk=pk, tenant=tenant)
@@ -539,6 +574,7 @@ def alert_close_view(request, pk):
         alert.status = 'closed'
         alert.closed_at = timezone.now()
         alert.save()
+        emit_audit(request, 'close', alert)
         messages.success(request, f'Alert "{alert.alert_number}" closed.')
     else:
         messages.error(request, 'Cannot close alert.')
@@ -546,11 +582,13 @@ def alert_close_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def alert_delete_view(request, pk):
     tenant = request.tenant
     alert = get_object_or_404(ReorderAlert, pk=pk, tenant=tenant)
     if request.method == 'POST':
         num = alert.alert_number
+        emit_audit(request, 'delete', alert)
         alert.delete()
         messages.success(request, f'Alert "{num}" deleted.')
         return redirect('forecasting:alert_list')
@@ -594,12 +632,14 @@ def safety_stock_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def safety_stock_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
         form = SafetyStockForm(request.POST, tenant=tenant)
         if form.is_valid():
             ss = form.save()
+            emit_audit(request, 'create', ss)
             messages.success(request, f'Safety stock saved ({ss.safety_stock_qty} units).')
             return redirect('forecasting:safety_stock_detail', pk=ss.pk)
     else:
@@ -608,6 +648,7 @@ def safety_stock_create_view(request):
 
 
 @login_required
+@tenant_admin_required
 def safety_stock_edit_view(request, pk):
     tenant = request.tenant
     ss = get_object_or_404(SafetyStock, pk=pk, tenant=tenant)
@@ -615,6 +656,7 @@ def safety_stock_edit_view(request, pk):
         form = SafetyStockForm(request.POST, instance=ss, tenant=tenant)
         if form.is_valid():
             ss = form.save()
+            emit_audit(request, 'update', ss)
             messages.success(request, f'Safety stock updated ({ss.safety_stock_qty} units).')
             return redirect('forecasting:safety_stock_detail', pk=ss.pk)
     else:
@@ -641,10 +683,12 @@ def safety_stock_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def safety_stock_delete_view(request, pk):
     tenant = request.tenant
     ss = get_object_or_404(SafetyStock, pk=pk, tenant=tenant)
     if request.method == 'POST':
+        emit_audit(request, 'delete', ss)
         ss.delete()
         messages.success(request, 'Safety stock record deleted.')
         return redirect('forecasting:safety_stock_list')
@@ -652,12 +696,15 @@ def safety_stock_delete_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
+@require_POST
 def safety_stock_recalc_view(request, pk):
     tenant = request.tenant
     ss = get_object_or_404(SafetyStock, pk=pk, tenant=tenant)
     ss.recalc()
     ss.calculated_at = timezone.now()
     ss.save()
+    emit_audit(request, 'recalc', ss)
     messages.success(request, f'Safety stock recalculated — now {ss.safety_stock_qty} units.')
     return redirect('forecasting:safety_stock_detail', pk=pk)
 
@@ -704,6 +751,7 @@ def profile_list_view(request):
 
 
 @login_required
+@tenant_admin_required
 def profile_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -722,6 +770,7 @@ def profile_create_view(request):
                     period_label=label,
                     demand_multiplier=Decimal('1.00'),
                 )
+            emit_audit(request, 'create', profile)
             messages.success(request, f'Seasonality profile "{profile.name}" created. Edit multipliers below.')
             return redirect('forecasting:profile_detail', pk=profile.pk)
     else:
@@ -732,6 +781,7 @@ def profile_create_view(request):
 
 
 @login_required
+@tenant_admin_required
 def profile_edit_view(request, pk):
     tenant = request.tenant
     profile = get_object_or_404(SeasonalityProfile, pk=pk, tenant=tenant)
@@ -746,6 +796,7 @@ def profile_edit_view(request, pk):
                 item.save()
             for obj in formset.deleted_objects:
                 obj.delete()
+            emit_audit(request, 'update', profile)
             messages.success(request, f'Seasonality profile "{profile.name}" updated.')
             return redirect('forecasting:profile_detail', pk=profile.pk)
     else:
@@ -772,11 +823,13 @@ def profile_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def profile_delete_view(request, pk):
     tenant = request.tenant
     profile = get_object_or_404(SeasonalityProfile, pk=pk, tenant=tenant)
     if request.method == 'POST':
         name = profile.name
+        emit_audit(request, 'delete', profile)
         profile.delete()
         messages.success(request, f'Profile "{name}" deleted.')
         return redirect('forecasting:profile_list')
