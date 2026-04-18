@@ -68,6 +68,8 @@ A comprehensive, multi-tenant Inventory Management System built with Django 4.2 
 | Forms       | django-crispy-forms + crispy-bootstrap5 |
 | Images      | Pillow                            |
 | Slugs       | python-slugify                    |
+| Barcodes    | python-barcode, qrcode            |
+| PDFs        | reportlab                         |
 | JavaScript  | jQuery 3.7.1, Custom Theme Manager|
 
 ---
@@ -206,6 +208,20 @@ NavIMS/
 │   └── management/
 │       └── commands/
 │           └── seed_forecasting.py  # Forecasting seeder with demo data
+│
+├── barcode_rfid/               # Module 15: Barcode & RFID Integration
+│   ├── models.py               # LabelTemplate, LabelPrintJob, ScannerDevice, ScanEvent, RFIDTag, RFIDReader, RFIDReadEvent, BatchScanSession, BatchScanItem — TenantUniqueCodeMixin + StateMachineMixin + _save_with_number_retry
+│   ├── forms.py                # 7 ModelForms + BatchScanItemFormSet (tenant-aware form_kwargs, zone-vs-warehouse cross-validation)
+│   ├── views.py                # 36 views — label template/job CRUD + PDF render, device CRUD + token rotate, RFID tag/reader CRUD + state transitions, batch session CRUD + inline formset + complete/cancel; triad @tenant_admin_required + @require_POST + emit_audit on every destructive/transition endpoint
+│   ├── rendering.py            # PDF rendering (reportlab + python-barcode + qrcode) for LabelPrintJob — CODE128/EAN13/UPC-A/QR/mixed
+│   ├── api_views.py            # Device-facing JSON API — POST /api/barcode-rfid/{scan,batch-scan,rfid-read,heartbeat}/ with `Authorization: Device <token>` auth, tenant derived from device never payload
+│   ├── api_urls.py             # API URL routes
+│   ├── urls.py                 # Web URL routes
+│   ├── admin.py                # TenantScopedAdmin registrations for all 9 models
+│   ├── tests/                  # 158 tests — models/forms/views/security/API covering IDOR, RBAC, state-machine, @require_POST, unique_together trap, formset tenant-injection, API token auth
+│   └── management/
+│       └── commands/
+│           └── seed_barcode_rfid.py  # Idempotent per-tenant seeder (templates, jobs, devices, RFID tags/readers/reads, batch sessions)
 │
 ├── returns/                    # Module 11: Returns Management (RMA)
 │   ├── models.py               # ReturnAuthorization, ReturnAuthorizationItem, ReturnInspection, ReturnInspectionItem, Disposition, DispositionItem, RefundCredit (all 4 top-level models mix in core.state_machine.StateMachineMixin + soft-delete via deleted_at)
@@ -349,6 +365,29 @@ NavIMS/
 │   │   ├── traceability_list.html      # Full traceability audit log with filters
 │   │   ├── traceability_detail.html    # Traceability log entry details
 │   │   └── traceability_form.html      # Manual traceability log entry
+│   ├── barcode_rfid/
+│   │   ├── label_template_list.html    # Label template listing with type/active filters
+│   │   ├── label_template_form.html    # Label template create/edit
+│   │   ├── label_template_detail.html  # Template detail with recent jobs
+│   │   ├── label_job_list.html         # Print job listing with status/target-type filters
+│   │   ├── label_job_form.html         # Print job create/edit
+│   │   ├── label_job_detail.html       # Print job detail with state-transition buttons + PDF link
+│   │   ├── device_list.html            # Scanner device listing with status/type filters
+│   │   ├── device_form.html            # Device register/edit
+│   │   ├── device_detail.html          # Device detail with API token + rotate-token action + recent scans
+│   │   ├── scan_event_list.html        # Scan event ledger with scan_type/status filters
+│   │   ├── scan_event_detail.html      # Scan event detail
+│   │   ├── rfid_tag_list.html          # RFID tag listing with status/type filters
+│   │   ├── rfid_tag_form.html          # RFID tag register/edit
+│   │   ├── rfid_tag_detail.html        # Tag detail with state transitions + recent reads
+│   │   ├── rfid_reader_list.html       # Reader listing with status/warehouse filters
+│   │   ├── rfid_reader_form.html       # Reader register/edit
+│   │   ├── rfid_reader_detail.html     # Reader detail with recent reads
+│   │   ├── rfid_read_list.html         # RFID read event ledger with direction filter
+│   │   ├── rfid_read_detail.html       # RFID read detail
+│   │   ├── batch_session_list.html     # Batch session listing with status/purpose/warehouse filters
+│   │   ├── batch_session_form.html     # Batch session create/edit with inline item formset
+│   │   └── batch_session_detail.html   # Batch session detail with items + complete/cancel actions
 │   └── orders/
 │       ├── so_list.html                # Sales order listing with status/warehouse/date filters
 │       ├── so_form.html                # Sales order create/edit with inline line item formset
@@ -438,6 +477,7 @@ NavIMS/
    python manage.py seed_stocktaking
    python manage.py seed_multi_location
    python manage.py seed_forecasting
+   python manage.py seed_barcode_rfid
    ```
 
    To reset and re-seed:
@@ -456,6 +496,7 @@ NavIMS/
    python manage.py seed_stocktaking --flush
    python manage.py seed_multi_location --flush
    python manage.py seed_forecasting --flush
+   python manage.py seed_barcode_rfid --flush
    ```
 
 ---
@@ -538,7 +579,8 @@ Reference implementation: [receiving/tests/](./receiving/tests/) and [stock_move
 | orders            | 83    | Sales orders, pick/pack/ship, waves, carriers — cross-tenant IDOR on inline formsets, state-machine integrity, delivery deduction, audit-log + RBAC gates |
 | returns           | 150   | RMA, inspection, disposition, refund — refund cap + currency, restock-of-defective refusal, ledger symmetry, 14-endpoint CSRF coverage, formset IDOR across 3 inline formsets, soft-delete + admin tenant scope + shared `core.state_machine` mixin |
 | stocktaking       | 136   | Freeze, cycle schedule, stock count, variance adjustment — atomic posting via `apply_adjustment('correction')` (single canonical write path), double-post guard, POST-only transitions, `@tenant_admin_required` RBAC across 16 destructive views, AuditLog, negative-qty validator, zone-vs-warehouse cross-validation, schedule-run idempotency |
-| **Total**         | **1011** | |
+| barcode_rfid      | 158   | Label templates/jobs, scanner devices, RFID tags/readers/reads, batch scanning — state-machine transitions with can_transition_to + @require_POST + @tenant_admin_required + emit_audit, unique_together(tenant,X) form-layer guards via `TenantUniqueCodeMixin`, inline-formset tenant-injection refusal, zone-vs-warehouse cross-validation, device API token auth (tenant derived from device never payload), PDF render smoke test |
+| **Total**         | **1169** | |
 
 Run `pytest` at the project root to execute all modules in one pass (~25 s on a warm cache).
 
@@ -673,6 +715,14 @@ The seed command creates the following demo accounts:
 - 3 reorder alerts per tenant across new / acknowledged / ordered statuses
 - 3 demand forecasts per tenant (monthly moving average, quarterly seasonal, monthly linear regression)
 - ~30 forecast lines per tenant (historical + projected)
+- 3 label templates per tenant (product CODE128, bin QR, shipping mixed)
+- 2 label print jobs per tenant (1 printed + 1 draft)
+- 3 scanner devices per tenant (2 handheld Zebra/Honeywell + 1 Samsung tablet under maintenance)
+- 10 scan events per tenant across receive / pick / count / lookup / transfer
+- 8 RFID tags per tenant across all statuses (active, unassigned, inactive, lost, damaged, retired)
+- 2 RFID readers per tenant (1 fixed gate + 1 handheld)
+- 15 RFID read events per tenant with varying direction, signal strength, and antenna
+- 2 batch scan sessions per tenant (receiving completed + counting active) with ~8 items total
 
 ---
 
@@ -825,6 +875,17 @@ The seed command creates the following demo accounts:
 | Location Transfer Rules  | Source→destination transfer policy per location pair (allowed/blocked, max qty, lead time, approval requirement, priority) with `unique_together` guarantee on `(source, destination)` |
 | Location Safety Stock Rules | Per-location × product safety-stock / reorder-point / max-stock overrides, uniquely scoped per location-product pair, with current stock-level comparison on the detail page |
 
+### Module 15: Barcode & RFID Integration (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Label Generation         | Design barcode/QR/mixed label templates (CODE128, CODE39, EAN-13, EAN-8, UPC-A, QR, Data Matrix, PDF417) with configurable paper size, content fields, and copies-per-label. Print jobs auto-number (`LPJ-NNNNN`) and follow a draft → queued → printing → printed state machine. Live PDF rendering via reportlab + python-barcode + qrcode. |
+| Mobile/Handheld Scanner Integration | Register scan devices (handheld, fixed, tablet, wearable) with auto-generated per-device API tokens, battery level tracking, warehouse assignment, and last-seen-at heartbeat. ScanEvent ledger for every scan with barcode value + symbology + resolved object type. |
+| RFID Tag Management      | Passive / active / semi-active tag registration with EPC code, frequency band (LF / HF / UHF / Microwave), linked-object routing (product / lot / serial / bin / pallet), and state machine (unassigned → active → inactive / lost / damaged / retired). RFID readers (fixed gate, handheld, integrated, vehicle-mount) register per warehouse+zone with antenna count and status. Read events accumulate on tag for analytics. |
+| Batch Scanning           | Session-based multi-item capture (`BSS-NNNNN`) grouped by purpose (receiving, counting, picking, putaway, transfer, audit) with inline item formset. Sessions follow active → completed / cancelled; on complete the total-items counter snapshots the child rows atomically. |
+| Device Scan API          | Token-authenticated JSON endpoints (`/api/barcode-rfid/scan/`, `/batch-scan/`, `/rfid-read/`, `/heartbeat/`) for real-time device input. Auth via `Authorization: Device <token>` header; tenant context always derived from the matched device — payload tenant hints are ignored. Auto-resolves barcodes against serial / lot / RFID / product / bin by catalog lookup. |
+| RBAC + Audit             | Every create / edit / delete / state-change view carries the `@tenant_admin_required` + `@require_POST` + `emit_audit` triad; reads stay open to all tenant users. `TenantScopedAdmin` scopes admin visibility per tenant. |
+
 ### Module 14: Inventory Forecasting & Planning (Implemented)
 
 | Feature                  | Description                                           |
@@ -840,7 +901,6 @@ The seed command creates the following demo accounts:
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 15 | Barcode & RFID Integration      | Label generation, scanner integration          |
 | 16 | Quality Control & Inspection    | QC checklists, quarantine, defect reporting    |
 | 17 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
 | 18 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
