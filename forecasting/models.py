@@ -1,7 +1,8 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models, transaction
 
 
 # ──────────────────────────────────────────────
@@ -49,10 +50,12 @@ class DemandForecast(models.Model):
     period_type = models.CharField(max_length=20, choices=PERIOD_TYPE_CHOICES, default='monthly')
     history_periods = models.PositiveIntegerField(
         default=6,
+        validators=[MinValueValidator(1), MaxValueValidator(36)],
         help_text='Number of past periods to use for calculation.',
     )
     forecast_periods = models.PositiveIntegerField(
         default=3,
+        validators=[MinValueValidator(1), MaxValueValidator(24)],
         help_text='Number of future periods to project.',
     )
     seasonality_profile = models.ForeignKey(
@@ -63,6 +66,7 @@ class DemandForecast(models.Model):
     )
     confidence_pct = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('80.00'),
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
         help_text='Estimated confidence in forecast (0–100).',
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
@@ -97,17 +101,22 @@ class DemandForecast(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.forecast_number:
-            self.forecast_number = self._generate_forecast_number()
-        super().save(*args, **kwargs)
+            # Atomic read-max-then-write to prevent concurrent duplicate numbers (D-03).
+            with transaction.atomic():
+                self.forecast_number = self._generate_forecast_number()
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
     def _generate_forecast_number(self):
         last = (
-            DemandForecast.objects.filter(tenant=self.tenant)
+            DemandForecast.objects.select_for_update()
+            .filter(tenant=self.tenant, forecast_number__startswith='FC-')
             .order_by('-id')
             .values_list('forecast_number', flat=True)
             .first()
         )
-        if last and last.startswith('FC-'):
+        if last:
             try:
                 num = int(last.split('-')[1]) + 1
             except (IndexError, ValueError):
@@ -171,6 +180,7 @@ class ReorderPoint(models.Model):
     )
     avg_daily_usage = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0'))],
         help_text='Average units consumed per day.',
     )
     lead_time_days = models.PositiveIntegerField(default=0, help_text='Vendor lead time in days.')
@@ -266,17 +276,21 @@ class ReorderAlert(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.alert_number:
-            self.alert_number = self._generate_alert_number()
-        super().save(*args, **kwargs)
+            with transaction.atomic():
+                self.alert_number = self._generate_alert_number()
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
     def _generate_alert_number(self):
         last = (
-            ReorderAlert.objects.filter(tenant=self.tenant)
+            ReorderAlert.objects.select_for_update()
+            .filter(tenant=self.tenant, alert_number__startswith='ROA-')
             .order_by('-id')
             .values_list('alert_number', flat=True)
             .first()
         )
-        if last and last.startswith('ROA-'):
+        if last:
             try:
                 num = int(last.split('-')[1]) + 1
             except (IndexError, ValueError):
@@ -326,21 +340,26 @@ class SafetyStock(models.Model):
     method = models.CharField(max_length=20, choices=METHOD_CHOICES, default='statistical')
     service_level = models.DecimalField(
         max_digits=5, decimal_places=3, default=Decimal('0.950'),
+        validators=[MinValueValidator(Decimal('0.5')), MaxValueValidator(Decimal('0.999'))],
         help_text='Target service level (e.g. 0.95 = 95%).',
     )
     avg_demand = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0'))],
         help_text='Average daily demand.',
     )
     demand_std_dev = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0'))],
         help_text='Standard deviation of daily demand.',
     )
     avg_lead_time_days = models.DecimalField(
         max_digits=8, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0'))],
     )
     lead_time_std_dev = models.DecimalField(
         max_digits=8, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0'))],
     )
     fixed_qty = models.PositiveIntegerField(
         default=0,
@@ -348,6 +367,7 @@ class SafetyStock(models.Model):
     )
     percentage = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('20.00'),
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
         help_text='Percent of avg lead-time demand (used when method = Percentage).',
     )
     safety_stock_qty = models.PositiveIntegerField(
@@ -462,6 +482,7 @@ class SeasonalityPeriod(models.Model):
     period_label = models.CharField(max_length=20)
     demand_multiplier = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('1.00'),
+        validators=[MinValueValidator(Decimal('0'))],
         help_text='Multiplier applied to forecast qty (1.00 = baseline).',
     )
     notes = models.CharField(max_length=255, blank=True, default='')
