@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ tag.epc_code }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0 font-monospace">{{ tag.epc_code }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'barcode_rfid:rfid_tag_list' %}">RFID Tags</a></li>
+        <li class="breadcrumb-item active">{{ tag.epc_code }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Tag Info</h5>
+            {% if tag.status == 'unassigned' %}<span class="badge bg-secondary-subtle text-secondary">Unassigned</span>
+            {% elif tag.status == 'active' %}<span class="badge bg-success-subtle text-success">Active</span>
+            {% elif tag.status == 'inactive' %}<span class="badge bg-warning-subtle text-warning">Inactive</span>
+            {% elif tag.status == 'lost' %}<span class="badge bg-danger-subtle text-danger">Lost</span>
+            {% elif tag.status == 'damaged' %}<span class="badge bg-danger-subtle text-danger">Damaged</span>
+            {% elif tag.status == 'retired' %}<span class="badge bg-dark-subtle text-dark">Retired</span>
+            {% else %}<span class="badge bg-light">{{ tag.get_status_display }}</span>{% endif %}
+        </div><div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4">EPC Code</dt><dd class="col-sm-8 font-monospace">{{ tag.epc_code }}</dd>
+                <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ tag.get_tag_type_display }}</dd>
+                <dt class="col-sm-4">Frequency Band</dt><dd class="col-sm-8">{{ tag.get_frequency_band_display }}</dd>
+                <dt class="col-sm-4">Linked Object Type</dt><dd class="col-sm-8">{{ tag.get_linked_object_type_display }}</dd>
+                <dt class="col-sm-4">Linked Object ID</dt><dd class="col-sm-8">{% if tag.linked_object_id %}{{ tag.linked_object_id }}{% else %}—{% endif %}</dd>
+                <dt class="col-sm-4">Linked Display</dt><dd class="col-sm-8">{{ tag.linked_display|default:"—" }}</dd>
+                <dt class="col-sm-4">Read Count</dt><dd class="col-sm-8">{{ tag.read_count }}</dd>
+                <dt class="col-sm-4">First Read</dt><dd class="col-sm-8">{% if tag.first_read_at %}{{ tag.first_read_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</dd>
+                <dt class="col-sm-4">Last Read</dt><dd class="col-sm-8">{% if tag.last_read_at %}{{ tag.last_read_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</dd>
+                <dt class="col-sm-4">Battery Voltage</dt><dd class="col-sm-8">{% if tag.battery_voltage is not None %}{{ tag.battery_voltage }} V{% else %}—{% endif %}</dd>
+                {% if tag.notes %}<dt class="col-sm-4">Notes</dt><dd class="col-sm-8">{{ tag.notes|linebreaksbr }}</dd>{% endif %}
+                <dt class="col-sm-4">Created</dt><dd class="col-sm-8">{{ tag.created_at|date:"Y-m-d H:i" }}</dd>
+            </dl>
+        </div></div>
+
+        {% if recent_reads %}
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Recent Reads</h5></div><div class="card-body p-0">
+            <div class="table-responsive"><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Read At</th><th>Reader</th><th>Direction</th><th>Signal (dBm)</th><th>Antenna</th></tr></thead><tbody>
+                {% for r in recent_reads %}<tr>
+                    <td>{{ r.read_at|date:"Y-m-d H:i:s" }}</td>
+                    <td><a href="{% url 'barcode_rfid:rfid_reader_detail' r.reader.pk %}">{{ r.reader.reader_code }}</a></td>
+                    <td>{{ r.get_direction_display }}</td>
+                    <td>{% if r.signal_strength_dbm is not None %}{{ r.signal_strength_dbm }}{% else %}—{% endif %}</td>
+                    <td>{{ r.antenna_number }}</td>
+                </tr>{% endfor %}
+            </tbody></table></div>
+        </div></div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div><div class="card-body">
+        <div class="d-grid gap-2">
+            {% if tag.status == 'unassigned' or tag.status == 'inactive' or tag.status == 'lost' %}
+                <form method="post" action="{% url 'barcode_rfid:rfid_tag_activate' tag.pk %}" onsubmit="return confirm('Activate this tag?');">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-play-circle-line me-1"></i>Activate</button></form>
+            {% endif %}
+            {% if tag.status == 'active' %}
+                <form method="post" action="{% url 'barcode_rfid:rfid_tag_deactivate' tag.pk %}" onsubmit="return confirm('Deactivate this tag?');">{% csrf_token %}<button class="btn btn-warning w-100"><i class="ri-pause-circle-line me-1"></i>Deactivate</button></form>
+                <form method="post" action="{% url 'barcode_rfid:rfid_tag_mark_lost' tag.pk %}" onsubmit="return confirm('Mark this tag as lost?');">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-question-mark me-1"></i>Mark Lost</button></form>
+                <form method="post" action="{% url 'barcode_rfid:rfid_tag_mark_damaged' tag.pk %}" onsubmit="return confirm('Mark this tag as damaged?');">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-error-warning-line me-1"></i>Mark Damaged</button></form>
+            {% endif %}
+            {% if tag.status != 'retired' %}
+                <form method="post" action="{% url 'barcode_rfid:rfid_tag_retire' tag.pk %}" onsubmit="return confirm('Retire this tag? This cannot be undone.');">{% csrf_token %}<button class="btn btn-dark w-100"><i class="ri-archive-line me-1"></i>Retire</button></form>
+            {% endif %}
+            <a href="{% url 'barcode_rfid:rfid_tag_edit' tag.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+            <form method="post" action="{% url 'barcode_rfid:rfid_tag_delete' tag.pk %}" onsubmit="return confirm('Delete tag {{ tag.epc_code }}?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+            <a href="{% url 'barcode_rfid:rfid_tag_list' %}" class="btn btn-light">Back to List</a>
+        </div>
+    </div></div></div>
+</div>
+{% endblock %}
