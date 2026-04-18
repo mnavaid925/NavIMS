@@ -126,3 +126,55 @@ class TestLocationMutations:
         )
         assert r.status_code == 404
         assert Location.objects.filter(pk=other_location.pk).exists()
+
+
+@pytest.mark.django_db
+class TestLocationAuditLog:
+    """D-12 — every mutating location endpoint emits core.AuditLog."""
+
+    def test_create_emits_audit(self, client_logged_in, tenant):
+        from core.models import AuditLog
+        client_logged_in.post(
+            reverse("multi_location:location_create"),
+            data={
+                'name': 'AuditLoc', 'location_type': 'retail_store',
+                'parent': '', 'warehouse': '',
+                'address': '', 'city': '', 'state': '', 'country': '',
+                'postal_code': '', 'manager_name': '',
+                'contact_email': '', 'contact_phone': '',
+                'is_active': 'on', 'notes': '',
+            },
+        )
+        log = AuditLog.objects.filter(
+            tenant=tenant, model_name='Location', action='create',
+        ).first()
+        assert log is not None
+        assert 'code=' in log.changes
+
+    def test_update_emits_audit(self, client_logged_in, tenant, dc):
+        from core.models import AuditLog
+        client_logged_in.post(
+            reverse("multi_location:location_edit", args=[dc.pk]),
+            data={
+                'name': 'Renamed DC', 'location_type': 'distribution_center',
+                'parent': '', 'warehouse': '',
+                'address': '', 'city': '', 'state': '', 'country': '',
+                'postal_code': '', 'manager_name': '',
+                'contact_email': '', 'contact_phone': '',
+                'is_active': 'on', 'notes': '',
+            },
+        )
+        assert AuditLog.objects.filter(
+            tenant=tenant, model_name='Location', action='update',
+            object_id=str(dc.pk),
+        ).exists()
+
+    def test_delete_emits_audit(self, client_logged_in, tenant):
+        from core.models import AuditLog
+        loc = Location.objects.create(tenant=tenant, name='ToAudit')
+        client_logged_in.post(reverse("multi_location:location_delete", args=[loc.pk]))
+        log = AuditLog.objects.filter(
+            tenant=tenant, model_name='Location', action='delete',
+        ).first()
+        assert log is not None
+        assert 'code=' in log.changes and 'name=' in log.changes
