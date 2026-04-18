@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django import forms
+from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 
 from catalog.models import Product, Category
@@ -51,6 +52,16 @@ class DemandForecastForm(forms.ModelForm):
             self.fields['seasonality_profile'].empty_label = '— None —'
             self.fields['seasonality_profile'].required = False
 
+    def clean(self):
+        cleaned = super().clean()
+        hp = cleaned.get('history_periods')
+        fp = cleaned.get('forecast_periods')
+        if hp is not None and hp < 1:
+            self.add_error('history_periods', 'Must be at least 1.')
+        if fp is not None and fp < 1:
+            self.add_error('forecast_periods', 'Must be at least 1.')
+        return cleaned
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.tenant:
@@ -98,6 +109,24 @@ class ReorderPointForm(forms.ModelForm):
             self.fields['warehouse'].queryset = Warehouse.objects.filter(tenant=tenant, is_active=True)
             self.fields['warehouse'].empty_label = '— Select Warehouse —'
 
+    def clean(self):
+        # D-01 regression guard — tenant is not a form field so Django's
+        # validate_unique() excludes it; enforce unique_together manually.
+        cleaned = super().clean()
+        product = cleaned.get('product')
+        warehouse = cleaned.get('warehouse')
+        if self.tenant and product and warehouse:
+            qs = ReorderPoint.objects.filter(
+                tenant=self.tenant, product=product, warehouse=warehouse,
+            )
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError(
+                    'A reorder point already exists for this product/warehouse.'
+                )
+        return cleaned
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.tenant:
@@ -116,6 +145,14 @@ class ReorderAlertAcknowledgeForm(forms.ModelForm):
             'suggested_order_qty': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.instance and self.instance.pk and not self.instance.can_transition_to('acknowledged'):
+            raise ValidationError(
+                f'Alert cannot be acknowledged from status "{self.instance.get_status_display()}".'
+            )
+        return cleaned
 
 
 # ──────────────────────────────────────────────
@@ -153,6 +190,23 @@ class SafetyStockForm(forms.ModelForm):
             self.fields['product'].empty_label = '— Select Product —'
             self.fields['warehouse'].queryset = Warehouse.objects.filter(tenant=tenant, is_active=True)
             self.fields['warehouse'].empty_label = '— Select Warehouse —'
+
+    def clean(self):
+        # D-02 regression guard — same tenant-trap as ReorderPointForm.
+        cleaned = super().clean()
+        product = cleaned.get('product')
+        warehouse = cleaned.get('warehouse')
+        if self.tenant and product and warehouse:
+            qs = SafetyStock.objects.filter(
+                tenant=self.tenant, product=product, warehouse=warehouse,
+            )
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError(
+                    'A safety stock record already exists for this product/warehouse.'
+                )
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -214,6 +268,22 @@ class SeasonalityPeriodForm(forms.ModelForm):
             'demand_multiplier': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0'}),
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        n = cleaned.get('period_number')
+        mult = cleaned.get('demand_multiplier')
+        profile = getattr(self.instance, 'profile', None)
+        if n is not None:
+            if profile is not None and profile.period_type == 'quarter':
+                if n < 1 or n > 4:
+                    self.add_error('period_number', 'Quarterly profile accepts 1–4.')
+            else:
+                if n < 1 or n > 12:
+                    self.add_error('period_number', 'Monthly profile accepts 1–12.')
+        if mult is not None and mult < 0:
+            self.add_error('demand_multiplier', 'Multiplier cannot be negative.')
+        return cleaned
 
 
 SeasonalityPeriodFormSet = inlineformset_factory(
