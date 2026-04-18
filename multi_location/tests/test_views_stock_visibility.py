@@ -55,3 +55,35 @@ class TestStockVisibility:
         client.force_login(su)
         r = client.get(reverse("multi_location:stock_visibility"))
         assert r.status_code == 200
+
+    def test_stats_roll_up_consistent_after_collapse(
+        self, client_logged_in, tenant, dc, product, warehouse,
+    ):
+        """D-15 regression — all four stats come from one collapsed aggregate.
+
+        Asserts correctness of the combined roll-up (on_hand, allocated, value,
+        low_stock_count) that the single-pass implementation returns.
+        """
+        from inventory.models import StockLevel
+        StockLevel.objects.create(
+            tenant=tenant, product=product, warehouse=warehouse,
+            on_hand=30, allocated=5, reorder_point=10,
+        )
+        # Second warehouse — verify the aggregate fans across rows.
+        from warehousing.models import Warehouse
+        from catalog.models import Product
+        w2 = Warehouse.objects.create(tenant=tenant, code='WH-AGG', name='Agg', is_active=True)
+        p2 = Product.objects.create(
+            tenant=tenant, sku='AGG-01', name='Agg', category=product.category,
+            purchase_cost=2, retail_price=5, status='active',
+        )
+        StockLevel.objects.create(
+            tenant=tenant, product=p2, warehouse=w2,
+            on_hand=5, allocated=0, reorder_point=20,  # triggers low_stock
+        )
+        r = client_logged_in.get(reverse("multi_location:stock_visibility"))
+        stats = r.context['stats']
+        assert stats['total_on_hand'] == 35
+        assert stats['total_allocated'] == 5
+        assert stats['total_value'] > 0
+        assert stats['low_stock_count'] == 1
