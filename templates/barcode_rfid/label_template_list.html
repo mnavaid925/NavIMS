@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Label Templates{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Label Templates</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="#">Barcode & RFID</a></li>
+        <li class="breadcrumb-item active">Label Templates</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row"><div class="col-lg-12"><div class="card">
+    <div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">All Templates</h5>
+        <a href="{% url 'barcode_rfid:label_template_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>New Template</a>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-md-4"><div class="search-box">
+                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by name / code...">
+                <i class="ri-search-line search-icon"></i>
+            </div></div>
+            <div class="col-md-3"><select class="form-select" name="label_type" onchange="this.form.submit()">
+                <option value="">All Types</option>
+                {% for v, l in label_type_choices %}<option value="{{ v }}" {% if current_label_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-3"><select class="form-select" name="active" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="active" {% if current_active == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if current_active == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select></div>
+            <div class="col-md-2"><a href="{% url 'barcode_rfid:label_template_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+        </form>
+
+        <div class="table-responsive"><table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+            <thead class="text-muted table-light"><tr>
+                <th>Code</th><th>Name</th><th>Type</th><th>Symbology</th><th>Size</th><th>Status</th><th class="text-center">Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for t in templates %}
+            <tr>
+                <td><a href="{% url 'barcode_rfid:label_template_detail' t.pk %}" class="fw-medium text-primary">{{ t.code }}</a></td>
+                <td>{{ t.name }}</td>
+                <td><span class="badge bg-info-subtle text-info">{{ t.get_label_type_display }}</span></td>
+                <td>{{ t.get_symbology_display }}</td>
+                <td>{{ t.width_mm }}×{{ t.height_mm }} mm</td>
+                <td>{% if t.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</td>
+                <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                    <a href="{% url 'barcode_rfid:label_template_detail' t.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                    <a href="{% url 'barcode_rfid:label_template_edit' t.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                    <form method="post" action="{% url 'barcode_rfid:label_template_delete' t.pk %}" class="d-inline" onsubmit="return confirm('Delete template {{ t.code }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                </div></td>
+            </tr>
+            {% empty %}<tr><td colspan="7" class="text-center py-4 text-muted"><i class="ri-barcode-line fs-24 d-block mb-2"></i>No label templates found</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+
+        {% if templates.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
+            {% if templates.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ templates.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in templates.paginator.page_range %}<li class="page-item {% if templates.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+            {% if templates.has_next %}<li class="page-item"><a class="page-link" href="?page={{ templates.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+        </ul></nav></div>{% endif %}
+    </div>
+</div></div></div>
+{% endblock %}
