@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'barcode_rfid:device_list' %}">Devices</a></li>
+        <li class="breadcrumb-item active">{% if device %}Edit{% else %}Register{% endif %}</li>
+    </ol></div>
+</div></div></div>
+
+<form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    <div class="row">
+        <div class="col-lg-8"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Device Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Device Code <span class="text-danger">*</span></label>{{ form.device_code }}{% if form.device_code.errors %}<div class="text-danger small">{{ form.device_code.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-8 mb-3"><label class="form-label">Name <span class="text-danger">*</span></label>{{ form.name }}{% if form.name.errors %}<div class="text-danger small">{{ form.name.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Device Type</label>{{ form.device_type }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Manufacturer</label>{{ form.manufacturer }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Model Number</label>{{ form.model_number }}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">OS Version</label>{{ form.os_version }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Firmware Version</label>{{ form.firmware_version }}</div>
+                </div>
+                <hr><h6 class="mb-3">Assignment</h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Assigned To (User)</label>{{ form.assigned_to }}{% if form.assigned_to.errors %}<div class="text-danger small">{{ form.assigned_to.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Assigned Warehouse</label>{{ form.assigned_warehouse }}{% if form.assigned_warehouse.errors %}<div class="text-danger small">{{ form.assigned_warehouse.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Status</label>{{ form.status }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Battery Level (%)</label>{{ form.battery_level_percent }}</div>
+                </div>
+                <div class="mb-0"><label class="form-label">Notes</label>{{ form.notes }}</div>
+            </div>
+        </div></div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+                <div class="card-body">
+                    <div class="form-check form-switch mb-3">{{ form.is_active }}<label class="form-check-label">Active</label></div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if device %}Update Device{% else %}Register Device{% endif %}</button>
+                        {% if device %}<a href="{% url 'barcode_rfid:device_detail' device.pk %}" class="btn btn-light">Cancel</a>
+                        {% else %}<a href="{% url 'barcode_rfid:device_list' %}" class="btn btn-light">Cancel</a>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if device %}
+            <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">API Token</h5></div><div class="card-body">
+                <p class="text-muted small mb-2">Token is read-only. Use "Rotate Token" from device detail to regenerate.</p>
+                <input type="text" class="form-control form-control-sm font-monospace" value="{{ device.api_token }}" readonly>
+            </div></div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
