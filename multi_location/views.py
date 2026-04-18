@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum, F, DecimalField, ExpressionWrapper
 
+from core.decorators import tenant_admin_required
 from catalog.models import Product, Category
 from inventory.models import StockLevel
 from warehousing.models import Warehouse
@@ -16,6 +17,28 @@ from .forms import (
     LocationForm, LocationPricingRuleForm,
     LocationTransferRuleForm, LocationSafetyStockRuleForm,
 )
+
+
+# SQLite / MySQL / Postgres signed BIGINT upper bound. Any PK larger than this
+# cannot exist in the DB, so we reject it before it reaches the query layer.
+_MAX_DB_INT = 2**63 - 1
+
+
+def _int_or_none(value):
+    """Coerce a GET param to a safe DB-sized int, or None if not coercible.
+
+    D-01 guard — every list view receives raw strings from the querystring and
+    previously passed them straight into `.filter(..._id=value)`, which raises
+    ValueError on non-numeric input (e.g. `?parent=abc`) and OverflowError on
+    ints that exceed the DB's 64-bit integer range.
+    """
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return None
+    if n < 0 or n > _MAX_DB_INT:
+        return None
+    return n
 
 
 # ══════════════════════════════════════════════
@@ -43,8 +66,9 @@ def location_list_view(request):
     elif active == 'inactive':
         queryset = queryset.filter(is_active=False)
 
-    parent_id = request.GET.get('parent', '')
-    if parent_id:
+    parent_raw = request.GET.get('parent', '')
+    parent_id = _int_or_none(parent_raw)
+    if parent_id is not None:
         queryset = queryset.filter(parent_id=parent_id)
 
     paginator = Paginator(queryset, 20)
@@ -57,11 +81,12 @@ def location_list_view(request):
         'parents': Location.objects.filter(tenant=tenant, parent__isnull=True),
         'current_type': location_type,
         'current_active': active,
-        'current_parent': parent_id,
+        'current_parent': parent_raw if parent_id is not None else '',
     })
 
 
 @login_required
+@tenant_admin_required
 def location_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -86,10 +111,10 @@ def location_detail_view(request, pk):
         pk=pk, tenant=tenant,
     )
     children = location.children.filter(tenant=tenant).order_by('name')
-    pricing_rules = location.pricing_rules.all()[:10]
-    safety_stock_rules = location.safety_stock_rules.select_related('product').all()[:10]
-    outbound_rules = location.outbound_transfer_rules.select_related('destination_location').all()[:10]
-    inbound_rules = location.inbound_transfer_rules.select_related('source_location').all()[:10]
+    pricing_rules = location.pricing_rules.filter(tenant=tenant)[:10]
+    safety_stock_rules = location.safety_stock_rules.filter(tenant=tenant).select_related('product')[:10]
+    outbound_rules = location.outbound_transfer_rules.filter(tenant=tenant).select_related('destination_location')[:10]
+    inbound_rules = location.inbound_transfer_rules.filter(tenant=tenant).select_related('source_location')[:10]
 
     stock_summary = None
     if location.warehouse:
@@ -117,6 +142,7 @@ def location_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def location_edit_view(request, pk):
     tenant = request.tenant
     location = get_object_or_404(Location, pk=pk, tenant=tenant)
@@ -136,6 +162,7 @@ def location_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def location_delete_view(request, pk):
     tenant = request.tenant
     location = get_object_or_404(Location, pk=pk, tenant=tenant)
@@ -163,8 +190,9 @@ def stock_visibility_view(request):
         'product', 'warehouse',
     )
 
-    location_id = request.GET.get('location', '')
-    if location_id:
+    location_raw = request.GET.get('location', '')
+    location_id = _int_or_none(location_raw)
+    if location_id is not None:
         try:
             loc = Location.objects.get(tenant=tenant, pk=location_id)
             warehouse_ids = [
@@ -218,7 +246,7 @@ def stock_visibility_view(request):
         'levels_page': levels,
         'q': q,
         'locations': Location.objects.filter(tenant=tenant),
-        'current_location': location_id,
+        'current_location': location_raw if location_id is not None else '',
         'current_low_stock': low_stock,
         'stats': {
             'total_on_hand': total_on_hand,
@@ -251,8 +279,9 @@ def pricing_rule_list_view(request):
             Q(notes__icontains=q)
         )
 
-    location_id = request.GET.get('location', '')
-    if location_id:
+    location_raw = request.GET.get('location', '')
+    location_id = _int_or_none(location_raw)
+    if location_id is not None:
         queryset = queryset.filter(location_id=location_id)
 
     rule_type = request.GET.get('rule_type', '')
@@ -273,13 +302,14 @@ def pricing_rule_list_view(request):
         'q': q,
         'locations': Location.objects.filter(tenant=tenant, is_active=True),
         'rule_type_choices': LocationPricingRule.RULE_TYPE_CHOICES,
-        'current_location': location_id,
+        'current_location': location_raw if location_id is not None else '',
         'current_rule_type': rule_type,
         'current_active': active,
     })
 
 
 @login_required
+@tenant_admin_required
 def pricing_rule_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -307,6 +337,7 @@ def pricing_rule_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def pricing_rule_edit_view(request, pk):
     tenant = request.tenant
     rule = get_object_or_404(LocationPricingRule, pk=pk, tenant=tenant)
@@ -326,6 +357,7 @@ def pricing_rule_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def pricing_rule_delete_view(request, pk):
     tenant = request.tenant
     rule = get_object_or_404(LocationPricingRule, pk=pk, tenant=tenant)
@@ -355,12 +387,14 @@ def transfer_rule_list_view(request):
             Q(notes__icontains=q)
         )
 
-    source_id = request.GET.get('source', '')
-    if source_id:
+    source_raw = request.GET.get('source', '')
+    source_id = _int_or_none(source_raw)
+    if source_id is not None:
         queryset = queryset.filter(source_location_id=source_id)
 
-    destination_id = request.GET.get('destination', '')
-    if destination_id:
+    destination_raw = request.GET.get('destination', '')
+    destination_id = _int_or_none(destination_raw)
+    if destination_id is not None:
         queryset = queryset.filter(destination_location_id=destination_id)
 
     allowed = request.GET.get('allowed', '')
@@ -378,13 +412,14 @@ def transfer_rule_list_view(request):
         'rules': rules,
         'q': q,
         'locations': locations,
-        'current_source': source_id,
-        'current_destination': destination_id,
+        'current_source': source_raw if source_id is not None else '',
+        'current_destination': destination_raw if destination_id is not None else '',
         'current_allowed': allowed,
     })
 
 
 @login_required
+@tenant_admin_required
 def transfer_rule_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -412,6 +447,7 @@ def transfer_rule_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def transfer_rule_edit_view(request, pk):
     tenant = request.tenant
     rule = get_object_or_404(LocationTransferRule, pk=pk, tenant=tenant)
@@ -431,6 +467,7 @@ def transfer_rule_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def transfer_rule_delete_view(request, pk):
     tenant = request.tenant
     rule = get_object_or_404(LocationTransferRule, pk=pk, tenant=tenant)
@@ -460,12 +497,14 @@ def safety_stock_rule_list_view(request):
             Q(product__sku__icontains=q)
         )
 
-    location_id = request.GET.get('location', '')
-    if location_id:
+    location_raw = request.GET.get('location', '')
+    location_id = _int_or_none(location_raw)
+    if location_id is not None:
         queryset = queryset.filter(location_id=location_id)
 
-    product_id = request.GET.get('product', '')
-    if product_id:
+    product_raw = request.GET.get('product', '')
+    product_id = _int_or_none(product_raw)
+    if product_id is not None:
         queryset = queryset.filter(product_id=product_id)
 
     paginator = Paginator(queryset, 20)
@@ -476,12 +515,13 @@ def safety_stock_rule_list_view(request):
         'q': q,
         'locations': Location.objects.filter(tenant=tenant, is_active=True),
         'products': Product.objects.filter(tenant=tenant),
-        'current_location': location_id,
-        'current_product': product_id,
+        'current_location': location_raw if location_id is not None else '',
+        'current_product': product_raw if product_id is not None else '',
     })
 
 
 @login_required
+@tenant_admin_required
 def safety_stock_rule_create_view(request):
     tenant = request.tenant
     if request.method == 'POST':
@@ -517,6 +557,7 @@ def safety_stock_rule_detail_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def safety_stock_rule_edit_view(request, pk):
     tenant = request.tenant
     rule = get_object_or_404(LocationSafetyStockRule, pk=pk, tenant=tenant)
@@ -536,6 +577,7 @@ def safety_stock_rule_edit_view(request, pk):
 
 
 @login_required
+@tenant_admin_required
 def safety_stock_rule_delete_view(request, pk):
     tenant = request.tenant
     rule = get_object_or_404(LocationSafetyStockRule, pk=pk, tenant=tenant)
