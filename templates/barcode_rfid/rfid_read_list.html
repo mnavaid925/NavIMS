@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}RFID Read Events{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">RFID Read Events</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="#">Barcode & RFID</a></li>
+        <li class="breadcrumb-item active">Read Events</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row"><div class="col-lg-12"><div class="card">
+    <div class="card-header"><h5 class="card-title mb-0">RFID Read Event Ledger</h5></div>
+    <div class="card-body">
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-md-5"><div class="search-box">
+                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search EPC / reader code...">
+                <i class="ri-search-line search-icon"></i>
+            </div></div>
+            <div class="col-md-3"><select class="form-select" name="direction" onchange="this.form.submit()">
+                <option value="">All Directions</option>
+                {% for v, l in direction_choices %}<option value="{{ v }}" {% if current_direction == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-2"><a href="{% url 'barcode_rfid:rfid_read_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+        </form>
+
+        <div class="table-responsive"><table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+            <thead class="text-muted table-light"><tr>
+                <th>Read At</th><th>Tag (EPC)</th><th>Reader</th><th>Direction</th><th>Signal dBm</th><th>Antenna</th><th class="text-center">Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for r in reads %}
+            <tr>
+                <td>{{ r.read_at|date:"Y-m-d H:i:s" }}</td>
+                <td><a href="{% url 'barcode_rfid:rfid_tag_detail' r.tag.pk %}" class="fw-medium text-primary font-monospace">{{ r.tag.epc_code }}</a></td>
+                <td><a href="{% url 'barcode_rfid:rfid_reader_detail' r.reader.pk %}">{{ r.reader.reader_code }}</a></td>
+                <td>
+                    {% if r.direction == 'in' %}<span class="badge bg-success-subtle text-success">Inbound</span>
+                    {% elif r.direction == 'out' %}<span class="badge bg-warning-subtle text-warning">Outbound</span>
+                    {% elif r.direction == 'unknown' %}<span class="badge bg-secondary-subtle text-secondary">Unknown</span>
+                    {% else %}<span class="badge bg-light">{{ r.get_direction_display }}</span>{% endif %}
+                </td>
+                <td>{% if r.signal_strength_dbm is not None %}{{ r.signal_strength_dbm }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td>{{ r.antenna_number }}</td>
+                <td class="text-center">
+                    <a href="{% url 'barcode_rfid:rfid_read_detail' r.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                </td>
+            </tr>
+            {% empty %}<tr><td colspan="7" class="text-center py-4 text-muted"><i class="ri-rss-line fs-24 d-block mb-2"></i>No RFID read events yet</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+
+        {% if reads.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
+            {% if reads.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ reads.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in reads.paginator.page_range %}<li class="page-item {% if reads.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+            {% if reads.has_next %}<li class="page-item"><a class="page-link" href="?page={{ reads.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+        </ul></nav></div>{% endif %}
+    </div>
+</div></div></div>
+{% endblock %}
