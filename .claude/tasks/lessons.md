@@ -254,3 +254,97 @@ Returns is the first module where this was explicitly fixed; `orders`, `purchase
 **Root cause:** "Smart" default managers look ergonomic until you need to bypass them for audit/admin, then they become load-bearing magic.
 **Rule:** When implementing soft-delete, use **explicit filtering at the call site**, not a custom default manager. The extra keyword argument in `filter()` / `get_object_or_404()` is a readable marker that documents the soft-delete contract. If call sites become burdensome (e.g., >50 queries), introduce a `.alive()` queryset method (not a manager override) that stays opt-in.
 **Trade-off accepted:** Every new view that queries these models has to remember `deleted_at__isnull=True`. A grep-level lint can catch omissions: `grep -rn "<ModelName>\.objects\." <module>/ | grep -v "deleted_at"` should return near-zero matches (admin is the intended exception).
+
+
+## 2026-04-19 — Multi-Location Management SQA Remediation
+
+### Issue 30: Raw GET filter params into `.filter(..._id=value)` fail on TWO axes — not just non-numeric strings
+**What happened:** Multi-location's D-01 fix initially caught `ValueError` from non-numeric input (`?parent=abc`) via `int(value)` in a try/except. But the pytest sweep that supplied `?parent=9999999999999999999999999` — a valid int — still 500'd with `OverflowError: Python int too large to convert to SQLite INTEGER`. The SQLite / MySQL / Postgres backends all expose signed BIGINT as the ceiling for PK columns, so any int > `2**63 - 1` overflows at the cursor layer even after `int()` succeeds.
+**Root cause:** Two failure modes share the same surface: non-numeric strings raise in Python; over-sized numeric strings raise in the DB driver. Catching only `ValueError` fixes the first and silently re-exposes the second. Tests that parametrise over `abc, ../etc/passwd, 1' OR '1'='1` pass; add a 23-digit string and the production crash comes back.
+**Rule:** Any helper that coerces a GET / URL segment into a DB PK filter MUST bound the result on BOTH sides:
+```python
+_MAX_DB_INT = 2**63 - 1          # signed BIGINT upper bound
+def _int_or_none(value):
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return None
+    if n < 0 or n > _MAX_DB_INT:
+        return None
+    return n
+```
+**How to apply:** Test parametrisation for input-validation suites MUST include at least one value > `2**63` (e.g. a 25-digit string of 9s) in addition to non-numeric noise. The pattern holds for every list view across every tenant-scoped module. Reference fix: [multi_location/views.py:28-48](../../multi_location/views.py#L28-L48).
+**Scope sweep target:** `grep -rn "\.filter.*_id=.*GET\.get" */views.py` across the repo. Every hit that pipes raw GET straight into `.filter(..._id=)` is a dual-mode crash candidate. Ship a shared `core.request.int_param_or_none(request, key)` helper the next time this bug lands in a second module.
+
+### Issue 31: Auto-generated unique codes must scan by regex, not by `-id` ordering
+**What happened:** `Location._generate_code()` picked "next number" by taking `Location.objects.filter(tenant=t).order_by('-id').values_list('code', flat=True).first()` and stripping `LOC-`. The very last row's code was used as the anchor. That assumes every row's code follows the `LOC-NNNNN` pattern. In practice users import existing data with prefixes like `STORE-01` / `WH-TOR-02`; the latest-insert-by-id is then a non-LOC code, the regex strip fails silently → num resets to 1 → `LOC-00001` already exists → `IntegrityError` on the very next `create()`. Reproduced in the SQA review shell against an empty tenant in four `create()` calls.
+**Root cause:** "Last row's code tells me the next code" works only if every row agrees to one prefix scheme. In a multi-tenant SaaS with mixed imported data, that invariant is violated by minute-one of operations.
+**Rule:** Auto-number generators MUST match the intended pattern with a regex and take `max()` of the extracted numeric tail. Never rely on `-id` ordering as a proxy for "highest code in scheme X".
+```python
+def _generate_code(self):
+    max_num = 0
+    for code in Model.objects.filter(tenant=self.tenant, code__regex=r'^LOC-\d+$').values_list('code', flat=True):
+        m = re.match(r'^LOC-(\d+)$', code)
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    return f'LOC-{max_num + 1:05d}'
+```
+**How to apply:** Audit every `_generate_<X>` / `_next_<X>_number` method in the repo for the same trap. Specifically look for `.order_by('-id')` + `.first()` as the anchor; replace with the regex-and-max pattern above. Reference fix: [multi_location/models.py:100-118](../../multi_location/models.py#L100-L118).
+**Scope:** `purchase_orders`, `orders`, `receiving`, `returns`, `lot_tracking`, `stocktaking` all ship `_generate_<X>_number()` methods — review each for the same `-id`-anchored scan.
+
+### Issue 32: Self-referential FK hierarchies need BOTH a form-layer descendant exclude AND a model-layer cycle guard
+**What happened:** `LocationForm.__init__` correctly excluded `self.instance.get_descendant_ids(include_self=True)` from the parent queryset, so the admin UI refuses A→B→A style cycles. But the SQA review's shell repro bypassed the form with `a.parent = b; a.save()` and then `b.parent = a; b.save()` — a direct-ORM path that admin users can exercise via the Django admin console, raw SQL, or a seed script. The next call to `get_descendant_ids()` looped forever (infinite BFS), and `full_path` rendered `A > B > A > B > A > B > A > B > A > B > A` because its guard only capped the chain at 10 — it didn't detect the repeat.
+**Root cause:** Defence-in-depth was skipped. The review treated the form-layer exclude as sufficient because "who would save a cycle?" The answer: anyone with a management shell, any seed script that reparents, any future importer.
+**Rule:** Any self-referential FK model must carry:
+1. A form-layer descendant exclude that prevents cycles through the UI.
+2. A `clean()` guard on the model that raises `ValidationError` if a cycle is detected before `save()`.
+3. Every graph-walk method (`full_path`, `get_descendant_ids`, etc.) MUST carry a `visited = set()` guard. Walks must terminate even if a cycle escaped to the DB.
+**How to apply:** Grep for `on_delete=models.SET_NULL.*to='self'` (or `self`) across `*/models.py`. Each match is a candidate for the three-guard pattern. Reference fix: [multi_location/models.py:63-109](../../multi_location/models.py#L63-L109).
+**Scope:** `catalog.Category` has a self-FK (parent category) — audit for the same pattern if not already done. `administration`, `forecasting` — not known to have self-FKs but worth a grep.
+
+### Issue 33: `unique_together` trap hits its SIXTH module — helper needs a composite-key variant
+**What happened:** Multi-location has two composite unique tuples — `LocationTransferRule(tenant, source_location, destination_location)` and `LocationSafetyStockRule(tenant, location, product)`. The form layer had no explicit `clean()` guard, so duplicate submissions escaped to the DB as `IntegrityError` → 500. Same family as lessons #6/#7/#11/#14/#18 but the existing `core.forms.TenantUniqueCodeMixin` only handles the single-field `(tenant, code)` case — it does not generalise to composite tuples.
+**Root cause:** The helper was generalised once (from `code` to any `tenant_unique_field`) but still encodes the *single-field* assumption. Composite tuples are structurally a different shape and keep getting hand-rolled.
+**Rule:** When a form needs to guard `unique_together(tenant, A, B[, C, …])`, write the check explicitly in `clean()`:
+```python
+if all(cleaned.get(f) is not None for f in unique_fields) and self.tenant is not None:
+    qs = Model.objects.filter(tenant=self.tenant, **{f: cleaned[f] for f in unique_fields})
+    if self.instance.pk is not None:
+        qs = qs.exclude(pk=self.instance.pk)
+    if qs.exists():
+        raise ValidationError('A record with these fields already exists.')
+```
+**Structural fix queued:** When the NEXT module shows this pattern, promote a `TenantUniqueCompositeMixin(unique_fields=(...))` to `core/forms.py` alongside the existing mixin. Today's multi-location is #6; one more triggers the extraction.
+**How to apply:** `grep -n "unique_together" */models.py` and for every tuple with more than two fields, confirm the corresponding `ModelForm.clean()` has the explicit composite guard above. Reference fix: [multi_location/forms.py:172-195](../../multi_location/forms.py#L172-L195) + [:237-248](../../multi_location/forms.py#L237-L248).
+**Scope outstanding:** `administration`, `inventory` (re-audit post-fixes), `forecasting` — still unreviewed for this lesson. Cleared with this pass: `catalog`, `vendors`, `purchase_orders`, `receiving`, `warehousing`, `lot_tracking`, `stock_movements`, `orders`, `returns`, `stocktaking`, `multi_location`.
+
+### Issue 34: `tenant=None` form path is an access-control hole, not an error path
+**What happened:** `LocationForm(data=..., tenant=None)` — the exact call a superuser's view would make if `request.tenant is None` (per `core.middleware.TenantMiddleware`) — left every FK queryset unfiltered. The `parent`/`warehouse` fields accepted PKs from **any** tenant as "valid choices". The save then crashed on the not-null `tenant` FK, so no data landed — but `form.is_valid() == True` on cross-tenant input is itself a wrong answer, and any future form with a nullable tenant could ship the corruption.
+**Root cause:** The original `if tenant:` gate meant "only filter if we have a tenant"; it should mean "refuse to expose any choice if we don't".
+**Rule:** In every `ModelForm` that accepts `tenant=None`:
+```python
+if tenant is None:
+    # Superuser path — offer NO choices; any selection is an access-control breach.
+    self.fields['<fk>'].queryset = Model.objects.none()
+else:
+    self.fields['<fk>'].queryset = Model.objects.filter(tenant=tenant, ...)
+```
+The `.none()` branch makes `form.is_valid()` → `False` for any non-empty FK input, which is the correct answer for "a form handed a tenant-less request".
+**How to apply:** Grep `grep -rn "tenant=None" */forms.py` across the repo. For each form that accepts `tenant` in `__init__`, verify every FK queryset is `.none()`-gated in the None branch. Reference fix: [multi_location/forms.py:51-70](../../multi_location/forms.py#L51-L70).
+
+
+## 2026-04-19 — Forecasting SQA Remediation
+
+### Issue 35: Side-effect-on-GET views are a silent CSRF bypass — audit every single-action endpoint
+**What happened:** Forecasting SQA review (D-05) caught **four** mutating views (`rop_check_alerts`, `alert_mark_ordered`, `alert_close`, `safety_stock_recalc`) that perform state changes on GET. Templates correctly POST to them, but CSRF protection does not cover GETs — a logged-in user loading a crafted `<img src>` or clicking an attacker-supplied link would silently trigger the scan/close/recalc. The views looked "fine" in review because they were short (5-10 lines) and had no `if request.method == 'POST'` gate to forget; the bug lives in the *absence* of a gate.
+**Root cause:** When a view has a single mutating action, the natural shape is "just do the thing and redirect" — the `if POST` check feels like ceremony for a 3-line body. The habit is reinforced by the CRUD-completeness pattern, which focuses on `list/create/detail/edit/delete` and implicitly assumes multi-step mutations (create/edit) need the POST check but single-action endpoints (close, scan, recalc, mark-as-X) don't. They do.
+**Rule:** Every mutating view **must** be gated by `@require_POST` OR explicit `if request.method != 'POST': return HttpResponseNotAllowed(['POST'])`. No exceptions for "small" or "simple" mutations. If the view is single-action and doesn't render a form, `@require_POST` from `django.views.decorators.http` is the one-liner to reach for, stacked below `@tenant_admin_required`.
+**How to apply:** At review time, grep `grep -n "def .*_view" <module>/views.py` → for every view that mutates state (look for `.save()`, `.delete()`, `.create()`, `F(...)`, `qs.update(...)`), confirm a `@require_POST` or method gate exists. For single-action endpoints (suffix `_close`, `_recalc`, `_scan`, `_mark_*`, `_check_*`, `_approve`, etc.) treat the absence of `@require_POST` as a High defect, not a style nit.
+**Scope outstanding:** Grep `grep -rn "^def .*_view" */views.py | grep -v "list\|detail\|create\|edit"` → every hit that isn't `@require_POST`-gated in the source is a candidate. Prioritise ROP-scan-style batch mutators (visible, one-click effect) and status-transition endpoints (hidden side effects).
+
+### Issue 36: Template chained attribute access on nullable FKs needs `{% if %}`, not `|default`
+**What happened:** `profile_detail.html` had `{{ profile.created_by.get_full_name|default:profile.created_by.username|default:"—" }}`. When `created_by` was `None` (tenant fixture didn't set it — common path for superuser-created or imported rows), Django's `default` filter does NOT short-circuit the intermediate lookup. Template resolution evaluates the second argument (`profile.created_by.username`) eagerly, which raises `VariableDoesNotExist: Failed lookup for key [username] in None`. Result: 500 on what looked like a defensive template.
+**Root cause:** `|default:"x"` only guards the final rendered value, not every lookup in the dotted chain. Django templates resolve each segment lazily and throw before the filter runs on a `None`-intermediate. The pattern works for single-segment `{{ foo|default:"—" }}` but is brittle once you chain `{{ foo.bar.baz|default:... }}` — and doubly brittle when a filter argument *also* traverses a nullable chain.
+**Rule:** For nullable FK fields in templates, wrap the access in `{% if obj.field %}{{ obj.field.nested }}{% else %}—{% endif %}`, not `{{ obj.field.nested|default:"—" }}`. Reserve `|default` for single-level lookups and already-resolved strings. Applies especially to audit fields (`created_by`, `updated_by`, `deleted_by`, `acknowledged_by`, etc.) which are often `SET_NULL` and therefore nullable by contract.
+**How to apply:** Grep `grep -rn "\.created_by\.\|\.updated_by\.\|\.deleted_by\.\|\.acknowledged_by\." templates/` — every hit not wrapped in `{% if %}` is a latent 500 waiting for the first None-valued row (seed data, imports, shell-created records). Reference fix: [templates/forecasting/profile_detail.html:37](../../templates/forecasting/profile_detail.html#L37).
+
