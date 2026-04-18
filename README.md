@@ -875,17 +875,6 @@ The seed command creates the following demo accounts:
 | Location Transfer Rules  | Source→destination transfer policy per location pair (allowed/blocked, max qty, lead time, approval requirement, priority) with `unique_together` guarantee on `(source, destination)` |
 | Location Safety Stock Rules | Per-location × product safety-stock / reorder-point / max-stock overrides, uniquely scoped per location-product pair, with current stock-level comparison on the detail page |
 
-### Module 15: Barcode & RFID Integration (Implemented)
-
-| Feature                  | Description                                           |
-|--------------------------|-------------------------------------------------------|
-| Label Generation         | Design barcode/QR/mixed label templates (CODE128, CODE39, EAN-13, EAN-8, UPC-A, QR, Data Matrix, PDF417) with configurable paper size, content fields, and copies-per-label. Print jobs auto-number (`LPJ-NNNNN`) and follow a draft → queued → printing → printed state machine. Live PDF rendering via reportlab + python-barcode + qrcode. |
-| Mobile/Handheld Scanner Integration | Register scan devices (handheld, fixed, tablet, wearable) with auto-generated per-device API tokens, battery level tracking, warehouse assignment, and last-seen-at heartbeat. ScanEvent ledger for every scan with barcode value + symbology + resolved object type. |
-| RFID Tag Management      | Passive / active / semi-active tag registration with EPC code, frequency band (LF / HF / UHF / Microwave), linked-object routing (product / lot / serial / bin / pallet), and state machine (unassigned → active → inactive / lost / damaged / retired). RFID readers (fixed gate, handheld, integrated, vehicle-mount) register per warehouse+zone with antenna count and status. Read events accumulate on tag for analytics. |
-| Batch Scanning           | Session-based multi-item capture (`BSS-NNNNN`) grouped by purpose (receiving, counting, picking, putaway, transfer, audit) with inline item formset. Sessions follow active → completed / cancelled; on complete the total-items counter snapshots the child rows atomically. |
-| Device Scan API          | Token-authenticated JSON endpoints (`/api/barcode-rfid/scan/`, `/batch-scan/`, `/rfid-read/`, `/heartbeat/`) for real-time device input. Auth via `Authorization: Device <token>` header; tenant context always derived from the matched device — payload tenant hints are ignored. Auto-resolves barcodes against serial / lot / RFID / product / bin by catalog lookup. |
-| RBAC + Audit             | Every create / edit / delete / state-change view carries the `@tenant_admin_required` + `@require_POST` + `emit_audit` triad; reads stay open to all tenant users. `TenantScopedAdmin` scopes admin visibility per tenant. |
-
 ### Module 14: Inventory Forecasting & Planning (Implemented)
 
 | Feature                  | Description                                           |
@@ -896,6 +885,17 @@ The seed command creates the following demo accounts:
 | Safety Stock Calculation | Fixed / Statistical (Z × √((LT × σ_d²) + (μ_d² × σ_LT²))) / Percentage methods; service level → Z-score lookup (0.90→1.28, 0.95→1.645, 0.99→2.33) |
 | Seasonality Planning     | Monthly or quarterly demand multipliers per profile; applied to forecast lines to produce seasonality-adjusted quantities |
 | Profile Targeting        | Seasonality profiles can be scoped to a category, a product, or used globally |
+
+### Module 15: Barcode & RFID Integration (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Label Generation         | Design barcode / QR / mixed label templates (CODE128, CODE39, EAN-13, EAN-8, UPC-A, QR, Data Matrix, PDF417) with configurable paper size, content fields, and copies-per-label. Print jobs auto-number (`LPJ-NNNNN`) and follow a `draft → queued → printing → printed` state machine (with `failed` and `cancelled` branches). Live PDF rendering via reportlab + python-barcode + qrcode; downloadable inline from the job detail page. |
+| Mobile/Handheld Scanner Integration | Register scan devices (handheld, fixed, mobile phone, tablet, wearable) with auto-generated per-device API tokens, battery-level tracking, user/warehouse assignment, and last-seen-at heartbeat. `ScanEvent` ledger captures every scan with barcode value + symbology + resolved object type (product / lot / serial / bin / RFID / unmatched). |
+| RFID Tag Management      | Passive / active / semi-active tag registration with EPC code, frequency band (LF / HF / UHF / Microwave), linked-object routing (product / lot / serial / bin / pallet), and state machine (`unassigned → active → inactive / lost / damaged / retired`). RFID readers (fixed gate, handheld, integrated, vehicle-mount) register per warehouse + zone with antenna count and status. Read events accumulate read counts and first-/last-seen timestamps on the tag. |
+| Batch Scanning           | Session-based multi-item capture (`BSS-NNNNN`) grouped by purpose (receiving, counting, picking, putaway, transfer, audit) with an inline item formset. Sessions follow `active → completed / cancelled`; on complete, the total-items counter snapshots child rows atomically. |
+| Device Scan API          | Token-authenticated JSON endpoints — `POST /api/barcode-rfid/{scan,batch-scan,rfid-read,heartbeat}/` — for real-time device input. Auth via `Authorization: Device <token>` header; tenant context always derived from the matched device, never trusted from payload. Auto-resolves barcodes against serial → lot → RFID → product.sku → product.barcode → bin.code. |
+| RBAC + Audit             | Every create / edit / delete / state-change view carries the `@tenant_admin_required` + `@require_POST` + `emit_audit` triad; reads stay open to all tenant users. `TenantScopedAdmin` scopes admin visibility per tenant. |
 
 ### Planned Modules (see IMS.md)
 
