@@ -459,11 +459,14 @@ class SeasonalityProfile(models.Model):
 
     def multiplier_for_date(self, d):
         """Return demand multiplier for a date based on profile's period_type."""
+        # D-14: defensive tenant scoping — guards against accidental cross-tenant
+        # traversal if periods are ever queried without the FK reverse accessor.
+        periods = self.periods.filter(tenant=self.tenant)
         if self.period_type == 'quarter':
             q = (d.month - 1) // 3 + 1
-            period = self.periods.filter(period_number=q).first()
+            period = periods.filter(period_number=q).first()
         else:
-            period = self.periods.filter(period_number=d.month).first()
+            period = periods.filter(period_number=d.month).first()
         return period.demand_multiplier if period else Decimal('1.00')
 
 
