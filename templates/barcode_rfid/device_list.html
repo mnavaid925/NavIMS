@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Scanner Devices{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Scanner Devices</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="#">Barcode & RFID</a></li>
+        <li class="breadcrumb-item active">Devices</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row"><div class="col-lg-12"><div class="card">
+    <div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">All Scanner Devices</h5>
+        <a href="{% url 'barcode_rfid:device_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>Register Device</a>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-md-4"><div class="search-box">
+                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search by code / name / manufacturer...">
+                <i class="ri-search-line search-icon"></i>
+            </div></div>
+            <div class="col-md-3"><select class="form-select" name="status" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                {% for v, l in status_choices %}<option value="{{ v }}" {% if current_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-3"><select class="form-select" name="device_type" onchange="this.form.submit()">
+                <option value="">All Types</option>
+                {% for v, l in device_type_choices %}<option value="{{ v }}" {% if current_device_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-2"><a href="{% url 'barcode_rfid:device_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+        </form>
+
+        <div class="table-responsive"><table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+            <thead class="text-muted table-light"><tr>
+                <th>Code</th><th>Name</th><th>Type</th><th>Manufacturer</th><th>Assigned To</th><th>Warehouse</th><th>Status</th><th>Last Seen</th><th class="text-center">Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for d in devices %}
+            <tr>
+                <td><a href="{% url 'barcode_rfid:device_detail' d.pk %}" class="fw-medium text-primary">{{ d.device_code }}</a></td>
+                <td>{{ d.name }}</td>
+                <td><span class="badge bg-info-subtle text-info">{{ d.get_device_type_display }}</span></td>
+                <td>{{ d.manufacturer|default:"—" }}</td>
+                <td>{% if d.assigned_to %}{{ d.assigned_to.get_full_name|default:d.assigned_to.username }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td>{% if d.assigned_warehouse %}{{ d.assigned_warehouse.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td>
+                    {% if d.status == 'active' %}<span class="badge bg-success-subtle text-success">Active</span>
+                    {% elif d.status == 'inactive' %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                    {% elif d.status == 'maintenance' %}<span class="badge bg-warning-subtle text-warning">Maintenance</span>
+                    {% elif d.status == 'lost' %}<span class="badge bg-danger-subtle text-danger">Lost</span>
+                    {% elif d.status == 'retired' %}<span class="badge bg-dark-subtle text-dark">Retired</span>
+                    {% else %}<span class="badge bg-light">{{ d.get_status_display }}</span>{% endif %}
+                </td>
+                <td>{% if d.last_seen_at %}{{ d.last_seen_at|date:"Y-m-d H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                    <a href="{% url 'barcode_rfid:device_detail' d.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                    <a href="{% url 'barcode_rfid:device_edit' d.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                    <form method="post" action="{% url 'barcode_rfid:device_delete' d.pk %}" class="d-inline" onsubmit="return confirm('Delete device {{ d.device_code }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                </div></td>
+            </tr>
+            {% empty %}<tr><td colspan="9" class="text-center py-4 text-muted"><i class="ri-qr-scan-2-line fs-24 d-block mb-2"></i>No devices registered</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+
+        {% if devices.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
+            {% if devices.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ devices.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in devices.paginator.page_range %}<li class="page-item {% if devices.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+            {% if devices.has_next %}<li class="page-item"><a class="page-link" href="?page={{ devices.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+        </ul></nav></div>{% endif %}
+    </div>
+</div></div></div>
+{% endblock %}
