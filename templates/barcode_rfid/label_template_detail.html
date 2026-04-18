@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ template.code }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ template.code }} — {{ template.name }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'barcode_rfid:label_template_list' %}">Label Templates</a></li>
+        <li class="breadcrumb-item active">{{ template.code }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header"><h5 class="card-title mb-0">Configuration</h5></div><div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ template.get_label_type_display }}</dd>
+                <dt class="col-sm-4">Symbology</dt><dd class="col-sm-8">{{ template.get_symbology_display }}</dd>
+                <dt class="col-sm-4">Paper Size</dt><dd class="col-sm-8">{{ template.get_paper_size_display }}</dd>
+                <dt class="col-sm-4">Dimensions</dt><dd class="col-sm-8">{{ template.width_mm }} × {{ template.height_mm }} mm</dd>
+                <dt class="col-sm-4">Copies / Label</dt><dd class="col-sm-8">{{ template.copies_per_label }}</dd>
+                <dt class="col-sm-4">Includes</dt><dd class="col-sm-8">
+                    {% if template.includes_name %}<span class="badge bg-primary-subtle text-primary me-1">Name</span>{% endif %}
+                    {% if template.includes_sku %}<span class="badge bg-primary-subtle text-primary me-1">SKU</span>{% endif %}
+                    {% if template.includes_price %}<span class="badge bg-primary-subtle text-primary me-1">Price</span>{% endif %}
+                    {% if template.includes_date %}<span class="badge bg-primary-subtle text-primary me-1">Date</span>{% endif %}
+                </dd>
+                <dt class="col-sm-4">Status</dt><dd class="col-sm-8">{% if template.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</dd>
+                {% if template.notes %}<dt class="col-sm-4">Notes</dt><dd class="col-sm-8">{{ template.notes|linebreaksbr }}</dd>{% endif %}
+                <dt class="col-sm-4">Created by</dt><dd class="col-sm-8">{% if template.created_by %}{{ template.created_by.get_full_name|default:template.created_by.username }}{% else %}—{% endif %}</dd>
+                <dt class="col-sm-4">Created</dt><dd class="col-sm-8">{{ template.created_at|date:"Y-m-d H:i" }}</dd>
+            </dl>
+        </div></div>
+
+        {% if recent_jobs %}
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Recent Print Jobs</h5></div><div class="card-body p-0">
+            <div class="table-responsive"><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Job #</th><th>Target</th><th>Qty</th><th>Status</th><th>Created</th></tr></thead><tbody>
+                {% for j in recent_jobs %}<tr>
+                    <td><a href="{% url 'barcode_rfid:label_job_detail' j.pk %}">{{ j.job_number }}</a></td>
+                    <td>{{ j.target_display|default:j.get_target_type_display }}</td>
+                    <td>{{ j.quantity }}</td>
+                    <td><span class="badge bg-info-subtle text-info">{{ j.get_status_display }}</span></td>
+                    <td>{{ j.created_at|date:"Y-m-d H:i" }}</td>
+                </tr>{% endfor %}
+            </tbody></table></div>
+        </div></div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div><div class="card-body">
+        <div class="d-grid gap-2">
+            <a href="{% url 'barcode_rfid:label_template_edit' template.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+            <a href="{% url 'barcode_rfid:label_job_create' %}?template={{ template.pk }}" class="btn btn-primary"><i class="ri-printer-line me-1"></i>New Print Job</a>
+            <form method="post" action="{% url 'barcode_rfid:label_template_delete' template.pk %}" onsubmit="return confirm('Delete template {{ template.code }}?');">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+            <a href="{% url 'barcode_rfid:label_template_list' %}" class="btn btn-light">Back to List</a>
+        </div>
+    </div></div></div>
+</div>
+{% endblock %}
