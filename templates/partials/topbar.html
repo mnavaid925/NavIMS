@@ -70,15 +70,15 @@
                         </div>
                     </div>
                     <div class="py-2 ps-2" id="notificationItemsTabContent">
-                        <div data-simplebar style="max-height: 300px;" class="pe-2">
-                            <div class="text-center text-muted py-4">
+                        <div data-simplebar style="max-height: 300px;" class="pe-2" id="notificationItemsBody">
+                            <div class="text-center text-muted py-4" id="notificationEmptyState">
                                 <i class="ri-notification-off-line fs-24 mb-2 d-block"></i>
                                 <p class="mb-0">No new notifications</p>
                             </div>
                         </div>
                     </div>
                     <div class="notification-actions p-2 border-top border-light text-center">
-                        <a class="btn btn-sm btn-soft-primary w-100" href="javascript:void(0);">
+                        <a class="btn btn-sm btn-soft-primary w-100" href="{% url 'alerts_notifications:alert_list' %}">
                             View All Notifications <i class="ri-arrow-right-s-line align-middle"></i>
                         </a>
                     </div>
@@ -130,3 +130,57 @@
         </div>
     </div>
 </header>
+
+{% if user.is_authenticated %}
+<script>
+(function () {
+    var inboxUrl = "{% url 'alerts_notifications:alert_inbox_json' %}";
+    function severityIcon(sev) {
+        if (sev === 'critical') return '<i class="ri-alarm-warning-line fs-18 text-danger"></i>';
+        if (sev === 'warning')  return '<i class="ri-error-warning-line fs-18 text-warning"></i>';
+        return '<i class="ri-notification-2-line fs-18 text-info"></i>';
+    }
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+    function hydrate() {
+        fetch(inboxUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (!data) return;
+                var count = data.unread_count || 0;
+                document.querySelectorAll('.notification-count').forEach(function (el) { el.textContent = count; });
+                var badge = document.querySelector('.notification-count-badge');
+                if (badge) badge.textContent = count + ' New';
+                var body = document.getElementById('notificationItemsBody');
+                if (!body) return;
+                if (!data.items || data.items.length === 0) {
+                    body.innerHTML = '<div class="text-center text-muted py-4"><i class="ri-notification-off-line fs-24 mb-2 d-block"></i><p class="mb-0">No new notifications</p></div>';
+                    return;
+                }
+                var html = '';
+                data.items.forEach(function (a) {
+                    html += '<a href="' + escapeHtml(a.url) + '" class="dropdown-item py-2">'
+                         +   '<div class="d-flex">'
+                         +     '<div class="flex-shrink-0 me-2">' + severityIcon(a.severity) + '</div>'
+                         +     '<div class="flex-grow-1">'
+                         +       '<p class="mb-0 fw-medium">' + escapeHtml(a.title) + '</p>'
+                         +       '<small class="text-muted">' + escapeHtml(a.alert_type_display) + ' &middot; ' + escapeHtml(a.alert_number) + '</small>'
+                         +     '</div>'
+                         +   '</div>'
+                         + '</a>';
+                });
+                body.innerHTML = html;
+            })
+            .catch(function () { /* silent — bell just shows last-known state */ });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', hydrate);
+    } else {
+        hydrate();
+    }
+})();
+</script>
+{% endif %}
