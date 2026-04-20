@@ -8,6 +8,8 @@ threshold, expand recipient_users, and create a NotificationDelivery per
 Email channel uses django.core.mail.send_mail. Console backend prints payloads
 in development; SMTP is honoured in production via EMAIL_BACKEND env var.
 """
+import smtplib
+
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.management.base import BaseCommand
@@ -128,7 +130,9 @@ class Command(BaseCommand):
                                     delivery.sent_at = timezone.now()
                                     delivery.save(update_fields=['status', 'sent_at'])
                                     total_dispatched += 1
-                                except Exception as exc:  # pragma: no cover
+                                except (smtplib.SMTPException, OSError, ConnectionError) as exc:
+                                    # D-07: narrowed from bare Exception — programming
+                                    # bugs now surface instead of being logged as 'failed'.
                                     delivery.status = 'failed'
                                     delivery.error_message = str(exc)[:2000]
                                     delivery.save(update_fields=['status', 'error_message'])
