@@ -18,6 +18,22 @@ from .models import (
 )
 
 
+def _include_current(base_qs, instance, fk_name):
+    """D-04 helper: widen a tenant-scoped, active-filtered FK queryset so that
+    the FK value currently assigned to ``instance`` is always selectable — even
+    if it has since been deactivated (or soft-deleted). Without this, editing
+    a historical record whose FK target was later `is_active=False` raises
+    ``"Select a valid choice. That choice is not one of the available choices."``
+    """
+    if instance is None or instance.pk is None:
+        return base_qs
+    current_id = getattr(instance, f'{fk_name}_id', None)
+    if not current_id:
+        return base_qs
+    extra = base_qs.model.objects.filter(pk=current_id)
+    return (base_qs | extra).distinct()
+
+
 # ──────────────────────────────────────────────
 # Submodule 1: QC Checklists
 # ──────────────────────────────────────────────
@@ -49,13 +65,22 @@ class QCChecklistForm(TenantUniqueCodeMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['code'].required = False
         if tenant:
-            self.fields['product'].queryset = Product.objects.filter(tenant=tenant, is_active=True)
+            self.fields['product'].queryset = _include_current(
+                Product.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'product',
+            )
             self.fields['product'].required = False
             self.fields['product'].empty_label = '— No specific product —'
-            self.fields['vendor'].queryset = Vendor.objects.filter(tenant=tenant)
+            self.fields['vendor'].queryset = _include_current(
+                Vendor.objects.filter(tenant=tenant),
+                self.instance, 'vendor',
+            )
             self.fields['vendor'].required = False
             self.fields['vendor'].empty_label = '— No specific vendor —'
-            self.fields['category'].queryset = Category.objects.filter(tenant=tenant, is_active=True)
+            self.fields['category'].queryset = _include_current(
+                Category.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'category',
+            )
             self.fields['category'].required = False
             self.fields['category'].empty_label = '— No specific category —'
 
@@ -136,7 +161,10 @@ class InspectionRouteForm(TenantUniqueCodeMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['code'].required = False
         if tenant:
-            self.fields['source_warehouse'].queryset = Warehouse.objects.filter(tenant=tenant, is_active=True)
+            self.fields['source_warehouse'].queryset = _include_current(
+                Warehouse.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'source_warehouse',
+            )
             self.fields['source_warehouse'].empty_label = '— Select Warehouse —'
             self.fields['qc_zone'].queryset = Zone.objects.filter(tenant=tenant)
             self.fields['qc_zone'].empty_label = '— Select QC Zone —'
@@ -184,18 +212,47 @@ class InspectionRouteRuleForm(forms.ModelForm):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
         if tenant:
-            self.fields['product'].queryset = Product.objects.filter(tenant=tenant, is_active=True)
+            self.fields['product'].queryset = _include_current(
+                Product.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'product',
+            )
             self.fields['product'].required = False
             self.fields['product'].empty_label = '—'
-            self.fields['vendor'].queryset = Vendor.objects.filter(tenant=tenant)
+            self.fields['vendor'].queryset = _include_current(
+                Vendor.objects.filter(tenant=tenant),
+                self.instance, 'vendor',
+            )
             self.fields['vendor'].required = False
             self.fields['vendor'].empty_label = '—'
-            self.fields['category'].queryset = Category.objects.filter(tenant=tenant, is_active=True)
+            self.fields['category'].queryset = _include_current(
+                Category.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'category',
+            )
             self.fields['category'].required = False
             self.fields['category'].empty_label = '—'
-            self.fields['checklist'].queryset = QCChecklist.objects.filter(tenant=tenant, is_active=True)
+            self.fields['checklist'].queryset = _include_current(
+                QCChecklist.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'checklist',
+            )
             self.fields['checklist'].required = False
             self.fields['checklist'].empty_label = '— No checklist —'
+
+    def clean(self):
+        # D-08: if the rule is scoped, the corresponding FK must be populated.
+        cleaned = super().clean()
+        # Skip completely-blank extra formset rows — nothing to validate.
+        if not any(
+            cleaned.get(f) for f in ('applies_to', 'product', 'vendor', 'category', 'checklist', 'notes')
+        ):
+            return cleaned
+        applies_to = cleaned.get('applies_to')
+        if applies_to == 'product' and not cleaned.get('product'):
+            self.add_error('product', 'Select a product when scope is "Specific Product".')
+        if applies_to == 'vendor' and not cleaned.get('vendor'):
+            self.add_error('vendor', 'Select a vendor when scope is "Specific Vendor".')
+        if applies_to == 'category' and not cleaned.get('category'):
+            self.add_error('category', 'Select a category when scope is "Specific Category".')
+        return cleaned
 
 
 InspectionRouteRuleFormSet = inlineformset_factory(
@@ -232,8 +289,14 @@ class QuarantineRecordForm(forms.ModelForm):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
         if tenant:
-            self.fields['product'].queryset = Product.objects.filter(tenant=tenant, is_active=True)
-            self.fields['warehouse'].queryset = Warehouse.objects.filter(tenant=tenant, is_active=True)
+            self.fields['product'].queryset = _include_current(
+                Product.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'product',
+            )
+            self.fields['warehouse'].queryset = _include_current(
+                Warehouse.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'warehouse',
+            )
             self.fields['zone'].queryset = Zone.objects.filter(tenant=tenant)
             self.fields['grn'].queryset = GoodsReceiptNote.objects.filter(tenant=tenant)
             self.fields['grn'].required = False
@@ -303,8 +366,14 @@ class DefectReportForm(forms.ModelForm):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
         if tenant:
-            self.fields['product'].queryset = Product.objects.filter(tenant=tenant, is_active=True)
-            self.fields['warehouse'].queryset = Warehouse.objects.filter(tenant=tenant, is_active=True)
+            self.fields['product'].queryset = _include_current(
+                Product.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'product',
+            )
+            self.fields['warehouse'].queryset = _include_current(
+                Warehouse.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'warehouse',
+            )
             self.fields['lot'].queryset = LotBatch.objects.filter(tenant=tenant)
             self.fields['lot'].required = False
             self.fields['lot'].empty_label = '— No lot —'
@@ -314,8 +383,9 @@ class DefectReportForm(forms.ModelForm):
             self.fields['grn'].queryset = GoodsReceiptNote.objects.filter(tenant=tenant)
             self.fields['grn'].required = False
             self.fields['grn'].empty_label = '— No GRN —'
-            self.fields['quarantine_record'].queryset = QuarantineRecord.objects.filter(
-                tenant=tenant, deleted_at__isnull=True,
+            self.fields['quarantine_record'].queryset = _include_current(
+                QuarantineRecord.objects.filter(tenant=tenant, deleted_at__isnull=True),
+                self.instance, 'quarantine_record',
             )
             self.fields['quarantine_record'].required = False
             self.fields['quarantine_record'].empty_label = '— Not linked —'
@@ -325,6 +395,24 @@ class DefectReportForm(forms.ModelForm):
         if qty is not None and qty < 1:
             raise ValidationError('Quantity affected must be at least 1.')
         return qty
+
+    def clean(self):
+        # D-07: lot/serial must reference the same product as the defect.
+        cleaned = super().clean()
+        product = cleaned.get('product')
+        lot = cleaned.get('lot')
+        serial = cleaned.get('serial')
+        if product and lot and getattr(lot, 'product_id', None) and lot.product_id != product.pk:
+            self.add_error(
+                'lot',
+                f'Lot "{lot}" belongs to a different product than the selected product.',
+            )
+        if product and serial and getattr(serial, 'product_id', None) and serial.product_id != product.pk:
+            self.add_error(
+                'serial',
+                f'Serial "{serial}" belongs to a different product than the selected product.',
+            )
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -340,13 +428,34 @@ class DefectPhotoForm(forms.ModelForm):
         model = DefectPhoto
         fields = ['image', 'caption']
         widgets = {
-            'image': forms.ClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
+            'image': forms.ClearableFileInput(attrs={
+                'class': 'form-control form-control-sm',
+                'accept': 'image/jpeg,image/png,image/gif,image/webp',
+            }),
             'caption': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Caption'}),
         }
 
     def __init__(self, *args, tenant=None, **kwargs):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
+
+    def clean_image(self):
+        # D-03: route every upload through the model-level validators (size,
+        # extension, magic-bytes). The ImageField validators run on save, but
+        # we also want form-layer rejection so inline-formset errors surface
+        # before the instance reaches save().
+        image = self.cleaned_data.get('image')
+        if image and getattr(image, 'file', None):
+            from .models import (
+                DEFECT_PHOTO_ALLOWED_EXT,
+                validate_defect_photo_size,
+                validate_defect_photo_magic,
+            )
+            from django.core.validators import FileExtensionValidator
+            FileExtensionValidator(allowed_extensions=DEFECT_PHOTO_ALLOWED_EXT)(image)
+            validate_defect_photo_size(image)
+            validate_defect_photo_magic(image)
+        return image
 
 
 DefectPhotoFormSet = inlineformset_factory(
@@ -378,15 +487,23 @@ class ScrapWriteOffForm(forms.ModelForm):
         self.tenant = tenant
         super().__init__(*args, **kwargs)
         if tenant:
-            self.fields['product'].queryset = Product.objects.filter(tenant=tenant, is_active=True)
-            self.fields['warehouse'].queryset = Warehouse.objects.filter(tenant=tenant, is_active=True)
-            self.fields['defect_report'].queryset = DefectReport.objects.filter(
-                tenant=tenant, deleted_at__isnull=True,
+            self.fields['product'].queryset = _include_current(
+                Product.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'product',
+            )
+            self.fields['warehouse'].queryset = _include_current(
+                Warehouse.objects.filter(tenant=tenant, is_active=True),
+                self.instance, 'warehouse',
+            )
+            self.fields['defect_report'].queryset = _include_current(
+                DefectReport.objects.filter(tenant=tenant, deleted_at__isnull=True),
+                self.instance, 'defect_report',
             )
             self.fields['defect_report'].required = False
             self.fields['defect_report'].empty_label = '— No defect report —'
-            self.fields['quarantine_record'].queryset = QuarantineRecord.objects.filter(
-                tenant=tenant, deleted_at__isnull=True,
+            self.fields['quarantine_record'].queryset = _include_current(
+                QuarantineRecord.objects.filter(tenant=tenant, deleted_at__isnull=True),
+                self.instance, 'quarantine_record',
             )
             self.fields['quarantine_record'].required = False
             self.fields['quarantine_record'].empty_label = '— No quarantine record —'
