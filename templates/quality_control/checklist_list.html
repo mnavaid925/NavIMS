@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load quality_control_tags %}
 {% block title %}QC Checklists{% endblock %}
 {% block content %}
 <div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
@@ -49,7 +50,7 @@
                     {% elif c.applies_to == 'category' and c.category %}{{ c.category.name }}
                     {% else %}<span class="text-muted">All</span>{% endif %}
                 </td>
-                <td>{{ c.items.count }}</td>
+                <td>{{ c.item_count }}</td>
                 <td>{% if c.is_mandatory %}<span class="badge bg-warning-subtle text-warning">Required</span>{% else %}<span class="badge bg-light text-dark">Optional</span>{% endif %}</td>
                 <td>{% if c.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</td>
                 <td class="text-center"><div class="d-flex gap-1 justify-content-center">
@@ -63,9 +64,9 @@
         </table></div>
 
         {% if checklists.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
-            {% if checklists.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ checklists.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
-            {% for num in checklists.paginator.page_range %}<li class="page-item {% if checklists.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
-            {% if checklists.has_next %}<li class="page-item"><a class="page-link" href="?page={{ checklists.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+            {% if checklists.has_previous %}<li class="page-item"><a class="page-link" href="?{% querystring page=checklists.previous_page_number %}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in checklists.paginator.page_range %}<li class="page-item {% if checklists.number == num %}active{% endif %}"><a class="page-link" href="?{% querystring page=num %}">{{ num }}</a></li>{% endfor %}
+            {% if checklists.has_next %}<li class="page-item"><a class="page-link" href="?{% querystring page=checklists.next_page_number %}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
         </ul></nav></div>{% endif %}
     </div>
 </div></div></div>
