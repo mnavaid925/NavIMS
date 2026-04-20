@@ -239,11 +239,13 @@ NavIMS/
 │           └── dispatch_notifications.py     # For every undelivered Alert, expand matching NotificationRule.recipient_users, send_mail() per email-channel rule, write NotificationDelivery audit row
 │
 ├── quality_control/            # Module 16: Quality Control & Inspection
-│   ├── models.py               # QCChecklist, QCChecklistItem, InspectionRoute, InspectionRouteRule, QuarantineRecord, DefectReport, DefectPhoto, ScrapWriteOff — TenantUniqueCodeMixin + StateMachineMixin + _save_with_number_retry + soft-delete (deleted_at) on top-level docs
-│   ├── forms.py                # 7 ModelForms + 3 inline formsets (tenant-aware form_kwargs, zone-vs-warehouse cross-validation, applies-to scoping guards)
-│   ├── views.py                # ~34 views — checklist CRUD + toggle_active, route CRUD with inline rules, quarantine CRUD + review/release (auto-creates ScrapWriteOff on scrap disposition), defect CRUD + investigate/resolve/scrap + photo deletion, scrap CRUD + approve/reject/post (atomic StockAdjustment via select_for_update); triad @tenant_admin_required + @require_POST + emit_audit on every destructive/transition endpoint; segregation-of-duties (requester ≠ approver) on scrap approval
+│   ├── models.py               # QCChecklist, QCChecklistItem, InspectionRoute, InspectionRouteRule, QuarantineRecord, DefectReport, DefectPhoto (ImageField with FileExtensionValidator + size + magic-byte guards), ScrapWriteOff — TenantUniqueCodeMixin + StateMachineMixin + _save_with_number_retry + soft-delete (deleted_at) on top-level docs
+│   ├── forms.py                # 7 ModelForms + 3 inline formsets (tenant-aware form_kwargs, zone-vs-warehouse cross-validation, applies-to scoping guards, lot/serial-vs-product match, queryset-union helper so historical FK targets stay editable)
+│   ├── views.py                # 35 views — checklist CRUD + toggle_active, route CRUD with inline rules, quarantine CRUD + review/release (auto-creates ScrapWriteOff on scrap disposition), defect CRUD + investigate/resolve/scrap + photo deletion (gated to open/investigating), scrap CRUD + approve/reject/post routed through `can_transition_to()`; post re-fetches the row with `select_for_update()` inside the atomic block (double-post race guard); audit payload records adjustment_number + on_hand delta; triad @tenant_admin_required + @require_POST + emit_audit on every destructive/transition endpoint; segregation-of-duties (requester ≠ approver) on scrap approval
+│   ├── templatetags/           # `querystring` template tag — preserves current filter GET params across pagination links
 │   ├── urls.py                 # URL routes
 │   ├── admin.py                # TenantScopedAdmin registrations with QCChecklistItemInline, InspectionRouteRuleInline, DefectPhotoInline
+│   ├── tests/                  # 82 tests — models/forms/views/security/performance/regression covering state machines, IDOR, RBAC, OWASP A01/A03/A08/A09, D-01 race (monkey-patched simulation), D-02 N+1 budgets, D-04 queryset trap, D-07 lot/serial match, D-11 photo-delete gate
 │   └── management/
 │       └── commands/
 │           └── seed_quality_control.py  # Idempotent per-tenant seeder (checklists, routes, quarantines, defects, scrap write-offs — posted scrap creates a real StockAdjustment)
@@ -647,7 +649,8 @@ Reference implementation: [receiving/tests/](./receiving/tests/) and [stock_move
 | returns           | 150   | RMA, inspection, disposition, refund — refund cap + currency, restock-of-defective refusal, ledger symmetry, 14-endpoint CSRF coverage, formset IDOR across 3 inline formsets, soft-delete + admin tenant scope + shared `core.state_machine` mixin |
 | stocktaking       | 136   | Freeze, cycle schedule, stock count, variance adjustment — atomic posting via `apply_adjustment('correction')` (single canonical write path), double-post guard, POST-only transitions, `@tenant_admin_required` RBAC across 16 destructive views, AuditLog, negative-qty validator, zone-vs-warehouse cross-validation, schedule-run idempotency |
 | barcode_rfid      | 158   | Label templates/jobs, scanner devices, RFID tags/readers/reads, batch scanning — state-machine transitions with can_transition_to + @require_POST + @tenant_admin_required + emit_audit, unique_together(tenant,X) form-layer guards via `TenantUniqueCodeMixin`, inline-formset tenant-injection refusal, zone-vs-warehouse cross-validation, device API token auth (tenant derived from device never payload), PDF render smoke test |
-| **Total**         | **1169** | |
+| quality_control   | 82    | QC checklists, inspection routes, quarantine, defect reports (with photo uploads), scrap write-offs — OWASP A01/A03/A08/A09 matrix, D-01 scrap-post race guard (monkey-patched simulation), D-02 N+1 budgets, D-03 upload hygiene (ext + size + magic bytes), D-04 queryset-union regression, D-07 lot/serial vs product match, D-11 photo-delete gate, segregation-of-duties on scrap approval, atomic `decrease` StockAdjustment via `apply_adjustment()` |
+| **Total**         | **1251** | |
 
 Run `pytest` at the project root to execute all modules in one pass (~25 s on a warm cache).
 
