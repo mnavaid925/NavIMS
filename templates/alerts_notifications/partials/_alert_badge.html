@@ -1,0 +1,17 @@
+{% comment %}Reusable severity + status pills. Pass `alert` in context.{% endcomment %}
+{% if alert.severity == 'critical' %}
+    <span class="badge bg-danger-subtle text-danger">Critical</span>
+{% elif alert.severity == 'warning' %}
+    <span class="badge bg-warning-subtle text-warning">Warning</span>
+{% else %}
+    <span class="badge bg-info-subtle text-info">Info</span>
+{% endif %}
+{% if alert.status == 'new' %}
+    <span class="badge bg-primary-subtle text-primary">New</span>
+{% elif alert.status == 'acknowledged' %}
+    <span class="badge bg-info-subtle text-info">Acknowledged</span>
+{% elif alert.status == 'resolved' %}
+    <span class="badge bg-success-subtle text-success">Resolved</span>
+{% elif alert.status == 'dismissed' %}
+    <span class="badge bg-secondary-subtle text-secondary">Dismissed</span>
+{% endif %}
