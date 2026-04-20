@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Defect Reports{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Defect Reports</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="#">Quality Control</a></li>
+        <li class="breadcrumb-item active">Defects</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row"><div class="col-lg-12"><div class="card">
+    <div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">All Defect Reports</h5>
+        <a href="{% url 'quality_control:defect_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>New Defect</a>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-md-3"><div class="search-box">
+                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search number / product / description...">
+                <i class="ri-search-line search-icon"></i>
+            </div></div>
+            <div class="col-md-2"><select class="form-select" name="status" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                {% for v, l in status_choices %}<option value="{{ v }}" {% if current_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-2"><select class="form-select" name="severity" onchange="this.form.submit()">
+                <option value="">All Severities</option>
+                {% for v, l in severity_choices %}<option value="{{ v }}" {% if current_severity == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-2"><select class="form-select" name="defect_type" onchange="this.form.submit()">
+                <option value="">All Types</option>
+                {% for v, l in defect_type_choices %}<option value="{{ v }}" {% if current_defect_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-2"><select class="form-select" name="source" onchange="this.form.submit()">
+                <option value="">All Sources</option>
+                {% for v, l in source_choices %}<option value="{{ v }}" {% if current_source == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-1"><a href="{% url 'quality_control:defect_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+        </form>
+
+        <div class="table-responsive"><table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+            <thead class="text-muted table-light"><tr>
+                <th>Number</th><th>Product</th><th>Type</th><th>Severity</th><th>Qty</th><th>Source</th><th>Status</th><th>Reported</th><th class="text-center">Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for d in defects %}
+            <tr>
+                <td><a href="{% url 'quality_control:defect_detail' d.pk %}" class="fw-medium text-primary font-monospace">{{ d.defect_number }}</a></td>
+                <td>{{ d.product.sku }} <span class="text-muted">— {{ d.product.name|truncatechars:25 }}</span></td>
+                <td>{{ d.get_defect_type_display }}</td>
+                <td>
+                    {% if d.severity == 'minor' %}<span class="badge bg-info-subtle text-info">Minor</span>
+                    {% elif d.severity == 'major' %}<span class="badge bg-warning-subtle text-warning">Major</span>
+                    {% elif d.severity == 'critical' %}<span class="badge bg-danger-subtle text-danger">Critical</span>
+                    {% else %}<span class="badge bg-light">{{ d.get_severity_display }}</span>{% endif %}
+                </td>
+                <td>{{ d.quantity_affected }}</td>
+                <td>{{ d.get_source_display }}</td>
+                <td>
+                    {% if d.status == 'open' %}<span class="badge bg-warning-subtle text-warning">Open</span>
+                    {% elif d.status == 'investigating' %}<span class="badge bg-info-subtle text-info">Investigating</span>
+                    {% elif d.status == 'resolved' %}<span class="badge bg-success-subtle text-success">Resolved</span>
+                    {% elif d.status == 'scrapped' %}<span class="badge bg-danger-subtle text-danger">Scrapped</span>
+                    {% else %}<span class="badge bg-light">{{ d.get_status_display }}</span>{% endif %}
+                </td>
+                <td>{{ d.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                    <a href="{% url 'quality_control:defect_detail' d.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                    {% if d.status == 'open' or d.status == 'investigating' %}
+                        <a href="{% url 'quality_control:defect_edit' d.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                    {% endif %}
+                    {% if d.status == 'open' %}
+                        <form method="post" action="{% url 'quality_control:defect_delete' d.pk %}" class="d-inline" onsubmit="return confirm('Delete defect {{ d.defect_number }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                    {% endif %}
+                </div></td>
+            </tr>
+            {% empty %}<tr><td colspan="9" class="text-center py-4 text-muted"><i class="ri-error-warning-line fs-24 d-block mb-2"></i>No defect reports</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+
+        {% if defects.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
+            {% if defects.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ defects.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in defects.paginator.page_range %}<li class="page-item {% if defects.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+            {% if defects.has_next %}<li class="page-item"><a class="page-link" href="?page={{ defects.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+        </ul></nav></div>{% endif %}
+    </div>
+</div></div></div>
+{% endblock %}
