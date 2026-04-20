@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ scrap.scrap_number }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0 font-monospace">{{ scrap.scrap_number }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quality_control:scrap_list' %}">Scrap</a></li>
+        <li class="breadcrumb-item active">{{ scrap.scrap_number }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Write-Off Info</h5>
+            {% if scrap.approval_status == 'pending' %}<span class="badge bg-warning-subtle text-warning">Pending</span>
+            {% elif scrap.approval_status == 'approved' %}<span class="badge bg-info-subtle text-info">Approved</span>
+            {% elif scrap.approval_status == 'rejected' %}<span class="badge bg-danger-subtle text-danger">Rejected</span>
+            {% elif scrap.approval_status == 'posted' %}<span class="badge bg-success-subtle text-success">Posted</span>
+            {% else %}<span class="badge bg-light">{{ scrap.get_approval_status_display }}</span>{% endif %}
+        </div><div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Number</dt><dd class="col-sm-8 font-monospace">{{ scrap.scrap_number }}</dd>
+                <dt class="col-sm-4">Product</dt><dd class="col-sm-8">{{ scrap.product.sku }} — {{ scrap.product.name }}</dd>
+                <dt class="col-sm-4">Warehouse</dt><dd class="col-sm-8">{{ scrap.warehouse.name }}</dd>
+                <dt class="col-sm-4">Quantity</dt><dd class="col-sm-8">{{ scrap.quantity }}</dd>
+                <dt class="col-sm-4">Unit Cost</dt><dd class="col-sm-8">{{ scrap.unit_cost }}</dd>
+                <dt class="col-sm-4">Total Value</dt><dd class="col-sm-8"><strong>{{ scrap.total_value }}</strong></dd>
+                <dt class="col-sm-4">Reason</dt><dd class="col-sm-8">{{ scrap.reason }}</dd>
+                {% if scrap.defect_report %}<dt class="col-sm-4">Defect</dt><dd class="col-sm-8"><a href="{% url 'quality_control:defect_detail' scrap.defect_report.pk %}">{{ scrap.defect_report.defect_number }}</a></dd>{% endif %}
+                {% if scrap.quarantine_record %}<dt class="col-sm-4">Quarantine</dt><dd class="col-sm-8"><a href="{% url 'quality_control:quarantine_detail' scrap.quarantine_record.pk %}">{{ scrap.quarantine_record.quarantine_number }}</a></dd>{% endif %}
+                <dt class="col-sm-4">Requested</dt><dd class="col-sm-8">{{ scrap.created_at|date:"Y-m-d H:i" }}{% if scrap.requested_by %} by {{ scrap.requested_by.get_full_name|default:scrap.requested_by.username }}{% endif %}</dd>
+                {% if scrap.approved_at %}<dt class="col-sm-4">Approved</dt><dd class="col-sm-8">{{ scrap.approved_at|date:"Y-m-d H:i" }}{% if scrap.approved_by %} by {{ scrap.approved_by.get_full_name|default:scrap.approved_by.username }}{% endif %}</dd>{% endif %}
+                {% if scrap.posted_at %}<dt class="col-sm-4">Posted</dt><dd class="col-sm-8">{{ scrap.posted_at|date:"Y-m-d H:i" }}{% if scrap.posted_by %} by {{ scrap.posted_by.get_full_name|default:scrap.posted_by.username }}{% endif %}</dd>{% endif %}
+                {% if scrap.stock_adjustment %}<dt class="col-sm-4">Stock Adjustment</dt><dd class="col-sm-8 font-monospace">{{ scrap.stock_adjustment.adjustment_number }} <span class="text-muted">({{ scrap.stock_adjustment.get_adjustment_type_display }} {{ scrap.stock_adjustment.quantity }})</span></dd>{% endif %}
+            </dl>
+        </div></div>
+    </div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div><div class="card-body">
+        <div class="d-grid gap-2">
+            {% if scrap.approval_status == 'pending' %}
+                <form method="post" action="{% url 'quality_control:scrap_approve' scrap.pk %}" onsubmit="return confirm('Approve this write-off?');">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-checkbox-circle-line me-1"></i>Approve</button></form>
+                <form method="post" action="{% url 'quality_control:scrap_reject' scrap.pk %}" onsubmit="return confirm('Reject this write-off?');">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-close-circle-line me-1"></i>Reject</button></form>
+                <a href="{% url 'quality_control:scrap_edit' scrap.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+                <form method="post" action="{% url 'quality_control:scrap_delete' scrap.pk %}" onsubmit="return confirm('Delete scrap {{ scrap.scrap_number }}?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+            {% elif scrap.approval_status == 'approved' %}
+                <form method="post" action="{% url 'quality_control:scrap_post' scrap.pk %}" onsubmit="return confirm('Post this write-off? This will decrease on-hand stock.');">{% csrf_token %}<button class="btn btn-primary w-100"><i class="ri-arrow-down-line me-1"></i>Post to Inventory</button></form>
+                <form method="post" action="{% url 'quality_control:scrap_reject' scrap.pk %}" onsubmit="return confirm('Reject this write-off?');">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-close-circle-line me-1"></i>Reject</button></form>
+            {% endif %}
+            <a href="{% url 'quality_control:scrap_list' %}" class="btn btn-light">Back to List</a>
+        </div>
+    </div></div></div>
+</div>
+{% endblock %}
