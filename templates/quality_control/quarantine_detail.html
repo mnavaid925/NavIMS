@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ record.quarantine_number }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0 font-monospace">{{ record.quarantine_number }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quality_control:quarantine_list' %}">Quarantine</a></li>
+        <li class="breadcrumb-item active">{{ record.quarantine_number }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Quarantine Info</h5>
+            {% if record.status == 'active' %}<span class="badge bg-warning-subtle text-warning">Active Hold</span>
+            {% elif record.status == 'under_review' %}<span class="badge bg-info-subtle text-info">Under Review</span>
+            {% elif record.status == 'released' %}<span class="badge bg-success-subtle text-success">Released</span>
+            {% elif record.status == 'scrapped' %}<span class="badge bg-danger-subtle text-danger">Scrapped</span>
+            {% else %}<span class="badge bg-light">{{ record.get_status_display }}</span>{% endif %}
+        </div><div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Number</dt><dd class="col-sm-8 font-monospace">{{ record.quarantine_number }}</dd>
+                <dt class="col-sm-4">Product</dt><dd class="col-sm-8">{{ record.product.sku }} — {{ record.product.name }}</dd>
+                <dt class="col-sm-4">Warehouse</dt><dd class="col-sm-8">{{ record.warehouse.name }}</dd>
+                <dt class="col-sm-4">Zone</dt><dd class="col-sm-8">{{ record.zone.name }} <span class="text-muted">({{ record.zone.get_zone_type_display }})</span></dd>
+                <dt class="col-sm-4">Quantity</dt><dd class="col-sm-8">{{ record.quantity }}</dd>
+                <dt class="col-sm-4">Reason</dt><dd class="col-sm-8">{{ record.get_reason_display }}</dd>
+                {% if record.reason_notes %}<dt class="col-sm-4">Notes</dt><dd class="col-sm-8">{{ record.reason_notes|linebreaksbr }}</dd>{% endif %}
+                {% if record.grn %}<dt class="col-sm-4">Source GRN</dt><dd class="col-sm-8">{{ record.grn.grn_number|default:record.grn.pk }}</dd>{% endif %}
+                {% if record.lot %}<dt class="col-sm-4">Lot / Batch</dt><dd class="col-sm-8">{{ record.lot.lot_number|default:record.lot.pk }}</dd>{% endif %}
+                <dt class="col-sm-4">Held At</dt><dd class="col-sm-8">{{ record.created_at|date:"Y-m-d H:i" }}{% if record.held_by %} by {{ record.held_by.get_full_name|default:record.held_by.username }}{% endif %}</dd>
+                {% if record.released_at %}
+                    <dt class="col-sm-4">Released</dt><dd class="col-sm-8">{{ record.released_at|date:"Y-m-d H:i" }}{% if record.released_by %} by {{ record.released_by.get_full_name|default:record.released_by.username }}{% endif %}</dd>
+                    <dt class="col-sm-4">Disposition</dt><dd class="col-sm-8">{{ record.get_release_disposition_display|default:"—" }}</dd>
+                    {% if record.release_notes %}<dt class="col-sm-4">Release Notes</dt><dd class="col-sm-8">{{ record.release_notes|linebreaksbr }}</dd>{% endif %}
+                {% endif %}
+            </dl>
+        </div></div>
+
+        {% if defect_reports %}
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Linked Defect Reports ({{ defect_reports|length }})</h5></div><div class="card-body p-0">
+            <div class="table-responsive"><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Number</th><th>Type</th><th>Severity</th><th>Status</th><th>Qty</th></tr></thead><tbody>
+            {% for d in defect_reports %}<tr>
+                <td><a href="{% url 'quality_control:defect_detail' d.pk %}">{{ d.defect_number }}</a></td>
+                <td>{{ d.get_defect_type_display }}</td>
+                <td>{{ d.get_severity_display }}</td>
+                <td>{{ d.get_status_display }}</td>
+                <td>{{ d.quantity_affected }}</td>
+            </tr>{% endfor %}
+            </tbody></table></div>
+        </div></div>
+        {% endif %}
+
+        {% if scrap_writeoffs %}
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Scrap Write-Offs ({{ scrap_writeoffs|length }})</h5></div><div class="card-body p-0">
+            <div class="table-responsive"><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Number</th><th>Qty</th><th>Value</th><th>Status</th></tr></thead><tbody>
+            {% for s in scrap_writeoffs %}<tr>
+                <td><a href="{% url 'quality_control:scrap_detail' s.pk %}">{{ s.scrap_number }}</a></td>
+                <td>{{ s.quantity }}</td>
+                <td>{{ s.total_value }}</td>
+                <td>{{ s.get_approval_status_display }}</td>
+            </tr>{% endfor %}
+            </tbody></table></div>
+        </div></div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div><div class="card-body">
+        <div class="d-grid gap-2">
+            {% if record.status == 'active' %}
+                <form method="post" action="{% url 'quality_control:quarantine_review' record.pk %}" onsubmit="return confirm('Move this hold under review?');">{% csrf_token %}<button class="btn btn-info w-100"><i class="ri-search-eye-line me-1"></i>Start Review</button></form>
+            {% endif %}
+            {% if record.status == 'active' or record.status == 'under_review' %}
+                <form method="post" action="{% url 'quality_control:quarantine_release' record.pk %}">{% csrf_token %}
+                    <div class="card border mt-2 mb-2"><div class="card-body p-2">
+                        <label class="form-label small mb-1">Release disposition</label>
+                        {{ release_form.disposition }}
+                        <label class="form-label small mt-2 mb-1">Notes</label>
+                        {{ release_form.notes }}
+                        <button class="btn btn-success w-100 mt-2"><i class="ri-logout-box-r-line me-1"></i>Release</button>
+                    </div></div>
+                </form>
+            {% endif %}
+            {% if record.status == 'active' or record.status == 'under_review' %}
+                <a href="{% url 'quality_control:quarantine_edit' record.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+            {% endif %}
+            {% if record.status == 'active' %}
+                <form method="post" action="{% url 'quality_control:quarantine_delete' record.pk %}" onsubmit="return confirm('Delete quarantine {{ record.quarantine_number }}?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+            {% endif %}
+            <a href="{% url 'quality_control:quarantine_list' %}" class="btn btn-light">Back to List</a>
+        </div>
+    </div></div></div>
+</div>
+{% endblock %}
