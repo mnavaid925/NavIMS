@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -35,7 +35,12 @@ from .forms import (
 @login_required
 def checklist_list_view(request):
     tenant = request.tenant
-    qs = QCChecklist.objects.filter(tenant=tenant).select_related('product', 'vendor', 'category')
+    qs = (
+        QCChecklist.objects.filter(tenant=tenant)
+        .select_related('product', 'vendor', 'category')
+        .annotate(item_count=Count('items'))
+        .order_by('name')
+    )
 
     q = request.GET.get('q', '').strip()
     if q:
@@ -178,8 +183,11 @@ def checklist_toggle_active_view(request, pk):
 @login_required
 def route_list_view(request):
     tenant = request.tenant
-    qs = InspectionRoute.objects.filter(tenant=tenant).select_related(
-        'source_warehouse', 'qc_zone', 'putaway_zone',
+    qs = (
+        InspectionRoute.objects.filter(tenant=tenant)
+        .select_related('source_warehouse', 'qc_zone', 'putaway_zone')
+        .annotate(rule_count=Count('rules'))
+        .order_by('priority', 'name')
     )
 
     q = request.GET.get('q', '').strip()
@@ -457,15 +465,20 @@ def quarantine_release_view(request, pk):
     obj = get_object_or_404(
         QuarantineRecord, pk=pk, tenant=tenant, deleted_at__isnull=True,
     )
-    if obj.status in ('released', 'scrapped'):
-        messages.error(request, 'Quarantine is already in a terminal state.')
-        return redirect('quality_control:quarantine_detail', pk=obj.pk)
     form = QuarantineReleaseForm(request.POST)
     if not form.is_valid():
         messages.error(request, 'Invalid disposition.')
         return redirect('quality_control:quarantine_detail', pk=obj.pk)
     disposition = form.cleaned_data['disposition']
     notes = form.cleaned_data.get('notes', '')
+    new_status = 'scrapped' if disposition == 'scrap' else 'released'
+    # D-05: route every status write through the state machine.
+    if not obj.can_transition_to(new_status):
+        messages.error(
+            request,
+            f'Cannot transition from "{obj.get_status_display()}" to "{new_status}".',
+        )
+        return redirect('quality_control:quarantine_detail', pk=obj.pk)
 
     with transaction.atomic():
         old = obj.status
@@ -713,6 +726,14 @@ def defect_photo_delete_view(request, pk, photo_pk):
     defect = get_object_or_404(
         DefectReport, pk=pk, tenant=tenant, deleted_at__isnull=True,
     )
+    # D-11: only allow photo deletion while the defect is still being worked on.
+    # Once resolved/scrapped the photo is evidence and must stay.
+    if defect.status not in ('open', 'investigating'):
+        messages.error(
+            request,
+            f'Cannot remove photos from a {defect.get_status_display()} defect.',
+        )
+        return redirect('quality_control:defect_detail', pk=defect.pk)
     photo = get_object_or_404(DefectPhoto, pk=photo_pk, defect_report=defect, tenant=tenant)
     photo.delete()
     emit_audit(request, 'delete_photo', defect)
@@ -845,8 +866,12 @@ def scrap_approve_view(request, pk):
     obj = get_object_or_404(
         ScrapWriteOff, pk=pk, tenant=tenant, deleted_at__isnull=True,
     )
-    if obj.approval_status != 'pending':
-        messages.error(request, 'Only pending scrap records can be approved.')
+    # D-05: route through StateMachineMixin.
+    if not obj.can_transition_to('approved'):
+        messages.error(
+            request,
+            f'Cannot approve from "{obj.get_approval_status_display()}".',
+        )
         return redirect('quality_control:scrap_detail', pk=obj.pk)
     # Segregation of duties — requester cannot self-approve.
     if obj.requested_by_id == request.user.id and not request.user.is_superuser:
@@ -869,8 +894,12 @@ def scrap_reject_view(request, pk):
     obj = get_object_or_404(
         ScrapWriteOff, pk=pk, tenant=tenant, deleted_at__isnull=True,
     )
-    if obj.approval_status not in ('pending', 'approved'):
-        messages.error(request, 'Only pending or approved scrap records can be rejected.')
+    # D-05: route through StateMachineMixin.
+    if not obj.can_transition_to('rejected'):
+        messages.error(
+            request,
+            f'Cannot reject from "{obj.get_approval_status_display()}".',
+        )
         return redirect('quality_control:scrap_detail', pk=obj.pk)
     old = obj.approval_status
     obj.approval_status = 'rejected'
@@ -890,12 +919,27 @@ def scrap_post_view(request, pk):
     obj = get_object_or_404(
         ScrapWriteOff, pk=pk, tenant=tenant, deleted_at__isnull=True,
     )
-    if obj.approval_status != 'approved':
-        messages.error(request, 'Only approved scrap records can be posted.')
+    # D-05: pre-flight check using the state machine — cheaper short-circuit
+    # than locking the row, but the authoritative re-check happens inside
+    # the atomic block below (D-01).
+    if not obj.can_transition_to('posted'):
+        messages.error(
+            request,
+            f'Cannot post from "{obj.get_approval_status_display()}".',
+        )
         return redirect('quality_control:scrap_detail', pk=obj.pk)
 
     try:
         with transaction.atomic():
+            # D-01: re-lock the ScrapWriteOff row and re-check its approval_status
+            # under the same transaction as the StockLevel mutation. Without this,
+            # two concurrent POSTs could both observe `approval_status='approved'`
+            # from their pre-atomic in-memory reads and each decrement on_hand.
+            obj = ScrapWriteOff.objects.select_for_update().get(pk=obj.pk, tenant=tenant)
+            if not obj.can_transition_to('posted'):
+                raise ValueError(
+                    f'Scrap "{obj.scrap_number}" is no longer postable (status={obj.get_approval_status_display()}).'
+                )
             stock_level = (
                 StockLevel.objects
                 .select_for_update()
@@ -910,6 +954,7 @@ def scrap_post_view(request, pk):
                 raise ValueError(
                     f'Cannot scrap {obj.quantity}: only {stock_level.on_hand} on hand.'
                 )
+            on_hand_before = stock_level.on_hand
             adjustment = StockAdjustment(
                 tenant=tenant,
                 stock_level=stock_level,
@@ -926,7 +971,11 @@ def scrap_post_view(request, pk):
             obj.posted_by = request.user
             obj.posted_at = timezone.now()
             obj.save()
-            emit_audit(request, 'post', obj, changes='approved->posted')
+            # D-09: enrich audit payload with adjustment + on_hand transition
+            emit_audit(
+                request, 'post', obj,
+                changes=f'approved->posted; adj={adjustment.adjustment_number}; on_hand {on_hand_before}->{stock_level.on_hand}',
+            )
     except ValueError as exc:
         messages.error(request, str(exc))
         return redirect('quality_control:scrap_detail', pk=obj.pk)
