@@ -223,6 +223,16 @@ NavIMS/
 │       └── commands/
 │           └── seed_barcode_rfid.py  # Idempotent per-tenant seeder (templates, jobs, devices, RFID tags/readers/reads, batch sessions)
 │
+├── quality_control/            # Module 16: Quality Control & Inspection
+│   ├── models.py               # QCChecklist, QCChecklistItem, InspectionRoute, InspectionRouteRule, QuarantineRecord, DefectReport, DefectPhoto, ScrapWriteOff — TenantUniqueCodeMixin + StateMachineMixin + _save_with_number_retry + soft-delete (deleted_at) on top-level docs
+│   ├── forms.py                # 7 ModelForms + 3 inline formsets (tenant-aware form_kwargs, zone-vs-warehouse cross-validation, applies-to scoping guards)
+│   ├── views.py                # ~34 views — checklist CRUD + toggle_active, route CRUD with inline rules, quarantine CRUD + review/release (auto-creates ScrapWriteOff on scrap disposition), defect CRUD + investigate/resolve/scrap + photo deletion, scrap CRUD + approve/reject/post (atomic StockAdjustment via select_for_update); triad @tenant_admin_required + @require_POST + emit_audit on every destructive/transition endpoint; segregation-of-duties (requester ≠ approver) on scrap approval
+│   ├── urls.py                 # URL routes
+│   ├── admin.py                # TenantScopedAdmin registrations with QCChecklistItemInline, InspectionRouteRuleInline, DefectPhotoInline
+│   └── management/
+│       └── commands/
+│           └── seed_quality_control.py  # Idempotent per-tenant seeder (checklists, routes, quarantines, defects, scrap write-offs — posted scrap creates a real StockAdjustment)
+│
 ├── returns/                    # Module 11: Returns Management (RMA)
 │   ├── models.py               # ReturnAuthorization, ReturnAuthorizationItem, ReturnInspection, ReturnInspectionItem, Disposition, DispositionItem, RefundCredit (all 4 top-level models mix in core.state_machine.StateMachineMixin + soft-delete via deleted_at)
 │   ├── forms.py                # Tenant-scoped ModelForms + 3 inline formsets with form_kwargs={'tenant': tenant} (closes formset-FK IDOR); refund cap / currency / restock-of-defective guards
@@ -388,6 +398,22 @@ NavIMS/
 │   │   ├── batch_session_list.html     # Batch session listing with status/purpose/warehouse filters
 │   │   ├── batch_session_form.html     # Batch session create/edit with inline item formset
 │   │   └── batch_session_detail.html   # Batch session detail with items + complete/cancel actions
+│   ├── quality_control/
+│   │   ├── checklist_list.html         # QC checklist listing with scope/active filters
+│   │   ├── checklist_form.html         # Checklist create/edit with inline item formset
+│   │   ├── checklist_detail.html       # Checklist detail with items + toggle-active action
+│   │   ├── route_list.html             # Inspection route listing with warehouse/active filters
+│   │   ├── route_form.html             # Route create/edit with inline rule formset
+│   │   ├── route_detail.html           # Route detail with rules
+│   │   ├── quarantine_list.html        # Quarantine listing with status/reason/warehouse filters
+│   │   ├── quarantine_form.html        # Quarantine create/edit
+│   │   ├── quarantine_detail.html      # Quarantine detail with release form + linked defects/scrap
+│   │   ├── defect_list.html            # Defect listing with status/severity/type/source filters
+│   │   ├── defect_form.html            # Defect create/edit with inline photo formset
+│   │   ├── defect_detail.html          # Defect detail with photos + investigate/resolve/scrap actions
+│   │   ├── scrap_list.html             # Scrap listing with approval-status/warehouse filters
+│   │   ├── scrap_form.html             # Scrap create/edit
+│   │   └── scrap_detail.html           # Scrap detail with approve/reject/post actions
 │   └── orders/
 │       ├── so_list.html                # Sales order listing with status/warehouse/date filters
 │       ├── so_form.html                # Sales order create/edit with inline line item formset
@@ -478,6 +504,7 @@ NavIMS/
    python manage.py seed_multi_location
    python manage.py seed_forecasting
    python manage.py seed_barcode_rfid
+   python manage.py seed_quality_control
    ```
 
    To reset and re-seed:
@@ -497,6 +524,7 @@ NavIMS/
    python manage.py seed_multi_location --flush
    python manage.py seed_forecasting --flush
    python manage.py seed_barcode_rfid --flush
+   python manage.py seed_quality_control --flush
    ```
 
 ---
@@ -723,6 +751,11 @@ The seed command creates the following demo accounts:
 - 2 RFID readers per tenant (1 fixed gate + 1 handheld)
 - 15 RFID read events per tenant with varying direction, signal strength, and antenna
 - 2 batch scan sessions per tenant (receiving completed + counting active) with ~8 items total
+- 3 QC checklists per tenant (1 global, 1 product-scoped, 1 vendor-scoped) with 3-5 items each and mix of critical/non-critical checks
+- 2 inspection routes per tenant (standard + express) with 2 rules each (product/vendor/category scoping)
+- 4 quarantine records per tenant across all statuses (active, under_review, released, scrapped)
+- 5 defect reports per tenant across severities (minor/major/critical) and sources (receiving, stocktaking, customer_return, production)
+- 2 scrap write-offs per tenant (1 pending, 1 posted — posted creates a real negative StockAdjustment inside transaction.atomic + select_for_update)
 
 ---
 
@@ -897,11 +930,22 @@ The seed command creates the following demo accounts:
 | Device Scan API          | Token-authenticated JSON endpoints — `POST /api/barcode-rfid/{scan,batch-scan,rfid-read,heartbeat}/` — for real-time device input. Auth via `Authorization: Device <token>` header; tenant context always derived from the matched device, never trusted from payload. Auto-resolves barcodes against serial → lot → RFID → product.sku → product.barcode → bin.code. |
 | RBAC + Audit             | Every create / edit / delete / state-change view carries the `@tenant_admin_required` + `@require_POST` + `emit_audit` triad; reads stay open to all tenant users. `TenantScopedAdmin` scopes admin visibility per tenant. |
 
+### Module 16: Quality Control & Inspection (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| QC Checklists            | Define mandatory / optional quality checks (`QCC-NNNNN`) scoped globally, per-product, per-vendor, or per-category. Each checklist contains an ordered list of items with check type (visual / measurement / boolean / text / photo), expected value, and `is_critical` flag. A failing critical item is the policy trigger for auto-quarantining the received quantity. |
+| Inspection Routing       | Define inspection routes (`IR-NNNNN`) that send received items to a QC zone before they reach main putaway. Each route has a source warehouse, QC zone, optional default putaway zone, and a priority. Inline `InspectionRouteRule` rows match inbound items by `all` / `product` / `vendor` / `category` and auto-attach the appropriate `QCChecklist` when a rule fires. Priority ordering lets express routes bypass slower checks for trusted vendors. |
+| Quarantine Management    | Hold defective / suspicious items in a restricted zone (`QR-NNNNN`) with full state machine (`active → under_review → released / scrapped`). Release requires a `disposition` (return_to_stock / rework / scrap / return_to_vendor). Scrapping auto-creates a pending `ScrapWriteOff`. Soft-delete (`deleted_at`) preserves the hold history; delete only allowed while `active`. |
+| Defect Reporting         | Log defects (`DEF-NNNNN`) with product, lot, serial, quantity, defect type (visual / functional / packaging / labeling / expiry / contamination / other), severity (minor / major / critical), source (receiving / stocktaking / customer_return / production), and a free-text description. Inline photo uploads (`quality_control/defect_photos/`) with captions. Optional link to a `QuarantineRecord` for traceability. State machine: `open → investigating → resolved / scrapped`; soft-delete while open. |
+| Scrap Write-Offs         | Write-off defective / quarantined stock (`SCR-NNNNN`) with quantity × unit cost → computed total value. Approval workflow (`pending → approved → posted`, with `rejected` branch). Posting is wrapped in `transaction.atomic()` + `select_for_update()` on the `StockLevel` row and creates a canonical negative `inventory.StockAdjustment` (type=`decrease`, reason=`damage`), so the ledger stays consistent with `on_hand`. Segregation-of-duties: the requester cannot self-approve. |
+| Stock integration        | Quarantine is a logical hold (no physical stock move); scrap posting is the *only* path that decrements `StockLevel.on_hand`. Every mutation re-uses `StockAdjustment.apply_adjustment()` — the single canonical write path already exercised by `stocktaking` and `returns`. |
+| RBAC + Audit             | Every create / edit / delete / state-change view carries the `@tenant_admin_required` + `@require_POST` + `emit_audit` triad; reads stay open to all tenant users. `TenantScopedAdmin` scopes admin visibility per tenant. |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 16 | Quality Control & Inspection    | QC checklists, quarantine, defect reporting    |
 | 17 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
 | 18 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
 | 19 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
