@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Notification Delivery Log{% endblock %}
+{% block content %}
+
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Notification Delivery Log</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'alerts_notifications:dashboard' %}">Alerts & Notifications</a></li>
+        <li class="breadcrumb-item active">Delivery Log</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row"><div class="col-lg-12"><div class="card">
+    <div class="card-header"><h5 class="card-title mb-0">All Deliveries</h5></div>
+    <div class="card-body">
+        <form method="get" class="row g-2 mb-4">
+            <div class="col-md-3"><select class="form-select" name="status" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                {% for v, l in status_choices %}<option value="{{ v }}" {% if current_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-3"><select class="form-select" name="channel" onchange="this.form.submit()">
+                <option value="">All Channels</option>
+                {% for v, l in channel_choices %}<option value="{{ v }}" {% if current_channel == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-3"><input type="number" name="alert" value="{{ current_alert }}" class="form-control" placeholder="Alert ID" onchange="this.form.submit()"></div>
+            <div class="col-md-2"><a href="{% url 'alerts_notifications:delivery_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+        </form>
+
+        <div class="table-responsive"><table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+            <thead class="text-muted table-light"><tr>
+                <th>#</th><th>Alert</th><th>Recipient</th><th>Channel</th><th>Status</th><th>Sent</th><th>Rule</th><th class="text-center">Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for d in deliveries %}
+            <tr>
+                <td>{{ d.pk }}</td>
+                <td><a href="{% url 'alerts_notifications:alert_detail' d.alert.pk %}" class="font-monospace">{{ d.alert.alert_number }}</a></td>
+                <td>{{ d.recipient.username|default:d.recipient_email|default:"—" }}</td>
+                <td><span class="badge bg-light text-dark">{{ d.get_channel_display }}</span></td>
+                <td>
+                    {% if d.status == 'sent' %}<span class="badge bg-success-subtle text-success">Sent</span>
+                    {% elif d.status == 'failed' %}<span class="badge bg-danger-subtle text-danger">Failed</span>
+                    {% else %}<span class="badge bg-secondary-subtle text-secondary">Pending</span>{% endif %}
+                </td>
+                <td><small>{{ d.sent_at|date:"Y-m-d H:i"|default:"—" }}</small></td>
+                <td>{% if d.rule %}<a href="{% url 'alerts_notifications:rule_detail' d.rule.pk %}" class="font-monospace">{{ d.rule.code }}</a>{% else %}<small class="text-muted">—</small>{% endif %}</td>
+                <td class="text-center"><a href="{% url 'alerts_notifications:delivery_detail' d.pk %}" class="btn btn-sm btn-soft-primary"><i class="ri-eye-line"></i></a></td>
+            </tr>
+            {% empty %}<tr><td colspan="8" class="text-center py-4 text-muted"><i class="ri-mail-line fs-24 d-block mb-2"></i>No deliveries logged yet. Run `python manage.py dispatch_notifications` to send alerts.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+
+        {% if deliveries.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
+            {% if deliveries.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ deliveries.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in deliveries.paginator.page_range %}<li class="page-item {% if deliveries.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+            {% if deliveries.has_next %}<li class="page-item"><a class="page-link" href="?page={{ deliveries.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+        </ul></nav></div>{% endif %}
+    </div>
+</div></div></div>
+
+{% endblock %}
