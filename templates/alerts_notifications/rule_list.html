@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Notification Rules{% endblock %}
+{% block content %}
+
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Notification Rules</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'alerts_notifications:dashboard' %}">Alerts & Notifications</a></li>
+        <li class="breadcrumb-item active">Notification Rules</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row"><div class="col-lg-12"><div class="card">
+    <div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">All Rules</h5>
+        <a href="{% url 'alerts_notifications:rule_create' %}" class="btn btn-primary btn-sm">
+            <i class="ri-add-line me-1"></i>New Rule
+        </a>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-2 mb-4">
+            <div class="col-md-4"><div class="search-box">
+                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search code / name / description...">
+                <i class="ri-search-line search-icon"></i>
+            </div></div>
+            <div class="col-md-3"><select class="form-select" name="alert_type" onchange="this.form.submit()">
+                <option value="">All Alert Types</option>
+                {% for v, l in alert_type_choices %}<option value="{{ v }}" {% if current_alert_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-3"><select class="form-select" name="active" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="active" {% if current_active == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if current_active == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select></div>
+            <div class="col-md-2"><a href="{% url 'alerts_notifications:rule_list' %}" class="btn btn-light w-100" title="Clear"><i class="ri-filter-off-line"></i></a></div>
+        </form>
+
+        <div class="table-responsive"><table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+            <thead class="text-muted table-light"><tr>
+                <th>Code</th><th>Name</th><th>Alert Type</th><th>Min Severity</th><th>Channels</th><th>Recipients</th><th>Status</th><th class="text-center">Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for r in rules %}
+            <tr>
+                <td><a href="{% url 'alerts_notifications:rule_detail' r.pk %}" class="fw-medium text-primary font-monospace">{{ r.code }}</a></td>
+                <td>{{ r.name }}</td>
+                <td><small>{{ r.get_alert_type_display }}</small></td>
+                <td>
+                    {% if r.min_severity == 'critical' %}<span class="badge bg-danger-subtle text-danger">Critical+</span>
+                    {% elif r.min_severity == 'warning' %}<span class="badge bg-warning-subtle text-warning">Warning+</span>
+                    {% else %}<span class="badge bg-info-subtle text-info">Info+</span>{% endif %}
+                </td>
+                <td>
+                    {% if r.notify_email %}<i class="ri-mail-line text-primary" title="Email"></i>{% endif %}
+                    {% if r.notify_inbox %}<i class="ri-notification-2-line text-info ms-1" title="In-App"></i>{% endif %}
+                </td>
+                <td><small>{{ r.recipient_users.count }} user{{ r.recipient_users.count|pluralize }}</small></td>
+                <td>{% if r.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</td>
+                <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                    <a href="{% url 'alerts_notifications:rule_detail' r.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                    <a href="{% url 'alerts_notifications:rule_edit' r.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                    <form method="post" action="{% url 'alerts_notifications:rule_toggle_active' r.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-soft-info" title="Toggle Active"><i class="ri-toggle-line"></i></button></form>
+                    <form method="post" action="{% url 'alerts_notifications:rule_delete' r.pk %}" class="d-inline" onsubmit="return confirm('Delete rule {{ r.code }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                </div></td>
+            </tr>
+            {% empty %}<tr><td colspan="8" class="text-center py-4 text-muted"><i class="ri-settings-3-line fs-24 d-block mb-2"></i>No notification rules configured. Add one to start routing alerts.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+
+        {% if rules.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
+            {% if rules.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ rules.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in rules.paginator.page_range %}<li class="page-item {% if rules.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+            {% if rules.has_next %}<li class="page-item"><a class="page-link" href="?page={{ rules.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+        </ul></nav></div>{% endif %}
+    </div>
+</div></div></div>
+
+{% endblock %}
