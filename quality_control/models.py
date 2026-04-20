@@ -1,8 +1,46 @@
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import IntegrityError, models, transaction
 
 from core.state_machine import StateMachineMixin
+
+
+# D-03: upload hygiene constants for DefectPhoto
+DEFECT_PHOTO_MAX_BYTES = 5 * 1024 * 1024            # 5 MB
+DEFECT_PHOTO_ALLOWED_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+DEFECT_PHOTO_BANNED_MAGIC = (
+    b'MZ',        # Windows PE executable
+    b'\x7fELF',   # Linux ELF binary
+    b'<?xml',     # risky XML (SVG is XML; block even though Pillow won't open SVG)
+    b'<svg',
+    b'PK\x03\x04',  # zip-based polyglots (docx/xlsx/apk/jar)
+)
+
+
+def validate_defect_photo_size(f):
+    """Reject files larger than ``DEFECT_PHOTO_MAX_BYTES``."""
+    size = getattr(f, 'size', None)
+    if size is not None and size > DEFECT_PHOTO_MAX_BYTES:
+        raise ValidationError(
+            f'Image exceeds the {DEFECT_PHOTO_MAX_BYTES // 1024 // 1024} MB limit '
+            f'(got {size // 1024} KB).'
+        )
+
+
+def validate_defect_photo_magic(f):
+    """Reject files whose first 16 bytes match a known non-image signature."""
+    try:
+        f.seek(0)
+        head = f.read(16)
+        f.seek(0)
+    except Exception:
+        return
+    for sig in DEFECT_PHOTO_BANNED_MAGIC:
+        if head.startswith(sig):
+            raise ValidationError(
+                'Uploaded file does not look like a supported image.'
+            )
 
 
 _NUMBER_RETRY_ATTEMPTS = 5
@@ -474,7 +512,14 @@ class DefectPhoto(models.Model):
     defect_report = models.ForeignKey(
         DefectReport, on_delete=models.CASCADE, related_name='photos',
     )
-    image = models.ImageField(upload_to='quality_control/defect_photos/')
+    image = models.ImageField(
+        upload_to='quality_control/defect_photos/',
+        validators=[
+            FileExtensionValidator(allowed_extensions=DEFECT_PHOTO_ALLOWED_EXT),
+            validate_defect_photo_size,
+            validate_defect_photo_magic,
+        ],
+    )
     caption = models.CharField(max_length=200, blank=True, default='')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
