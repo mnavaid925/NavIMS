@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ checklist.code }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ checklist.code }} — {{ checklist.name }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quality_control:checklist_list' %}">QC Checklists</a></li>
+        <li class="breadcrumb-item active">{{ checklist.code }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Checklist Info</h5>
+            {% if checklist.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}
+        </div><div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Code</dt><dd class="col-sm-8 font-monospace">{{ checklist.code }}</dd>
+                <dt class="col-sm-4">Name</dt><dd class="col-sm-8">{{ checklist.name }}</dd>
+                <dt class="col-sm-4">Description</dt><dd class="col-sm-8">{{ checklist.description|default:"—"|linebreaksbr }}</dd>
+                <dt class="col-sm-4">Applies To</dt><dd class="col-sm-8">{{ checklist.get_applies_to_display }}</dd>
+                {% if checklist.product %}<dt class="col-sm-4">Product</dt><dd class="col-sm-8">{{ checklist.product.sku }} — {{ checklist.product.name }}</dd>{% endif %}
+                {% if checklist.vendor %}<dt class="col-sm-4">Vendor</dt><dd class="col-sm-8">{{ checklist.vendor.company_name }}</dd>{% endif %}
+                {% if checklist.category %}<dt class="col-sm-4">Category</dt><dd class="col-sm-8">{{ checklist.category.name }}</dd>{% endif %}
+                <dt class="col-sm-4">Mandatory</dt><dd class="col-sm-8">{% if checklist.is_mandatory %}Yes{% else %}No{% endif %}</dd>
+                <dt class="col-sm-4">Created</dt><dd class="col-sm-8">{{ checklist.created_at|date:"Y-m-d H:i" }}{% if checklist.created_by %} by {{ checklist.created_by.get_full_name|default:checklist.created_by.username }}{% endif %}</dd>
+            </dl>
+        </div></div>
+
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Checklist Items ({{ items.count }})</h5></div><div class="card-body p-0">
+            {% if items %}
+            <div class="table-responsive"><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Seq</th><th>Check</th><th>Type</th><th>Expected</th><th class="text-center">Critical</th></tr></thead><tbody>
+                {% for i in items %}<tr>
+                    <td>{{ i.sequence }}</td>
+                    <td>{{ i.check_name }}</td>
+                    <td>{{ i.get_check_type_display }}</td>
+                    <td>{{ i.expected_value|default:"—" }}</td>
+                    <td class="text-center">{% if i.is_critical %}<span class="badge bg-danger-subtle text-danger">Critical</span>{% else %}—{% endif %}</td>
+                </tr>{% endfor %}
+            </tbody></table></div>
+            {% else %}
+            <div class="p-4 text-center text-muted">No items defined. Edit the checklist to add some.</div>
+            {% endif %}
+        </div></div>
+    </div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div><div class="card-body">
+        <div class="d-grid gap-2">
+            <a href="{% url 'quality_control:checklist_edit' checklist.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+            <form method="post" action="{% url 'quality_control:checklist_toggle_active' checklist.pk %}" onsubmit="return confirm('{% if checklist.is_active %}Deactivate{% else %}Activate{% endif %} this checklist?');">{% csrf_token %}
+                <button class="btn {% if checklist.is_active %}btn-soft-warning{% else %}btn-soft-success{% endif %} w-100">
+                    <i class="ri-{% if checklist.is_active %}pause-circle-line{% else %}play-circle-line{% endif %} me-1"></i>{% if checklist.is_active %}Deactivate{% else %}Activate{% endif %}
+                </button>
+            </form>
+            <form method="post" action="{% url 'quality_control:checklist_delete' checklist.pk %}" onsubmit="return confirm('Delete checklist {{ checklist.code }}?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+            <a href="{% url 'quality_control:checklist_list' %}" class="btn btn-light">Back to List</a>
+        </div>
+    </div></div></div>
+</div>
+{% endblock %}
