@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ rule.code }}{% endblock %}
+{% block content %}
+
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0 font-monospace">{{ rule.code }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'alerts_notifications:rule_list' %}">Notification Rules</a></li>
+        <li class="breadcrumb-item active">{{ rule.code }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">{{ rule.name }}</h5>
+            {% if rule.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}
+        </div><div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Code</dt><dd class="col-sm-9 font-monospace">{{ rule.code }}</dd>
+                <dt class="col-sm-3">Alert Type</dt><dd class="col-sm-9">{{ rule.get_alert_type_display }}</dd>
+                <dt class="col-sm-3">Min Severity</dt><dd class="col-sm-9">{{ rule.get_min_severity_display }}</dd>
+                <dt class="col-sm-3">Channels</dt><dd class="col-sm-9">
+                    {% if rule.notify_email %}<span class="badge bg-primary-subtle text-primary me-1"><i class="ri-mail-line"></i> Email</span>{% endif %}
+                    {% if rule.notify_inbox %}<span class="badge bg-info-subtle text-info"><i class="ri-notification-2-line"></i> In-App</span>{% endif %}
+                </dd>
+                <dt class="col-sm-3">Created by</dt><dd class="col-sm-9">{{ rule.created_by.username|default:"—" }} on {{ rule.created_at|date:"Y-m-d H:i" }}</dd>
+                {% if rule.description %}<dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ rule.description|linebreaksbr }}</dd>{% endif %}
+            </dl>
+        </div></div>
+
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Recipients ({{ rule.recipient_users.count }})</h5></div>
+            <div class="card-body p-0">
+                {% if rule.recipient_users.all %}
+                <div class="table-responsive"><table class="table table-sm mb-0">
+                    <thead class="table-light"><tr><th>Username</th><th>Name</th><th>Email</th></tr></thead>
+                    <tbody>
+                    {% for u in rule.recipient_users.all %}
+                    <tr><td>{{ u.username }}</td><td>{{ u.get_full_name|default:"—" }}</td><td>{{ u.email }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table></div>
+                {% else %}
+                <div class="text-center text-muted py-3">No recipients configured — this rule will not dispatch.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if matching_alerts %}
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Recent Matching Alerts</h5></div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-sm mb-0">
+                    <thead class="table-light"><tr><th>Number</th><th>Title</th><th>Severity</th><th>Status</th><th>Triggered</th></tr></thead>
+                    <tbody>
+                    {% for a in matching_alerts %}
+                    <tr>
+                        <td><a href="{% url 'alerts_notifications:alert_detail' a.pk %}" class="font-monospace">{{ a.alert_number }}</a></td>
+                        <td>{{ a.title|truncatechars:40 }}</td>
+                        <td>{{ a.get_severity_display }}</td>
+                        <td>{{ a.get_status_display }}</td>
+                        <td><small>{{ a.triggered_at|date:"Y-m-d H:i" }}</small></td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4"><div class="card">
+        <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+        <div class="card-body"><div class="d-grid gap-2">
+            <a href="{% url 'alerts_notifications:rule_edit' rule.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+            <form method="post" action="{% url 'alerts_notifications:rule_toggle_active' rule.pk %}">{% csrf_token %}
+                <button class="btn btn-info w-100"><i class="ri-toggle-line me-1"></i>{% if rule.is_active %}Deactivate{% else %}Activate{% endif %}</button>
+            </form>
+            <form method="post" action="{% url 'alerts_notifications:rule_delete' rule.pk %}" onsubmit="return confirm('Delete rule {{ rule.code }}?');">{% csrf_token %}
+                <button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button>
+            </form>
+            <a href="{% url 'alerts_notifications:rule_list' %}" class="btn btn-light">Back to List</a>
+        </div></div>
+    </div></div>
+</div>
+
+{% endblock %}
