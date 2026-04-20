@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Active Alerts{% endblock %}
+{% block content %}
+
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Active Alerts</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'alerts_notifications:dashboard' %}">Alerts & Notifications</a></li>
+        <li class="breadcrumb-item active">Active Alerts</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row"><div class="col-lg-12"><div class="card">
+    <div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">All Alerts</h5>
+        <a href="{% url 'alerts_notifications:alert_create' %}" class="btn btn-primary btn-sm">
+            <i class="ri-add-line me-1"></i>New Alert
+        </a>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-2 mb-4">
+            <div class="col-md-3"><div class="search-box">
+                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search number / title / message...">
+                <i class="ri-search-line search-icon"></i>
+            </div></div>
+            <div class="col-md-2"><select class="form-select" name="status" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                {% for v, l in status_choices %}<option value="{{ v }}" {% if current_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-2"><select class="form-select" name="severity" onchange="this.form.submit()">
+                <option value="">All Severities</option>
+                {% for v, l in severity_choices %}<option value="{{ v }}" {% if current_severity == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-2"><select class="form-select" name="alert_type" onchange="this.form.submit()">
+                <option value="">All Types</option>
+                {% for v, l in alert_type_choices %}<option value="{{ v }}" {% if current_alert_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-2"><select class="form-select" name="warehouse" onchange="this.form.submit()">
+                <option value="">All Warehouses</option>
+                {% for w in warehouses %}<option value="{{ w.pk }}" {% if current_warehouse == w.pk|stringformat:"d" %}selected{% endif %}>{{ w.code }} — {{ w.name }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-1"><a href="{% url 'alerts_notifications:alert_list' %}" class="btn btn-light w-100" title="Clear filters"><i class="ri-filter-off-line"></i></a></div>
+        </form>
+
+        <div class="table-responsive"><table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+            <thead class="text-muted table-light"><tr>
+                <th>Number</th><th>Title</th><th>Type</th><th>Severity</th><th>Status</th><th>Source</th><th>Triggered</th><th class="text-center">Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for a in alerts %}
+            <tr>
+                <td><a href="{% url 'alerts_notifications:alert_detail' a.pk %}" class="fw-medium text-primary font-monospace">{{ a.alert_number }}</a></td>
+                <td>{{ a.title|truncatechars:50 }}</td>
+                <td><small class="text-muted">{{ a.get_alert_type_display }}</small></td>
+                <td>
+                    {% if a.severity == 'critical' %}<span class="badge bg-danger-subtle text-danger">Critical</span>
+                    {% elif a.severity == 'warning' %}<span class="badge bg-warning-subtle text-warning">Warning</span>
+                    {% else %}<span class="badge bg-info-subtle text-info">Info</span>{% endif %}
+                </td>
+                <td>
+                    {% if a.status == 'new' %}<span class="badge bg-primary-subtle text-primary">New</span>
+                    {% elif a.status == 'acknowledged' %}<span class="badge bg-info-subtle text-info">Acknowledged</span>
+                    {% elif a.status == 'resolved' %}<span class="badge bg-success-subtle text-success">Resolved</span>
+                    {% else %}<span class="badge bg-secondary-subtle text-secondary">Dismissed</span>{% endif %}
+                </td>
+                <td>
+                    {% if a.product %}<small>SKU {{ a.product.sku }}</small>
+                    {% elif a.lot_batch %}<small>Lot {{ a.lot_batch.lot_number }}</small>
+                    {% elif a.purchase_order %}<small>PO {{ a.purchase_order.po_number }}</small>
+                    {% elif a.shipment %}<small>Ship {{ a.shipment.shipment_number }}</small>
+                    {% else %}<small class="text-muted">—</small>{% endif %}
+                </td>
+                <td><small class="text-muted">{{ a.triggered_at|date:"Y-m-d H:i" }}</small></td>
+                <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                    <a href="{% url 'alerts_notifications:alert_detail' a.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                    {% if a.status == 'new' %}
+                    <form method="post" action="{% url 'alerts_notifications:alert_acknowledge' a.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-soft-info" title="Acknowledge"><i class="ri-check-line"></i></button></form>
+                    {% endif %}
+                    {% if a.status == 'acknowledged' %}
+                    <form method="post" action="{% url 'alerts_notifications:alert_resolve' a.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-soft-success" title="Resolve"><i class="ri-check-double-line"></i></button></form>
+                    {% endif %}
+                    {% if a.status == 'new' or a.status == 'acknowledged' %}
+                    <form method="post" action="{% url 'alerts_notifications:alert_dismiss' a.pk %}" class="d-inline" onsubmit="return confirm('Dismiss this alert?');">{% csrf_token %}<button class="btn btn-sm btn-soft-warning" title="Dismiss"><i class="ri-close-line"></i></button></form>
+                    {% endif %}
+                    <form method="post" action="{% url 'alerts_notifications:alert_delete' a.pk %}" class="d-inline" onsubmit="return confirm('Delete alert {{ a.alert_number }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                </div></td>
+            </tr>
+            {% empty %}<tr><td colspan="8" class="text-center py-4 text-muted"><i class="ri-notification-off-line fs-24 d-block mb-2"></i>No alerts match these filters</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+
+        {% if alerts.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
+            {% if alerts.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ alerts.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in alerts.paginator.page_range %}<li class="page-item {% if alerts.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+            {% if alerts.has_next %}<li class="page-item"><a class="page-link" href="?page={{ alerts.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+        </ul></nav></div>{% endif %}
+    </div>
+</div></div></div>
+
+{% endblock %}
