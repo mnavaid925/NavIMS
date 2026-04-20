@@ -24,6 +24,7 @@ urlpatterns = [
     path('barcode-rfid/', include('barcode_rfid.urls')),
     path('api/barcode-rfid/', include('barcode_rfid.api_urls')),
     path('quality-control/', include('quality_control.urls')),
+    path('alerts-notifications/', include('alerts_notifications.urls')),
 ]
 
 if settings.DEBUG:
