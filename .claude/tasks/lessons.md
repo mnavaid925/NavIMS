@@ -348,3 +348,70 @@ The `.none()` branch makes `form.is_valid()` → `False` for any non-empty FK in
 **Rule:** For nullable FK fields in templates, wrap the access in `{% if obj.field %}{{ obj.field.nested }}{% else %}—{% endif %}`, not `{{ obj.field.nested|default:"—" }}`. Reserve `|default` for single-level lookups and already-resolved strings. Applies especially to audit fields (`created_by`, `updated_by`, `deleted_by`, `acknowledged_by`, etc.) which are often `SET_NULL` and therefore nullable by contract.
 **How to apply:** Grep `grep -rn "\.created_by\.\|\.updated_by\.\|\.deleted_by\.\|\.acknowledged_by\." templates/` — every hit not wrapped in `{% if %}` is a latent 500 waiting for the first None-valued row (seed data, imports, shell-created records). Reference fix: [templates/forecasting/profile_detail.html:37](../../templates/forecasting/profile_detail.html#L37).
 
+## 2026-04-20 — Quality Control (M16) SQA Hardening
+
+### Issue 37: Form `ModelChoiceField` queryset filters like `is_active=True` silently brick edit of historical records
+**What happened:** Every `quality_control` form filtered FK querysets with `Product.objects.filter(tenant=tenant, is_active=True)` (and similar for `Warehouse`, `Category`, `QCChecklist`, `QuarantineRecord`, `DefectReport`). When a user deactivated a product that was already referenced by a historical checklist / route / defect / scrap, the edit form no longer offered that product in its dropdown, and `ModelChoiceField.to_python` raised `"Select a valid choice. That choice is not one of the available choices."` The record became un-editable without re-activating the FK target — a workflow-breaking UX defect, verified live during the SQA review.
+**Root cause:** ModelChoiceField uses the queryset as its authoritative set both for rendering AND for validation. A filter that excludes the currently-assigned FK causes the field to reject its own initial value on round-trip. The module used `is_active=True` (and soft-delete equivalents like `deleted_at__isnull=True`) for "only show current options at create time" but didn't widen the queryset on edit.
+**Rule:** When a form field filters a FK queryset by an active/soft-delete predicate, the `__init__` **must** union the filtered queryset with the currently-assigned instance's FK so historical records stay editable. Keep a reusable helper in `forms.py`:
+
+```python
+def _include_current(base_qs, instance, fk_name):
+    if instance is None or instance.pk is None:
+        return base_qs
+    current_id = getattr(instance, f'{fk_name}_id', None)
+    if not current_id:
+        return base_qs
+    extra = base_qs.model.objects.filter(pk=current_id)
+    return (base_qs | extra).distinct()
+```
+
+Then in every form: `self.fields['product'].queryset = _include_current(Product.objects.filter(tenant=tenant, is_active=True), self.instance, 'product')`. Same pattern for every `is_active=True` / `deleted_at__isnull=True` filter.
+**How to apply:** Grep `grep -rn "is_active=True\|deleted_at__isnull=True" */forms.py` → every FK queryset assignment must either go through `_include_current` (or an equivalent helper) or be accompanied by a regression test (`test_D04_*`) proving edit survives target deactivation. First landed in [quality_control/forms.py](../../quality_control/forms.py); other modules to migrate opportunistically.
+
+### Issue 38: `transaction.atomic()` + `select_for_update()` on dependent rows alone doesn't block double-commits of the subject
+**What happened:** `scrap_post_view` wrapped the StockLevel mutation in `transaction.atomic()` with `select_for_update()` on `StockLevel`. Under concurrent load (verified live with two threaded POSTs) both requests observed `obj.approval_status='approved'` from their pre-atomic in-memory reads, serialised on the StockLevel lock, and each committed a `StockAdjustment` and set `posted_at`. Result: `on_hand` decremented twice (100 → 96 instead of 98), two StockAdjustments, `posted_at` overwritten.
+**Root cause:** The atomic block locked the *dependent* row (StockLevel) but not the *subject* (ScrapWriteOff). The guard `if obj.approval_status != 'approved'` read the in-memory snapshot, which was captured *before* the atomic block opened — so the second-mover's in-memory `approval_status` was still `'approved'` even after the first had committed `'posted'`.
+**Rule:** Inside `transaction.atomic()`, if you're about to mutate a record whose precondition depends on its own state field, **re-fetch the subject with `select_for_update()` and re-check the precondition** before the mutation. Pattern:
+
+```python
+with transaction.atomic():
+    obj = Model.objects.select_for_update().get(pk=obj.pk, tenant=tenant)
+    if not obj.can_transition_to('posted'):
+        raise ValueError(...)
+    # ... dependent-row locks + mutation ...
+```
+
+For status-machine transitions, route the check through `can_transition_to()` (not a raw `if obj.status != X`) so `VALID_TRANSITIONS` stays authoritative.
+**How to apply:** Grep `grep -rn "transaction.atomic" */views.py` → for every hit that mutates a status/state field, confirm the atomic block contains a `Model.objects.select_for_update().get(pk=obj.pk, ...)` re-fetch and a re-check of the transition precondition. Pre-atomic `can_transition_to()` is a nice-to-have short-circuit but is NOT sufficient on its own.
+
+### Issue 39: SQLite test DB can't simulate row-level locking races
+**What happened:** Wrote a threaded regression for D-01 (scrap post race) using `threading.Thread` + two `Client` instances. On SQLite (test DB backend), both threads hit `OperationalError: database table is locked: inventory_stockadjustment` — not because of the race but because SQLite serialises writes at the table level and two transactions writing to the same table from separate connections just fail.
+**Root cause:** SQLite doesn't implement row-level locking. `select_for_update()` is effectively a no-op. Two concurrent writers can't coexist even for reading — the second transaction waits or fails. So a real threaded race can't be reproduced; the test either deadlocks, times out, or errors with the lock message — never reaches the actual race condition the code fixes.
+**Rule:** For race-condition regressions on a SQLite test DB, use a **deterministic monkey-patch simulation** that forces the exact code path. Pattern:
+
+```python
+class _PoisonQS:
+    def __init__(self, inner): self.inner = inner
+    def get(self, **kwargs):
+        # Simulate a concurrent commit of BOTH the canonical field and any
+        # save()-time column mirror before the locked SELECT completes.
+        Model.objects.filter(pk=subject.pk).update(status='posted', approval_status='posted')
+        return self.inner.get(**kwargs)
+
+class _PoisonManager:
+    def __getattr__(self, name): return getattr(original_mgr, name)
+    def select_for_update(self): return _PoisonQS(original_mgr.select_for_update())
+
+monkeypatch.setattr(views.Model, 'objects', _PoisonManager())
+```
+
+Keep the threaded version around (gated by `@pytest.mark.skipif(db_is_sqlite)`) so it runs in CI on MySQL/Postgres. Neither test alone is sufficient — the monkey-patch proves the code path; the threaded test proves the lock semantics.
+**How to apply:** When writing a race regression, ask: "what two things need to happen at the same time?" If one of them is a DB write, and the test DB is SQLite, reach for the monkey-patch pattern above — do not try to make real threads work. Grep `grep -rn "transactional_db\|transaction=True" */tests` to audit where threaded tests have been added; any that use SQLite should be reviewed for this anti-pattern.
+
+### Issue 40: `.update()` bypasses `save()`-time column mirrors — state-machine guards can be silently bypassed
+**What happened:** Initial D-01 race simulation used `ScrapWriteOff.objects.filter(pk=scrap.pk).update(approval_status='posted')` to force the concurrent commit. The test kept failing — `on_hand` still got decremented. Turned out `ScrapWriteOff.save()` mirrors `status = approval_status` (because `StateMachineMixin.can_transition_to` reads `self.status`, not `self.approval_status`). `.update()` goes straight to SQL and skips `save()`, so the DB ended up with `approval_status='posted'` but `status='approved'`. When the view re-fetched, `can_transition_to('posted')` looked up `VALID_TRANSITIONS['approved']` (stale `status`) → `['posted', 'rejected']` → True → the guard passed → the view decremented stock anyway.
+**Root cause:** `QuerySet.update()` is a raw SQL UPDATE; it does NOT call `save()` and therefore does NOT run any `save()`-time logic including field-mirror assignments (`self.status = self.approval_status`), cached `_total_value` computations, or `post_save` signals.
+**Rule:** In tests that simulate a concurrent commit via `.update()`, set **every field the save()-mirror maintains**, not just the user-facing field. If the model has `def save(): self.status = self.approval_status`, the simulation must do `Model.objects.filter(...).update(approval_status='posted', status='posted')`. Same for cached computed columns (`total_value`, `available_quantity`, etc.). When unsure, grep the model's `save()` for any `self.<field> = ...` assignment and mirror it in the `.update()` kwargs.
+**How to apply:** When a model has a shadow/mirror column maintained via `save()`, document it at the top of the class (`# save-time mirror: self.status = self.approval_status`). In tests, never use `.update()` on such a model without bumping both columns together. Production code rarely has this problem because real writes go through `save()` — this is a test-only gotcha.
+
