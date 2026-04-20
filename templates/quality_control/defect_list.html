@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load quality_control_tags %}
 {% block title %}Defect Reports{% endblock %}
 {% block content %}
 <div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
@@ -81,9 +82,9 @@
         </table></div>
 
         {% if defects.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
-            {% if defects.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ defects.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
-            {% for num in defects.paginator.page_range %}<li class="page-item {% if defects.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
-            {% if defects.has_next %}<li class="page-item"><a class="page-link" href="?page={{ defects.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+            {% if defects.has_previous %}<li class="page-item"><a class="page-link" href="?{% querystring page=defects.previous_page_number %}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in defects.paginator.page_range %}<li class="page-item {% if defects.number == num %}active{% endif %}"><a class="page-link" href="?{% querystring page=num %}">{{ num }}</a></li>{% endfor %}
+            {% if defects.has_next %}<li class="page-item"><a class="page-link" href="?{% querystring page=defects.next_page_number %}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
         </ul></nav></div>{% endif %}
     </div>
 </div></div></div>
