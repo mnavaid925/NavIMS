@@ -98,8 +98,13 @@ class NotificationRuleForm(TenantUniqueCodeMixin, forms.ModelForm):
 
 
 class AlertResolveForm(forms.Form):
-    """Optional notes when resolving/dismissing an alert."""
+    """Optional notes when resolving/dismissing an alert.
+
+    D-04: max_length caps per-submission size; view-layer also truncates the
+    combined alert.notes to prevent unbounded growth across many resolve cycles.
+    """
     notes = forms.CharField(
         required=False,
-        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Resolution notes (optional)'}),
+        max_length=2000,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Resolution notes (optional, max 2000 chars)'}),
     )
