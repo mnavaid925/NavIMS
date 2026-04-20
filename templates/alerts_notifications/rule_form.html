@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'alerts_notifications:rule_list' %}">Notification Rules</a></li>
+        <li class="breadcrumb-item active">{% if rule %}Edit{% else %}New{% endif %}</li>
+    </ol></div>
+</div></div></div>
+
+<form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    <div class="row">
+        <div class="col-lg-8"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Rule Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Code</label>{{ form.code }}{% if form.code.errors %}<div class="text-danger small">{{ form.code.errors.0 }}</div>{% endif %}<small class="text-muted">Leave blank to auto-generate (NR-NNNNN).</small></div>
+                    <div class="col-md-8 mb-3"><label class="form-label">Name <span class="text-danger">*</span></label>{{ form.name }}{% if form.name.errors %}<div class="text-danger small">{{ form.name.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="mb-3"><label class="form-label">Description</label>{{ form.description }}</div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Alert Type <span class="text-danger">*</span></label>{{ form.alert_type }}{% if form.alert_type.errors %}<div class="text-danger small">{{ form.alert_type.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Minimum Severity</label>{{ form.min_severity }}<small class="text-muted">Rule fires for alerts at or above this severity.</small></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6"><div class="form-check mb-2">{{ form.notify_email }}<label class="form-check-label">Send Email</label></div></div>
+                    <div class="col-md-6"><div class="form-check mb-2">{{ form.notify_inbox }}<label class="form-check-label">Show in In-App Inbox</label></div></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Recipient Users</label>
+                    {{ form.recipient_users }}
+                    <small class="text-muted">Hold Ctrl / Cmd to select multiple. Selected users receive notifications on every matching alert.</small>
+                </div>
+                <div class="form-check">{{ form.is_active }}<label class="form-check-label">Active</label></div>
+            </div>
+        </div></div>
+        <div class="col-lg-4"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body"><div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if rule %}Update{% else %}Create{% endif %}</button>
+                {% if rule %}<a href="{% url 'alerts_notifications:rule_detail' rule.pk %}" class="btn btn-light">Cancel</a>
+                {% else %}<a href="{% url 'alerts_notifications:rule_list' %}" class="btn btn-light">Cancel</a>{% endif %}
+            </div></div>
+        </div></div>
+    </div>
+</form>
+
+{% endblock %}
