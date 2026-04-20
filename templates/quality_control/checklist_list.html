@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}QC Checklists{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">QC Checklists</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="#">Quality Control</a></li>
+        <li class="breadcrumb-item active">QC Checklists</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row"><div class="col-lg-12"><div class="card">
+    <div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">All QC Checklists</h5>
+        <a href="{% url 'quality_control:checklist_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>New Checklist</a>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-md-4"><div class="search-box">
+                <input type="text" class="form-control search" name="q" value="{{ q }}" placeholder="Search code / name / description...">
+                <i class="ri-search-line search-icon"></i>
+            </div></div>
+            <div class="col-md-3"><select class="form-select" name="applies_to" onchange="this.form.submit()">
+                <option value="">All Scopes</option>
+                {% for v, l in applies_to_choices %}<option value="{{ v }}" {% if current_applies_to == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+            <div class="col-md-3"><select class="form-select" name="active" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="active" {% if current_active == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if current_active == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select></div>
+            <div class="col-md-2"><a href="{% url 'quality_control:checklist_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+        </form>
+
+        <div class="table-responsive"><table class="table table-borderless table-centered align-middle table-nowrap mb-0 table-hover">
+            <thead class="text-muted table-light"><tr>
+                <th>Code</th><th>Name</th><th>Scope</th><th>Target</th><th>Items</th><th>Mandatory</th><th>Status</th><th class="text-center">Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for c in checklists %}
+            <tr>
+                <td><a href="{% url 'quality_control:checklist_detail' c.pk %}" class="fw-medium text-primary">{{ c.code }}</a></td>
+                <td>{{ c.name }}</td>
+                <td><span class="badge bg-light text-dark">{{ c.get_applies_to_display }}</span></td>
+                <td>
+                    {% if c.applies_to == 'product' and c.product %}{{ c.product.sku }}
+                    {% elif c.applies_to == 'vendor' and c.vendor %}{{ c.vendor.company_name }}
+                    {% elif c.applies_to == 'category' and c.category %}{{ c.category.name }}
+                    {% else %}<span class="text-muted">All</span>{% endif %}
+                </td>
+                <td>{{ c.items.count }}</td>
+                <td>{% if c.is_mandatory %}<span class="badge bg-warning-subtle text-warning">Required</span>{% else %}<span class="badge bg-light text-dark">Optional</span>{% endif %}</td>
+                <td>{% if c.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</td>
+                <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                    <a href="{% url 'quality_control:checklist_detail' c.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                    <a href="{% url 'quality_control:checklist_edit' c.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                    <form method="post" action="{% url 'quality_control:checklist_delete' c.pk %}" class="d-inline" onsubmit="return confirm('Delete checklist {{ c.code }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+                </div></td>
+            </tr>
+            {% empty %}<tr><td colspan="8" class="text-center py-4 text-muted"><i class="ri-list-check-2 fs-24 d-block mb-2"></i>No QC checklists defined</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+
+        {% if checklists.has_other_pages %}<div class="d-flex justify-content-end mt-4"><nav><ul class="pagination pagination-sm mb-0">
+            {% if checklists.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ checklists.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+            {% for num in checklists.paginator.page_range %}<li class="page-item {% if checklists.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endfor %}
+            {% if checklists.has_next %}<li class="page-item"><a class="page-link" href="?page={{ checklists.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+        </ul></nav></div>{% endif %}
+    </div>
+</div></div></div>
+{% endblock %}
