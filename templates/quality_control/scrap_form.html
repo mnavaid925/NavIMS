@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quality_control:scrap_list' %}">Scrap</a></li>
+        <li class="breadcrumb-item active">{% if scrap %}Edit{% else %}New{% endif %}</li>
+    </ol></div>
+</div></div></div>
+
+<form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    <div class="row">
+        <div class="col-lg-8"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Write-Off Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Product <span class="text-danger">*</span></label>{{ form.product }}{% if form.product.errors %}<div class="text-danger small">{{ form.product.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Warehouse <span class="text-danger">*</span></label>{{ form.warehouse }}{% if form.warehouse.errors %}<div class="text-danger small">{{ form.warehouse.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Quantity <span class="text-danger">*</span></label>{{ form.quantity }}{% if form.quantity.errors %}<div class="text-danger small">{{ form.quantity.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Unit Cost</label>{{ form.unit_cost }}{% if form.unit_cost.errors %}<div class="text-danger small">{{ form.unit_cost.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-4 mb-3 pt-4"><small class="text-muted">Total value = quantity × unit cost (auto-computed on save).</small></div>
+                </div>
+                <div class="mb-3"><label class="form-label">Reason <span class="text-danger">*</span></label>{{ form.reason }}</div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Linked Defect</label>{{ form.defect_report }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Linked Quarantine</label>{{ form.quarantine_record }}</div>
+                </div>
+            </div>
+        </div></div>
+        <div class="col-lg-4"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if scrap %}Update{% else %}Create (Pending){% endif %}</button>
+                    {% if scrap %}<a href="{% url 'quality_control:scrap_detail' scrap.pk %}" class="btn btn-light">Cancel</a>
+                    {% else %}<a href="{% url 'quality_control:scrap_list' %}" class="btn btn-light">Cancel</a>{% endif %}
+                </div>
+                <small class="text-muted d-block mt-3">New write-offs enter "Pending" status. Approval and posting happen from the detail page.</small>
+            </div>
+        </div></div>
+    </div>
+</form>
+{% endblock %}
