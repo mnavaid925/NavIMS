@@ -37,8 +37,9 @@
         <div class="col-lg-4"><div class="card">
             <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
             <div class="card-body"><div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>Create Alert</button>
-                <a href="{% url 'alerts_notifications:alert_list' %}" class="btn btn-light">Cancel</a>
+                <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if alert %}Update{% else %}Create{% endif %} Alert</button>
+                {% if alert %}<a href="{% url 'alerts_notifications:alert_detail' alert.pk %}" class="btn btn-light">Cancel</a>
+                {% else %}<a href="{% url 'alerts_notifications:alert_list' %}" class="btn btn-light">Cancel</a>{% endif %}
             </div></div>
         </div></div>
     </div>
