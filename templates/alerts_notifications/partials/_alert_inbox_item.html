@@ -1,0 +1,14 @@
+{% comment %}Single row for the topbar bell dropdown (unused server-side; JS builds via alert_inbox_json).{% endcomment %}
+<a href="{{ alert.url }}" class="dropdown-item">
+    <div class="d-flex">
+        <div class="flex-shrink-0 me-2">
+            {% if alert.severity == 'critical' %}<i class="ri-alarm-warning-line fs-18 text-danger"></i>
+            {% elif alert.severity == 'warning' %}<i class="ri-error-warning-line fs-18 text-warning"></i>
+            {% else %}<i class="ri-notification-2-line fs-18 text-info"></i>{% endif %}
+        </div>
+        <div class="flex-grow-1">
+            <p class="mb-0 fw-medium">{{ alert.title|truncatechars:60 }}</p>
+            <small class="text-muted">{{ alert.alert_type_display }} · {{ alert.alert_number }}</small>
+        </div>
+    </div>
+</a>
