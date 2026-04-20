@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Alerts Dashboard{% endblock %}
+{% block content %}
+
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Alerts & Notifications — Dashboard</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="#">Alerts & Notifications</a></li>
+        <li class="breadcrumb-item active">Dashboard</li>
+    </ol></div>
+</div></div></div>
+
+<!-- KPI cards -->
+<div class="row">
+    <div class="col-md-3"><div class="card">
+        <div class="card-body">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1"><p class="text-muted mb-1">Open Alerts</p><h3 class="mb-0">{{ stats.total_open }}</h3></div>
+                <div class="avatar-sm rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center">
+                    <i class="ri-notification-2-line fs-20 text-primary"></i>
+                </div>
+            </div>
+        </div>
+    </div></div>
+    <div class="col-md-3"><div class="card">
+        <div class="card-body">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1"><p class="text-muted mb-1">New Today</p><h3 class="mb-0">{{ stats.new_today }}</h3></div>
+                <div class="avatar-sm rounded-circle bg-info-subtle d-flex align-items-center justify-content-center">
+                    <i class="ri-flashlight-line fs-20 text-info"></i>
+                </div>
+            </div>
+        </div>
+    </div></div>
+    <div class="col-md-3"><div class="card">
+        <div class="card-body">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1"><p class="text-muted mb-1">Critical Open</p><h3 class="mb-0 text-danger">{{ stats.critical_open }}</h3></div>
+                <div class="avatar-sm rounded-circle bg-danger-subtle d-flex align-items-center justify-content-center">
+                    <i class="ri-alarm-warning-line fs-20 text-danger"></i>
+                </div>
+            </div>
+        </div>
+    </div></div>
+    <div class="col-md-3"><div class="card">
+        <div class="card-body">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1"><p class="text-muted mb-1">Resolved</p><h3 class="mb-0 text-success">{{ stats.resolved_total }}</h3></div>
+                <div class="avatar-sm rounded-circle bg-success-subtle d-flex align-items-center justify-content-center">
+                    <i class="ri-check-double-line fs-20 text-success"></i>
+                </div>
+            </div>
+        </div>
+    </div></div>
+</div>
+
+<div class="row">
+    <!-- Open alerts by type -->
+    <div class="col-lg-4"><div class="card">
+        <div class="card-header"><h5 class="card-title mb-0">Open Alerts by Type</h5></div>
+        <div class="card-body p-0">
+            <div class="table-responsive"><table class="table table-sm mb-0">
+                <thead class="table-light"><tr><th>Type</th><th class="text-end">Count</th></tr></thead>
+                <tbody>
+                    {% for row in by_type %}
+                    <tr>
+                        <td><a href="{% url 'alerts_notifications:alert_list' %}?alert_type={{ row.alert_type }}" class="text-body">{{ row.label }}</a></td>
+                        <td class="text-end"><span class="badge bg-primary-subtle text-primary">{{ row.c }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2" class="text-center py-3 text-muted">No open alerts</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+    </div></div>
+
+    <!-- Recent alerts -->
+    <div class="col-lg-8"><div class="card">
+        <div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Recent Alerts</h5>
+            <a href="{% url 'alerts_notifications:alert_list' %}" class="btn btn-sm btn-soft-primary">View All</a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                <thead class="table-light"><tr>
+                    <th>Number</th><th>Title</th><th>Type</th><th>Severity</th><th>Status</th><th>Triggered</th>
+                </tr></thead>
+                <tbody>
+                    {% for a in recent_alerts %}
+                    <tr>
+                        <td><a href="{% url 'alerts_notifications:alert_detail' a.pk %}" class="fw-medium text-primary font-monospace">{{ a.alert_number }}</a></td>
+                        <td>{{ a.title|truncatechars:40 }}</td>
+                        <td><small class="text-muted">{{ a.get_alert_type_display }}</small></td>
+                        <td>
+                            {% if a.severity == 'critical' %}<span class="badge bg-danger-subtle text-danger">Critical</span>
+                            {% elif a.severity == 'warning' %}<span class="badge bg-warning-subtle text-warning">Warning</span>
+                            {% else %}<span class="badge bg-info-subtle text-info">Info</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if a.status == 'new' %}<span class="badge bg-primary-subtle text-primary">New</span>
+                            {% elif a.status == 'acknowledged' %}<span class="badge bg-info-subtle text-info">Acknowledged</span>
+                            {% elif a.status == 'resolved' %}<span class="badge bg-success-subtle text-success">Resolved</span>
+                            {% else %}<span class="badge bg-secondary-subtle text-secondary">Dismissed</span>{% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ a.triggered_at|date:"Y-m-d H:i" }}</small></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center py-4 text-muted"><i class="ri-notification-off-line fs-24 d-block mb-2"></i>No alerts yet — run a scanner command to generate some.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+    </div></div>
+</div>
+
+{% endblock %}
