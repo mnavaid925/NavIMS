@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'forecasting',
     'barcode_rfid',
     'quality_control',
+    'alerts_notifications',
 ]
 
 MIDDLEWARE = [
