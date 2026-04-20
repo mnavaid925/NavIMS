@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ alert.alert_number }}{% endblock %}
+{% block content %}
+
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0 font-monospace">{{ alert.alert_number }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'alerts_notifications:alert_list' %}">Alerts</a></li>
+        <li class="breadcrumb-item active">{{ alert.alert_number }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">{{ alert.title }}</h5>
+            {% include "alerts_notifications/partials/_alert_badge.html" %}
+        </div><div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Number</dt><dd class="col-sm-9 font-monospace">{{ alert.alert_number }}</dd>
+                <dt class="col-sm-3">Type</dt><dd class="col-sm-9">{{ alert.get_alert_type_display }}</dd>
+                <dt class="col-sm-3">Severity</dt><dd class="col-sm-9">{{ alert.get_severity_display }}</dd>
+                <dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ alert.get_status_display }}</dd>
+                <dt class="col-sm-3">Triggered</dt><dd class="col-sm-9">{{ alert.triggered_at|date:"Y-m-d H:i" }}</dd>
+                {% if alert.threshold_value is not None %}<dt class="col-sm-3">Threshold</dt><dd class="col-sm-9">{{ alert.threshold_value|floatformat:"-3" }}</dd>{% endif %}
+                {% if alert.current_value is not None %}<dt class="col-sm-3">Current Value</dt><dd class="col-sm-9">{{ alert.current_value|floatformat:"-3" }}</dd>{% endif %}
+                {% if alert.message %}<dt class="col-sm-3">Message</dt><dd class="col-sm-9">{{ alert.message|linebreaksbr }}</dd>{% endif %}
+                {% if alert.acknowledged_by %}<dt class="col-sm-3">Acknowledged by</dt><dd class="col-sm-9">{{ alert.acknowledged_by.username }} on {{ alert.acknowledged_at|date:"Y-m-d H:i" }}</dd>{% endif %}
+                {% if alert.resolved_at %}<dt class="col-sm-3">Resolved at</dt><dd class="col-sm-9">{{ alert.resolved_at|date:"Y-m-d H:i" }}</dd>{% endif %}
+                {% if alert.notes %}<dt class="col-sm-3">Notes</dt><dd class="col-sm-9">{{ alert.notes|linebreaksbr }}</dd>{% endif %}
+            </dl>
+        </div></div>
+
+        <!-- Source object links -->
+        {% if alert.product or alert.warehouse or alert.lot_batch or alert.purchase_order or alert.shipment or alert.stock_level %}
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Source</h5></div><div class="card-body">
+            <dl class="row mb-0">
+                {% if alert.product %}<dt class="col-sm-3">Product</dt><dd class="col-sm-9">{{ alert.product.sku }} — {{ alert.product.name }}</dd>{% endif %}
+                {% if alert.warehouse %}<dt class="col-sm-3">Warehouse</dt><dd class="col-sm-9">{{ alert.warehouse.code }} — {{ alert.warehouse.name }}</dd>{% endif %}
+                {% if alert.stock_level %}<dt class="col-sm-3">Stock Level</dt><dd class="col-sm-9">On-hand {{ alert.stock_level.on_hand }}, available {{ alert.stock_level.available }}</dd>{% endif %}
+                {% if alert.lot_batch %}<dt class="col-sm-3">Lot</dt><dd class="col-sm-9">{{ alert.lot_batch.lot_number }}{% if alert.lot_batch.expiry_date %} (expires {{ alert.lot_batch.expiry_date|date:"Y-m-d" }}){% endif %}</dd>{% endif %}
+                {% if alert.purchase_order %}<dt class="col-sm-3">Purchase Order</dt><dd class="col-sm-9">{{ alert.purchase_order.po_number }} ({{ alert.purchase_order.get_status_display }})</dd>{% endif %}
+                {% if alert.shipment %}<dt class="col-sm-3">Shipment</dt><dd class="col-sm-9">{{ alert.shipment.shipment_number }} ({{ alert.shipment.get_status_display }})</dd>{% endif %}
+            </dl>
+        </div></div>
+        {% endif %}
+
+        <!-- Deliveries -->
+        {% if deliveries %}
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Notification Deliveries ({{ deliveries|length }})</h5></div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-sm mb-0">
+                    <thead class="table-light"><tr><th>Recipient</th><th>Channel</th><th>Status</th><th>Sent</th><th>Rule</th></tr></thead>
+                    <tbody>
+                    {% for d in deliveries %}
+                    <tr>
+                        <td>{{ d.recipient.username|default:d.recipient_email|default:"—" }}</td>
+                        <td><span class="badge bg-light text-dark">{{ d.get_channel_display }}</span></td>
+                        <td>
+                            {% if d.status == 'sent' %}<span class="badge bg-success-subtle text-success">Sent</span>
+                            {% elif d.status == 'failed' %}<span class="badge bg-danger-subtle text-danger" title="{{ d.error_message }}">Failed</span>
+                            {% else %}<span class="badge bg-secondary-subtle text-secondary">Pending</span>{% endif %}
+                        </td>
+                        <td><small>{{ d.sent_at|date:"Y-m-d H:i"|default:"—" }}</small></td>
+                        <td>{% if d.rule %}<a href="{% url 'alerts_notifications:rule_detail' d.rule.pk %}">{{ d.rule.code }}</a>{% else %}<small class="text-muted">—</small>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Action sidebar -->
+    <div class="col-lg-4"><div class="card">
+        <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+        <div class="card-body">
+            <div class="d-grid gap-2">
+                {% if alert.status == 'new' %}
+                <form method="post" action="{% url 'alerts_notifications:alert_acknowledge' alert.pk %}">{% csrf_token %}
+                    <button class="btn btn-info w-100"><i class="ri-check-line me-1"></i>Acknowledge</button>
+                </form>
+                {% endif %}
+                {% if alert.status == 'acknowledged' %}
+                <form method="post" action="{% url 'alerts_notifications:alert_resolve' alert.pk %}">{% csrf_token %}
+                    <div class="card border mt-2 mb-2"><div class="card-body p-2">
+                        {{ resolve_form.notes }}
+                        <button class="btn btn-success w-100 mt-2"><i class="ri-check-double-line me-1"></i>Resolve</button>
+                    </div></div>
+                </form>
+                {% endif %}
+                {% if alert.status == 'new' or alert.status == 'acknowledged' %}
+                <form method="post" action="{% url 'alerts_notifications:alert_dismiss' alert.pk %}" onsubmit="return confirm('Dismiss this alert?');">{% csrf_token %}
+                    <button class="btn btn-warning w-100"><i class="ri-close-line me-1"></i>Dismiss</button>
+                </form>
+                {% endif %}
+                <form method="post" action="{% url 'alerts_notifications:alert_delete' alert.pk %}" onsubmit="return confirm('Delete alert {{ alert.alert_number }}?');">{% csrf_token %}
+                    <button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button>
+                </form>
+                <a href="{% url 'alerts_notifications:alert_list' %}" class="btn btn-light">Back to List</a>
+            </div>
+        </div>
+    </div></div>
+</div>
+
+{% endblock %}
