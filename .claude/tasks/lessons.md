@@ -415,3 +415,30 @@ Keep the threaded version around (gated by `@pytest.mark.skipif(db_is_sqlite)`) 
 **Rule:** In tests that simulate a concurrent commit via `.update()`, set **every field the save()-mirror maintains**, not just the user-facing field. If the model has `def save(): self.status = self.approval_status`, the simulation must do `Model.objects.filter(...).update(approval_status='posted', status='posted')`. Same for cached computed columns (`total_value`, `available_quantity`, etc.). When unsure, grep the model's `save()` for any `self.<field> = ...` assignment and mirror it in the `.update()` kwargs.
 **How to apply:** When a model has a shadow/mirror column maintained via `save()`, document it at the top of the class (`# save-time mirror: self.status = self.approval_status`). In tests, never use `.update()` on such a model without bumping both columns together. Production code rarely has this problem because real writes go through `save()` — this is a test-only gotcha.
 
+## 2026-04-20 — Alerts & Notifications Module Build
+
+### Issue 41: Create-views with per-tenant auto-numbering 500 when tenant=None
+**What happened:** Module 17 shipped two create views (`alert_create_view`, `rule_create_view`) that assumed `request.tenant` is set. When the superuser (`tenant=None`) hits either view, `obj.save()` → `_generate_number()` / `_generate_code()` → reads `self.tenant` via the FK descriptor → raises `RelatedObjectDoesNotExist` → unhandled 500. SQA review caught this; both reproduced cleanly via the Django Test Client.
+**Root cause:** The `_save_with_number_retry` pattern (copied into every module from `quality_control/models.py`) computes the next sequence number by filtering `Model.objects.filter(tenant=self.tenant)` — which requires `self.tenant` to be an actual Tenant, not None. View code that sets `obj.tenant = tenant` without first checking `tenant is not None` turns any superuser hit on the URL into a 500.
+**Rule:** Every create/edit view that instantiates a model with per-tenant auto-numbering MUST guard `tenant is None` at the TOP of the view, BEFORE constructing any form or model:
+
+```python
+@login_required
+@tenant_admin_required
+def foo_create_view(request):
+    tenant = request.tenant
+    if tenant is None:
+        messages.error(request, 'No tenant context — log in as a tenant admin to …')
+        return redirect('<app>:<list>')
+    # … existing code
+```
+
+This is complementary to the existing tenant-filter guard (`Model.objects.filter(tenant=request.tenant)` which correctly returns empty for tenant=None on *read* paths); the write path needs an explicit early return.
+**How to apply:** When adding any create-view to a module with auto-numbered records, put the guard in immediately. When reviewing, grep each module's `views.py` for `def .*_create_view` and confirm a `tenant is None` check appears before the first `.save()` call. Affected modules to audit: every module with `_save_with_number_retry` — at least `quality_control`, `barcode_rfid`, `returns`, `stocktaking`, `forecasting`, `lot_tracking`. A regression test named `test_D01_superuser_create_does_not_crash` lives in `alerts_notifications/tests/test_views_alerts.py` and should be cloned into each module's test suite.
+
+### Issue 42: Django command name collisions across apps silently shadow
+**What happened:** Module 17 initially shipped a `generate_expiry_alerts` management command that writes into the new `alerts_notifications.Alert` table. `lot_tracking` already owned a command by the same name writing into the legacy `lot_tracking.ExpiryAlert` table. `python manage.py generate_expiry_alerts` invoked the lot_tracking one (first in `INSTALLED_APPS` order), not the new one — silent shadowing, no warning. Only caught because the stdout format differed from what was written.
+**Root cause:** Django's command discovery walks `INSTALLED_APPS` and registers each `management/commands/<name>.py` under a flat global namespace. First-registered wins; later ones are dead files invoked only when their registering app is explicitly named (which rarely happens at the CLI).
+**Rule:** Before naming a new management command, grep the repo: `find . -path "*/management/commands/*.py" -name '<name>.py'`. If a match exists in another app, prefix your command with the module name or a distinguishing verb (e.g. `alerts_scan_expiry`, not `generate_expiry_alerts`). Never rely on INSTALLED_APPS ordering to pick the right command.
+**How to apply:** At module-build time, grep before you write the command. At review time, the fastest detection is `ls */management/commands/*.py` piped through a basename-dedup check; duplicates should be flagged in code review. Document any renamed command in README so users know the correct invocation.
+
