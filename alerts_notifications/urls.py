@@ -12,6 +12,7 @@ urlpatterns = [
     path('alerts/', views.alert_list_view, name='alert_list'),
     path('alerts/create/', views.alert_create_view, name='alert_create'),
     path('alerts/<int:pk>/', views.alert_detail_view, name='alert_detail'),
+    path('alerts/<int:pk>/edit/', views.alert_edit_view, name='alert_edit'),
     path('alerts/<int:pk>/acknowledge/', views.alert_acknowledge_view, name='alert_acknowledge'),
     path('alerts/<int:pk>/resolve/', views.alert_resolve_view, name='alert_resolve'),
     path('alerts/<int:pk>/dismiss/', views.alert_dismiss_view, name='alert_dismiss'),
