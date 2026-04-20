@@ -1,243 +1,358 @@
-# Module 15 — Barcode & RFID Integration (Plan)
+# Module 16 — Quality Control (QC) & Inspection — Implementation Plan
 
-**Status:** DRAFT — pending user approval
+**Status:** AWAITING USER APPROVAL (do not implement until user confirms)
+**Date:** 2026-04-19
 
-Date started: 2026-04-19
-App label: `barcode_rfid`
-Numbering: README lists this as Planned Module #15 (Forecasting is #14, already implemented). User's prompt numbered it "14" — clarified to 15.
-
----
-
-## Scope
-
-Four submodules from user spec:
-
-| # | Submodule | Purpose |
-|---|-----------|---------|
-| 1 | Label Generation | Design + print barcode/QR labels for products, bins, pallets, lots, serials |
-| 2 | Mobile/Handheld Scanner Integration | Register warehouse scan devices + log scan events |
-| 3 | RFID Tag Management | Register RFID tags, readers, and read events (passive/active, UHF/HF/LF) |
-| 4 | Batch Scanning | Session-based multi-item scan capture for receiving / counting / transfer |
+**Target app name:** `quality_control`
+**URL prefix:** `/quality-control/`
+**Placement:** After `barcode_rfid` (Module 15); before planned Module 17 (Alerts & Notifications).
 
 ---
 
-## Data Model (9 models)
+## 1. Scope — 4 Submodules
 
-### 1. Label Generation
-- **LabelTemplate** — `tenant`, `name`, `code` (unique(tenant, code) → uses `core.forms.TenantUniqueCodeMixin`), `label_type` in {barcode, qr, mixed}, `symbology` in {CODE128, CODE39, EAN13, EAN8, UPC_A, QR, DATA_MATRIX, PDF417}, `paper_size`, `width_mm`, `height_mm`, `includes_name`, `includes_price`, `includes_sku`, `includes_date`, `copies_per_label`, `is_active`, timestamps.
-- **LabelPrintJob** — `tenant`, `job_number` (auto `LPJ-NNNNN`, `_save_with_number_retry`), `template` FK, `target_type` in {product, bin, pallet, lot, serial}, `target_id`, `target_display` (denorm string), `quantity`, `status` in {draft, queued, printing, printed, failed, cancelled}, `printed_by` FK User, `printed_at`, `notes`, `created_by`, timestamps.
-  - State machine: `draft → queued → printing → printed` / `queued → cancelled` / `printing → failed` / `failed → queued` (retry).
-  - Uses `core.state_machine.StateMachineMixin`.
+| Submodule | Primary Model(s) | Purpose |
+|-----------|------------------|---------|
+| **QC Checklists** | `QCChecklist`, `QCChecklistItem` | Define mandatory quality checks per product and/or vendor |
+| **Inspection Routing** | `InspectionRoute`, `InspectionRouteRule` | Route received items to a QC zone before they enter main inventory |
+| **Quarantine Management** | `QuarantineRecord` | Hold defective/suspicious items in a restricted zone with release workflow |
+| **Defect & Scrap Reporting** | `DefectReport`, `DefectPhoto`, `ScrapWriteOff` | Log defects with photos, write off scrapped items with stock adjustment |
 
-### 2. Mobile/Handheld Scanner Integration
-- **ScannerDevice** — `tenant`, `device_code` (unique(tenant, device_code) → `TenantUniqueCodeMixin`), `name`, `device_type` in {handheld, fixed, mobile_phone, tablet, wearable}, `manufacturer`, `model_number`, `os_version`, `assigned_to` FK User (nullable), `assigned_warehouse` FK `warehousing.Warehouse` (nullable), `status` in {active, inactive, maintenance, lost, retired}, `last_seen_at`, `battery_level_percent`, `firmware_version`, `is_active`, timestamps.
-- **ScanEvent** — `tenant`, `device` FK (nullable — manual entry allowed), `user` FK User, `scan_type` in {receive, putaway, pick, pack, ship, count, transfer, lookup, other}, `barcode_value`, `symbology`, `resolved_object_type` in {product, lot, serial, bin, none}, `resolved_object_id` (nullable), `warehouse` FK (nullable), `scanned_at`, `status` in {success, unmatched, error}, `error_message`, `ip_address`.
-  - Ledger-only (no state transitions). Lists / detail / filter views.
-
-### 3. RFID Tag Management
-- **RFIDTag** — `tenant`, `epc_code` (unique(tenant, epc_code) → `TenantUniqueCodeMixin`), `tag_type` in {passive, active, semi_active}, `frequency_band` in {LF, HF, UHF, Microwave}, `linked_object_type` in {product, lot, serial, bin, pallet, none}, `linked_object_id` (nullable), `linked_display` (denorm), `status` in {unassigned, active, inactive, lost, damaged, retired}, `first_read_at`, `last_read_at`, `read_count`, `battery_voltage` (active only), `notes`, timestamps.
-  - State machine: `unassigned → active → inactive` / `active → lost|damaged|retired` / `inactive → active`.
-- **RFIDReader** — `tenant`, `reader_code` (unique(tenant, reader_code) → `TenantUniqueCodeMixin`), `name`, `reader_type` in {fixed_gate, handheld, integrated, vehicle_mount}, `warehouse` FK, `zone` FK `warehousing.Zone` (nullable), `ip_address`, `antenna_count`, `frequency_band`, `status` in {online, offline, maintenance, retired}, `last_seen_at`, `firmware_version`, `is_active`, timestamps.
-  - Form-layer zone-vs-warehouse cross-validation (stocktaking-style) — zone must belong to the selected warehouse.
-- **RFIDReadEvent** — `tenant`, `tag` FK RFIDTag, `reader` FK RFIDReader, `read_at`, `signal_strength_dbm`, `read_count_at_event`, `direction` in {in, out, unknown}, `antenna_number`.
-  - Ledger-only. List + detail views.
-
-### 4. Batch Scanning
-- **BatchScanSession** — `tenant`, `session_number` (auto `BSS-NNNNN`, `_save_with_number_retry`), `purpose` in {receiving, counting, picking, putaway, transfer, audit, other}, `device` FK ScannerDevice (nullable), `user` FK User, `warehouse` FK, `zone` FK `warehousing.Zone` (nullable), `started_at`, `completed_at`, `status` in {active, completed, cancelled}, `total_items_scanned` (denorm), `notes`, `created_by`, timestamps.
-  - State machine: `active → completed` / `active → cancelled`.
-- **BatchScanItem** — `session` FK, `tenant` (denorm for tenant scoping), `scanned_value`, `symbology`, `resolution_type` in {product, lot, serial, bin, rfid, unmatched}, `resolved_object_id` (nullable), `resolved_display` (denorm), `quantity` (default 1, `MinValueValidator(0.01)`), `scanned_at`, `is_resolved`, `error_message`.
-  - Inline formset on session edit. Child form uses `__init__(tenant=...)` to filter FK queryset (closes lesson #9 inline-formset IDOR).
+> **Reuse decision:** The existing `receiving.QualityInspection` model stays as-is — it is transactional (one inspection per GRN). The new `quality_control` module layers *policy* (checklists, routing, quarantine, defect ledger) on top. `DefectReport` can optionally link to a `QualityInspection` for traceability but does not require it (defects can also be raised post-putaway during stocktaking or from customer returns).
 
 ---
 
-## File Plan
+## 2. File Tree To Be Created
 
 ```
-barcode_rfid/
+quality_control/
 ├── __init__.py
-├── apps.py                    # default_auto_field + label
-├── models.py                  # 9 models above + _save_with_number_retry reuse
-├── forms.py                   # 9 ModelForms + BatchScanItem inline formset form
-│                              #   - TenantUniqueCodeMixin on template/device/tag/reader/session forms
-│                              #   - zone-vs-warehouse cross-validation on RFIDReader + BatchScanSession
-│                              #   - inline formset's child form accepts tenant in __init__
-├── views.py                   # ~40 views — full CRUD + state transitions + scan logging endpoints
-│                              #   - every destructive/transition view: @tenant_admin_required + @require_POST + emit_audit
-│                              #   - lists pass status_choices + FK querysets for filters
-│                              #   - get_object_or_404 always scoped to tenant
-├── urls.py                    # URL routes grouped by submodule
-├── admin.py                   # TenantScopedAdmin base for admin visibility
-├── migrations/                # auto-generated
+├── apps.py
+├── models.py
+├── forms.py
+├── views.py
+├── urls.py
+├── admin.py
+├── migrations/
+│   └── __init__.py
 └── management/
     ├── __init__.py
     └── commands/
         ├── __init__.py
-        └── seed_barcode_rfid.py   # idempotent demo data per tenant
+        └── seed_quality_control.py
 
-templates/barcode_rfid/
-├── label_template_list.html           label_template_form.html        label_template_detail.html
-├── label_job_list.html                label_job_form.html             label_job_detail.html
-├── device_list.html                   device_form.html                device_detail.html
-├── scan_event_list.html               scan_event_detail.html
-├── rfid_tag_list.html                 rfid_tag_form.html              rfid_tag_detail.html
-├── rfid_reader_list.html              rfid_reader_form.html           rfid_reader_detail.html
-├── rfid_read_list.html                rfid_read_detail.html
-├── batch_session_list.html            batch_session_form.html         batch_session_detail.html
+templates/quality_control/
+├── checklist_list.html / checklist_form.html / checklist_detail.html
+├── route_list.html / route_form.html / route_detail.html
+├── quarantine_list.html / quarantine_form.html / quarantine_detail.html
+├── defect_list.html / defect_form.html / defect_detail.html
+└── scrap_list.html / scrap_form.html / scrap_detail.html   (15 templates)
 ```
 
-Sidebar entry: add a "Barcode & RFID" group in `templates/partials/sidebar.html` with 4 sub-items (Labels, Scanners, RFID, Batch Scanning).
+**Files edited (not created):**
+- `config/settings.py` — add `'quality_control'` to `INSTALLED_APPS`
+- `config/urls.py` — add `path('quality-control/', include('quality_control.urls'))`
+- `templates/partials/sidebar.html` — add Quality Control submenu after Barcode & RFID
+- `README.md` — Module 16 feature table, file-tree entry, seed command, demo-data bullets
+
+**Tests:** Deferred to a follow-up SQA review (matches the pattern used for `barcode_rfid` before it had tests).
 
 ---
 
-## Lesson-informed Guardrails Baked In Upfront
+## 3. Models (detailed)
 
-Every item below is a direct codification of a prior lesson so the module ships clean the first time — no SQA remediation pass needed.
+All models follow codebase conventions:
+- `tenant = ForeignKey('core.Tenant', on_delete=CASCADE, related_name=...)` — first field
+- `created_at` / `updated_at` timestamps
+- `_save_with_number_retry()` + `unique_together('tenant', number_field)` for auto-numbered docs
+- `TenantUniqueCodeMixin` used in forms; `StateMachineMixin` on stateful models
+- Soft-delete (`deleted_at`) on top-level docs (quarantine, defect, scrap) for audit traceability
 
-| Lesson | Applied as |
-|--------|-----------|
-| #6/#7/#11/#14/#18 — `unique_together(tenant, X)` trap | `core.forms.TenantUniqueCodeMixin` on all 5 user-visible unique fields (template.code, device.device_code, tag.epc_code, reader.reader_code). Auto-generated numbers (`LPJ-`, `BSS-`) use `_save_with_number_retry` per lesson #22. |
-| #9 — inline-formset POST-path IDOR | BatchScanItem child form accepts `tenant` in `__init__`, filters every FK queryset there; view passes `form_kwargs={'tenant': tenant}` on GET AND POST. |
-| #12/#20 — state transition triad | Every state-change view decorated: `@tenant_admin_required` + `@require_POST` + `emit_audit`; `can_transition_to` gated via `core.state_machine.StateMachineMixin`. |
-| #13 — badge/choices drift | Template badge blocks always include `{% else %}{{ obj.get_field_display }}{% endif %}` fallback. |
-| #16 — auto-progress state bypass | Any cascading state write checks `can_transition_to` before writing. |
-| #22 — auto-generated number race | `LPJ-NNNNN`, `BSS-NNNNN` go through `_save_with_number_retry()`. |
-| #23 — GET on state-change views = CSRF hole | Every state-transition view has `@require_POST`. |
-| #24 — atomic multi-write | Scan session completion wrapped in `transaction.atomic()` if it touches counters + child rows. |
-| #26/#27 — test flash-message brittleness | Tests (if included) use `get_messages(r.wsgi_request)` + `resp.context['<obj>'].paginator.count` instead of HTML substring asserts. |
-| #27 (None-guard) — `\|default` with chained None attr | Detail templates render nullable FK users via `{% if fk %}…{% else %}—{% endif %}`, never chained `\|default:fk.username`. |
-| #29 — `@login_required` alone is not RBAC | Every create/edit/delete/state-change view carries `@tenant_admin_required` in addition to `@login_required`. Reads stay open. |
-| Filter Rules (CLAUDE.md) | Views pass `status_choices` + FK querysets to lists. Templates use `\|stringformat:"d"` for FK pk comparison. |
-| CRUD Completeness (CLAUDE.md) | All 9 models get list + create + detail + edit + delete from day one. Exceptions: `ScanEvent` and `RFIDReadEvent` are ledger-only (no edit/delete in UI). |
-| Seed Rules (CLAUDE.md) | `seed_barcode_rfid` is idempotent, prints tenant admin creds, skips if data exists, uses `get_or_create` / existence checks for unique-constrained rows. Both `__init__.py` files created. |
-| Multi-Tenancy Rules | Every `Model.objects` query filtered by `tenant=request.tenant`; every model has `tenant` FK. |
+### 3.1 QCChecklist (Submodule 1)
+| Field | Type | Notes |
+|-------|------|-------|
+| tenant | FK Tenant | |
+| code | CharField(20), unique-per-tenant | auto `QCC-00001` |
+| name | CharField(200) | |
+| description | TextField(blank=True) | |
+| applies_to | choices `product`/`vendor`/`category`/`all` | scope |
+| product | FK catalog.Product (null, blank) | required if applies_to='product' |
+| vendor | FK vendors.Vendor (null, blank) | required if applies_to='vendor' |
+| category | FK catalog.Category (null, blank) | required if applies_to='category' |
+| is_mandatory | Boolean default True | |
+| is_active | Boolean default True | |
+| created_by | FK User | |
+
+### 3.2 QCChecklistItem
+| Field | Type | Notes |
+|-------|------|-------|
+| checklist | FK QCChecklist related_name='items' | |
+| sequence | PositiveInteger | ordering |
+| check_name | CharField(200) | e.g., "Visual inspection — no cracks" |
+| check_type | choices `visual`/`measurement`/`boolean`/`text`/`photo` | |
+| expected_value | CharField(200, blank=True) | e.g., "> 10kg", "Yes" |
+| is_critical | Boolean | failing a critical item auto-quarantines |
+
+### 3.3 InspectionRoute (Submodule 2)
+| Field | Type | Notes |
+|-------|------|-------|
+| tenant | FK Tenant | |
+| code | auto `IR-00001` | |
+| name | CharField(200) | |
+| source_warehouse | FK warehousing.Warehouse | |
+| qc_zone | FK warehousing.Zone | hold zone pending QC |
+| putaway_zone | FK warehousing.Zone (null) | destination after QC pass |
+| priority | PositiveInteger default 100 | lower = higher priority |
+| is_active | Boolean default True | |
+
+### 3.4 InspectionRouteRule
+| Field | Type | Notes |
+|-------|------|-------|
+| route | FK InspectionRoute related_name='rules' | |
+| applies_to | choices `all`/`product`/`vendor`/`category` | |
+| product / vendor / category | FKs (all null/blank) | matches applies_to |
+| checklist | FK QCChecklist (null) | auto-attached when rule matches |
+
+### 3.5 QuarantineRecord (Submodule 3) — StateMachineMixin
+| Field | Type | Notes |
+|-------|------|-------|
+| tenant | FK Tenant | |
+| quarantine_number | auto `QR-00001` | |
+| product | FK catalog.Product | |
+| warehouse | FK warehousing.Warehouse | |
+| zone | FK warehousing.Zone | quarantine zone |
+| quantity | Decimal(12,2) | |
+| reason | choices `defect`/`expiry`/`contamination`/`damage`/`vendor_issue`/`other` | |
+| reason_notes | TextField(blank=True) | |
+| grn | FK receiving.GoodsReceiptNote (null, blank) | source (optional) |
+| lot | FK lot_tracking.LotBatch (null, blank) | |
+| status | choices `active`/`under_review`/`released`/`scrapped` default `active` | |
+| held_by | FK User | |
+| released_by | FK User (null, blank) | |
+| released_at | DateTime (null, blank) | |
+| release_disposition | choices `return_to_stock`/`rework`/`scrap`/`return_to_vendor` (null) | |
+| deleted_at | DateTime (null) — soft-delete | |
+| VALID_TRANSITIONS | `active→under_review,released,scrapped`; `under_review→released,scrapped` | |
+
+### 3.6 DefectReport (Submodule 4) — StateMachineMixin
+| Field | Type | Notes |
+|-------|------|-------|
+| tenant | FK Tenant | |
+| defect_number | auto `DEF-00001` | |
+| product | FK catalog.Product | |
+| lot | FK lot_tracking.LotBatch (null, blank) | |
+| serial | FK lot_tracking.SerialNumber (null, blank) | |
+| warehouse | FK warehousing.Warehouse | |
+| quantity_affected | Decimal(12,2) | |
+| defect_type | choices `visual`/`functional`/`packaging`/`labeling`/`expiry`/`contamination`/`other` | |
+| severity | choices `minor`/`major`/`critical` | |
+| description | TextField | |
+| source | choices `receiving`/`stocktaking`/`customer_return`/`production`/`other` | |
+| grn | FK receiving.GoodsReceiptNote (null, blank) | |
+| quarantine_record | FK QuarantineRecord (null, blank) | optional link |
+| status | choices `open`/`investigating`/`resolved`/`scrapped` | |
+| reported_by | FK User | |
+| resolved_by | FK User (null, blank) | |
+| resolution_notes | TextField(blank=True) | |
+| deleted_at | DateTime (null) | |
+
+### 3.7 DefectPhoto
+| Field | Type | Notes |
+|-------|------|-------|
+| defect_report | FK DefectReport related_name='photos' | |
+| image | ImageField(upload_to='quality_control/defect_photos/') | |
+| caption | CharField(200, blank=True) | |
+| uploaded_at | DateTime auto_now_add | |
+
+### 3.8 ScrapWriteOff
+| Field | Type | Notes |
+|-------|------|-------|
+| tenant | FK Tenant | |
+| scrap_number | auto `SCR-00001` | |
+| defect_report | FK DefectReport (null, blank) | optional source |
+| quarantine_record | FK QuarantineRecord (null, blank) | optional source |
+| product | FK catalog.Product | |
+| warehouse | FK warehousing.Warehouse | |
+| quantity | Decimal(12,2) | |
+| unit_cost | Decimal(14,4) | |
+| total_value | Decimal(14,2) computed in save() | |
+| reason | CharField(200) | |
+| approval_status | choices `pending`/`approved`/`rejected`/`posted` | |
+| approved_by | FK User (null, blank) | |
+| posted_at | DateTime (null, blank) | set when stock adjustment is written |
+| deleted_at | DateTime (null) | |
+
+**Stock integration:** On `post` transition, `ScrapWriteOff` creates a negative `inventory.StockAdjustment` (adjustment_type='write_off') inside `transaction.atomic()` + `select_for_update()` on the `StockLevel` row — mirrors patterns in `returns/` and `stocktaking/`. Quarantine is a *logical* hold, not a physical stock move; releasing with disposition `scrap` auto-creates a `ScrapWriteOff`.
 
 ---
 
-## Build Steps (checkable)
+## 4. Forms
 
-### Phase 1 — Scaffolding
-- [ ] Create `barcode_rfid/` app with `apps.py`, `__init__.py`, empty `models.py`/`forms.py`/`views.py`/`urls.py`/`admin.py`
-- [ ] Register app in `config/settings.py` `INSTALLED_APPS`
-- [ ] Register URL include in `config/urls.py`
-- [ ] Create `barcode_rfid/management/__init__.py` and `barcode_rfid/management/commands/__init__.py`
+All forms accept `tenant=None` in `__init__`, filter FK querysets by tenant, and inject tenant in `save(commit=False)` before final save.
 
-### Phase 2 — Models & Migrations
-- [ ] Implement 9 models with `tenant` FK, `StateMachineMixin` where applicable, `_save_with_number_retry` helpers
-- [ ] `python manage.py makemigrations barcode_rfid`
-- [ ] `python manage.py migrate`
-
-### Phase 3 — Forms
-- [ ] 9 ModelForms with `TenantUniqueCodeMixin` where applicable
-- [ ] BatchScanItem inline formset child form accepting `tenant` in `__init__`
-- [ ] Zone-vs-warehouse cross-validation on RFIDReader form + BatchScanSession form
-
-### Phase 4 — Views + URLs
-- [ ] Label Generation: 10 views (template CRUD-5, job CRUD-5 + state transitions queue/cancel/retry)
-- [ ] Scanner: 6 views (device CRUD-5, scan_event list + detail)
-- [ ] RFID: 13 views (tag CRUD-5 + state transitions, reader CRUD-5, read_event list + detail)
-- [ ] Batch Scanning: 7 views (session CRUD-5 + item formset inline on edit + complete/cancel transitions)
-- [ ] All views filter by `tenant=request.tenant`, lists pass choice/FK context, transitions use the 3-decorator triad
-
-### Phase 5 — Templates
-- [ ] 24 templates following existing NavIMS pattern (breadcrumbs + card + table + filter form + actions column)
-- [ ] Sidebar nav entry under a "Barcode & RFID" group
-
-### Phase 6 — Admin
-- [ ] Register all 9 models with `TenantScopedAdmin` base (tenant admins see only their tenant)
-
-### Phase 7 — Seed Command
-- [ ] `seed_barcode_rfid.py` — idempotent, per-tenant demo rows: 3 label templates, 2 print jobs, 3 devices, 10 scan events, 8 RFID tags, 2 readers, 15 read events, 2 batch sessions with 5 items each
-- [ ] Prints tenant admin login creds + superuser warning
-
-### Phase 8 — Smoke test
-- [ ] `python manage.py check`
-- [ ] `python manage.py migrate`
-- [ ] `python manage.py seed_barcode_rfid`
-- [ ] Log in as `admin_acme` / `demo123`, walk through each of the 4 submodules' list + detail + create pages
-- [ ] Verify filters work on list pages; verify state transitions POST-only; verify cross-tenant IDOR probe fails
-
-### Phase 9 — README update
-- [ ] Add Module 15 section after Module 14 in README
-- [ ] Update Planned Modules table (remove #15 from planned, renumber remaining)
-- [ ] Append `seed_barcode_rfid` to installation/seed command list
-- [ ] Update Demo Data Includes section
-
-### Phase 10 — Git commits (separate, PowerShell-safe)
-- [ ] One-line commit per file per project rules, chained with `;` not `&&`
+- `QCChecklistForm` (uses `TenantUniqueCodeMixin`, `tenant_unique_field='code'`)
+- `QCChecklistItemFormSet` (inline, tenant-aware form_kwargs)
+- `InspectionRouteForm` (clean: `qc_zone.warehouse_id == source_warehouse_id` guard)
+- `InspectionRouteRuleFormSet` (inline)
+- `QuarantineRecordForm` (clean: `zone` belongs to `warehouse`; quantity > 0)
+- `QuarantineReleaseForm` (disposition + release notes; POST-only release endpoint)
+- `DefectReportForm` + `DefectPhotoFormSet` (inline, extra=3)
+- `ScrapWriteOffForm` (clean: quantity > 0, unit_cost ≥ 0; compute `total_value`)
 
 ---
 
-## Verification Before "Done"
+## 5. Views
 
-- [ ] `python manage.py check` passes
-- [ ] `python manage.py makemigrations --check --dry-run` reports no pending
-- [ ] Seed runs idempotently twice in a row
-- [ ] Manual UI walkthrough: list + detail + create + edit + delete works for each of 9 models
-- [ ] Filters return correct results (status + FK)
-- [ ] Cross-tenant IDOR probe in shell: `admin_acme` cannot `POST /barcode-rfid/tags/<other_tenant_tag_pk>/edit/` (should 404)
-- [ ] State-transition GET returns 405 (require_POST enforcement)
-- [ ] Non-tenant-admin user blocked from create/edit/delete (tenant_admin_required)
-- [ ] No `|default` chains on nullable FK user renders
+All views `@login_required`. Mutations (`create` / `edit` / `delete` / transition) add `@tenant_admin_required` + `@require_POST` (where applicable) + `emit_audit(...)` on success.
 
-Automated tests (module-level `tests/` folder matching the 1011-test pattern in README) are **out of scope for this build** by default — existing modules added tests in follow-up SQA passes. Please confirm if you want them included now.
+Per submodule (mirrors barcode_rfid pattern):
 
----
+| Submodule | Views |
+|-----------|-------|
+| **Checklists** (6) | list, create, detail, edit, delete, toggle_active |
+| **Routes** (7) | list, create, detail, edit, delete, rule_add, rule_delete |
+| **Quarantine** (7) | list, create, detail, edit, delete (while `active`), release (POST), review (POST) |
+| **Defects** (7) | list, create, detail, edit, delete (while `open`), resolve (POST), photo_delete (POST) |
+| **Scrap** (7) | list, create, detail, edit, delete (while `pending`), approve (POST), post (POST — atomic StockAdjustment), reject (POST) |
 
-## Open Questions Before I Build
-
-1. **Module number** — confirm **15** (per README Planned Modules), not 14.
-2. **Tests** — include a `barcode_rfid/tests/` suite up front, or defer to a later SQA pass like the other modules (catalog, vendors, etc., got tests added later)?
-3. **Label rendering** — do you want actual barcode/QR PDF generation, or just the data model + status workflow for now? Real rendering adds a dependency (`python-barcode` + `qrcode` + `reportlab`). Recommendation: **model/workflow only in this build**; rendering becomes a follow-up with a clear dep discussion.
-4. **Scan endpoints** — do you want an **API/POST endpoint** for real-time scans from devices (JSON `POST /api/barcode-rfid/scan/` with auth token), or only web UI forms? Recommendation: **web UI forms only** for this build; device API is a separate concern that deserves its own auth model.
-5. **Sidebar grouping** — one top-level "Barcode & RFID" parent with 4 sub-items (recommended), or folded under an existing group?
+**Total: ~34 views.** All list views: `Paginator(qs, 20)` + search (`request.GET.get('q')`) + status/type filters; views pass ALL `choices` tuples + FK querysets into context (per CLAUDE.md filter rules).
 
 ---
 
-## Review
+## 6. URLs (`quality_control/urls.py`)
 
-### Delivered
+```python
+app_name = 'quality_control'
 
-| Phase | Status |
-|-------|--------|
-| 1. App scaffolding | ✅ `barcode_rfid/` app registered in `INSTALLED_APPS` + `config/urls.py` (web + `/api/barcode-rfid/`) |
-| 2. Models + migrations | ✅ 9 models, migration `0001_initial`, applied cleanly |
-| 3. Forms + inline formset | ✅ 7 ModelForms + `BatchScanItemFormSet` — TenantUniqueCodeMixin on 5 forms, zone-vs-warehouse cross-validation on 2, formset form accepts tenant in `__init__` |
-| 4. Views + URLs | ✅ 36 web views (CRUD + 14 state transitions + PDF render), triad `@tenant_admin_required + @require_POST + emit_audit` on every destructive/transition endpoint |
-| 5. Templates + sidebar | ✅ 22 templates (list/form/detail for 7 editable models + ledger list/detail for 2), sidebar entry with 4 sub-items |
-| 6. Admin | ✅ `TenantScopedAdmin` registration for all 9 models |
-| 7. PDF rendering | ✅ `rendering.py` — reportlab + python-barcode + qrcode, supports CODE128 / EAN13 / UPC-A / QR / mixed layouts |
-| 8. Device scan API | ✅ 4 endpoints (`/scan`, `/batch-scan`, `/rfid-read`, `/heartbeat`) — `Authorization: Device <token>` auth, tenant derived from device (never payload) |
-| 9. Seed command | ✅ Idempotent; verified two back-to-back runs; skips tenants without warehouses |
-| 10. Tests | ✅ 158 tests passing (models 58, forms 16, views 38, security 34, API 12) |
-| 11. Smoke test | ✅ `python manage.py check` clean; `seed_barcode_rfid` idempotent; 1419/1420 project tests pass (the one failure is a pre-existing uncommitted `multi_location` test — not this module) |
-| 12. README + git list | ✅ README updated (structure tree, Module 15 section, planned-modules row removed, seed commands, demo data); tech stack includes new deps |
+# ── Submodule 1: QC Checklists ──
+# ── Submodule 2: Inspection Routing ──
+# ── Submodule 3: Quarantine Management ──
+# ── Submodule 4: Defect & Scrap Reporting ──
+```
 
-### Lesson-informed guardrails verified working
+Each entity follows `checklists/`, `checklists/new/`, `checklists/<int:pk>/`, `checklists/<int:pk>/edit/`, `checklists/<int:pk>/delete/`, plus transition endpoints (`/release/`, `/approve/`, `/post/`, etc.).
 
-- **`unique_together(tenant, X)` trap** — `TenantUniqueCodeMixin` on `LabelTemplateForm.code`, `ScannerDeviceForm.device_code`, `RFIDTagForm.epc_code`, `RFIDReaderForm.reader_code`. Test: `test_form_rejects_duplicate_code_in_same_tenant_via_clean`.
-- **Inline-formset POST-path IDOR** — `BatchScanItemForm.__init__` accepts `tenant`; view passes `form_kwargs={'tenant': tenant}` on GET + POST. Test: `test_batch_item_tenant_injection_forced_to_session_tenant`.
-- **Auto-number race** — `_save_with_number_retry` reused for `LPJ-NNNNN` + `BSS-NNNNN`. Test: `test_retry_does_not_corrupt_on_collision`.
-- **State transition triad** — every transition view is `@tenant_admin_required + @require_POST + emit_audit` + `can_transition_to` guard. Tests: `test_state_transition_requires_POST_GET_returns_405`, `test_non_admin_user_blocked_from_transition`.
-- **CRUD completeness** — 5-view CRUD (list/create/detail/edit/delete) for 7 editable models; `ScanEvent` + `RFIDReadEvent` are intentionally ledger-only (no edit/delete in UI — documented exception).
-- **Multi-tenancy** — every `Model.objects.filter(tenant=request.tenant)`; every `get_object_or_404` tenant-scoped. Test: `test_cross_tenant_*_blocked`.
-- **None-guard templates** — every nullable FK user/zone/warehouse render uses `{% if fk %}...{% endif %}` instead of `|default` chains.
-- **Seed idempotency** — verified; skip-if-exists check gates the per-tenant block.
+---
 
-### Known scope decisions
+## 7. Admin
 
-- **Tests live in `barcode_rfid/tests/`** (158 tests, first run green). Did not backfill regression-style `test_D<NN>_*` naming because this module built defects out from the start rather than finding them.
-- **PDF rendering** — synchronous + CPU-bound; fine for label batches in the hundreds. For tens of thousands, a background-worker refactor (Celery / RQ) is needed — out of scope here.
-- **Device API token auth** — simple opaque token model (no JWT / OAuth). Tokens live on `ScannerDevice.api_token`, rotatable via the "Rotate Token" UI button. If a compliance audit later requires expiring tokens / refresh flow, that's a follow-up.
-- **Scan resolution precedence** — serial → lot → RFID → product.sku → product.barcode → bin.code. Documented in `api_views._resolve_barcode`.
+`quality_control/admin.py` registers all 8 models with `TenantScopedAdmin` mixin (copied from `returns/admin.py` — 11-line pattern). Inlines: `QCChecklistItemInline`, `InspectionRouteRuleInline`, `DefectPhotoInline`.
 
-### Pre-existing repo state (NOT touched by this build)
+---
 
-- `forecasting/`, `multi_location/`, `orders/` had uncommitted modifications before this session.
-- `multi_location/tests/test_views_stock_visibility.py::test_stats_roll_up_consistent_after_collapse` fails on main as-is — belongs to that separate in-flight work. Confirmed via `git stash` that the failure is not mine.
+## 8. Seeder
 
-### Follow-ups (not in scope for this build)
+`quality_control/management/commands/seed_quality_control.py`:
+- Idempotent: `if QCChecklist.objects.filter(tenant=tenant).exists(): skip`
+- Per tenant creates:
+  - 3 QCChecklists (1 product-scoped, 1 vendor-scoped, 1 global) — 3-5 items each
+  - 2 InspectionRoutes (standard + express) with 2 rules each
+  - 4 QuarantineRecords (active/under_review/released/scrapped)
+  - 5 DefectReports across severities + sources (photos skipped — needs real files)
+  - 2 ScrapWriteOffs (pending + posted) — posted one creates real StockAdjustment
+- `--flush` flag tears down in reverse FK order
+- Prints tenant-admin credentials + the "superuser has no tenant" warning at end
 
-- Background-worker path for massive label batches.
-- Device API auth upgrade (JWT / rotating refresh tokens) if compliance demands.
-- Product-level deep-link from `LabelPrintJob.target_id` into the actual Product / Lot / Serial / Bin record (currently stored as opaque `target_id` + `target_display`). Would need a generic resolver.
-- Real-time RFID read stream ingest (WebSocket / webhook) — current API is poll-one-at-a-time.
+---
+
+## 9. Templates
+
+All templates extend `base.html`, follow conventions in `templates/barcode_rfid/`. Filter dropdowns:
+- Pass `status_choices`, `severity_choices`, `type_choices` from view context
+- Use `|stringformat:"d"` for FK pk comparison (CLAUDE.md rule)
+- Include `{% else %}` fallback `{{ obj.get_field_display }}` on badges
+- Every list has Actions column (View / Edit / Delete with CSRF + confirm)
+- Every detail has Actions sidebar (Edit / Delete / state transitions — conditional on status)
+
+---
+
+## 10. Wiring Changes
+
+1. `config/settings.py` — append `'quality_control',` to `INSTALLED_APPS`
+2. `config/urls.py` — add `path('quality-control/', include('quality_control.urls'))`
+3. `templates/partials/sidebar.html` — new `has-submenu` block after Barcode & RFID with icon `ri-shield-check-line` and 4 child links
+4. `README.md` — append Module 16 section (feature table), file-tree entry, seed command, demo-data bullets
+
+---
+
+## 11. Migration
+
+Single migration: `python manage.py makemigrations quality_control` → produces `0001_initial.py`.
+Then `python manage.py migrate quality_control`.
+
+---
+
+## 12. Out of Scope (for this task)
+
+- **Automated tests** — deferred to follow-up SQA review
+- **PDF defect/scrap reports** — would need reportlab templates
+- **Auto-trigger routing on GRN creation** — receiving module hook; Phase 2
+- **Checklist revision history** — not in requirements
+
+---
+
+## 13. Per-file Git Commit Plan (PowerShell-safe, one per file)
+
+Commits will be supplied at the end of implementation — one `git add` + `git commit` pair per file, `;`-separated for PowerShell. Estimated ~32 files × 1 commit each.
+
+---
+
+## Checklist (to be ticked as work progresses, once approved)
+
+- [ ] `quality_control/__init__.py` + `apps.py`
+- [ ] `quality_control/models.py` (8 models)
+- [ ] `quality_control/forms.py`
+- [ ] `quality_control/views.py` (~34 views)
+- [ ] `quality_control/urls.py`
+- [ ] `quality_control/admin.py`
+- [ ] `quality_control/migrations/0001_initial.py`
+- [ ] `quality_control/management/commands/seed_quality_control.py`
+- [ ] 15 templates under `templates/quality_control/`
+- [ ] `config/settings.py` — INSTALLED_APPS
+- [ ] `config/urls.py` — include
+- [ ] `templates/partials/sidebar.html` — submenu
+- [ ] `README.md` — Module 16 section
+- [ ] Migration run clean
+- [ ] Seeder runs clean on a fresh tenant
+- [ ] Smoke-test: login as `admin_acme`, walk every list/create/detail page
+- [ ] Per-file commit list supplied
+
+---
+
+## Review Section — 2026-04-19
+
+### What shipped
+- New `quality_control/` Django app (Module 16) with 8 models, 7 forms + 3 inline formsets, ~34 views, 1 migration, 1 idempotent seeder.
+- 15 templates under `templates/quality_control/` — all 5 submodule list/form/detail triads.
+- Wired into `config/settings.py` (INSTALLED_APPS), `config/urls.py` (`/quality-control/`), and `templates/partials/sidebar.html` (new submenu with 5 links + `ri-shield-check-line` icon).
+- `README.md` updated: file-tree, seed commands, demo-data bullets, Module 16 feature table. Module 16 removed from "Planned" list.
+
+### Deviations from plan
+- **Stock write path:** Plan listed `StockAdjustment(adjustment_type='write_off')`, but real `inventory.StockAdjustment.ADJUSTMENT_TYPE_CHOICES` only has `increase / decrease / correction`. Posting uses `decrease` + `reason='damage'` and calls `apply_adjustment()` — the canonical helper. Matches the pattern in `returns/` and `stocktaking/`.
+- **ScrapWriteOff status field:** Added a shadow `status` field kept in lockstep with `approval_status` in `save()`, so `StateMachineMixin.can_transition_to()` (which reads `self.status`) stays accurate without duplicating choice tuples on each call site.
+- **Segregation of duties:** Added on `scrap_approve_view` — requester cannot self-approve (matches `returns.rma_approve_view` pattern).
+- **Vendor FK label:** plan called it `vendor.name`; the real model field is `company_name`. Fixed in templates + seeder.
+
+### Smoke-test results
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations quality_control` → clean `0001_initial.py` (8 models).
+- `python manage.py migrate quality_control` — applied OK.
+- `python manage.py seed_quality_control` — seeded 3 tenants cleanly (3 checklists + 2 routes + 4 quarantines + 5 defects + 2 scrap write-offs each; scrap #2 posted a real `StockAdjustment`).
+- Re-running the seeder skipped already-seeded tenants (idempotent).
+- Django test client as `admin_acme`: 11/11 QC endpoints (all 5 list pages + 5 detail + 4 create + 1 edit) returned HTTP 200.
+
+### Out of scope (as agreed)
+- Automated pytest suite (deferred to follow-up SQA review, matching how `barcode_rfid` shipped).
+- PDF rendering for defect / scrap reports.
+- Auto-trigger of inspection routing on GRN creation (receiving hook; Phase 2).
+- Checklist revision history.
+
+### Files changed / created (32 total)
+**Created:**
+- `quality_control/__init__.py`, `apps.py`, `models.py`, `forms.py`, `views.py`, `urls.py`, `admin.py`
+- `quality_control/migrations/__init__.py`, `0001_initial.py`
+- `quality_control/management/__init__.py`, `management/commands/__init__.py`, `management/commands/seed_quality_control.py`
+- 15 templates under `templates/quality_control/`
+
+**Modified:**
+- `config/settings.py`, `config/urls.py`, `templates/partials/sidebar.html`, `README.md`, `.claude/tasks/todo.md`
