@@ -223,6 +223,21 @@ NavIMS/
 │       └── commands/
 │           └── seed_barcode_rfid.py  # Idempotent per-tenant seeder (templates, jobs, devices, RFID tags/readers/reads, batch sessions)
 │
+├── alerts_notifications/      # Module 17: Alerts & Notifications
+│   ├── models.py               # Alert (StateMachineMixin + soft-delete + ALN-NNNNN auto-number + dedup_key), NotificationRule (TenantUniqueCodeMixin + NR-NNNNN), NotificationDelivery (audit log with unique(alert, recipient, channel))
+│   ├── forms.py                # AlertForm, NotificationRuleForm (with recipient_users M2M), AlertResolveForm
+│   ├── views.py                # ~18 views — alert dashboard/list/detail/form + acknowledge/resolve/dismiss/delete state transitions, rule CRUD + toggle-active, delivery audit log, alert_inbox_json_view for topbar bell hydration; triad @tenant_admin_required + @require_POST + emit_audit on every destructive/transition endpoint
+│   ├── urls.py                 # URL routes (app_name='alerts_notifications')
+│   ├── admin.py                # TenantScopedAdmin registrations for all 3 models
+│   └── management/
+│       └── commands/
+│           ├── seed_alerts_notifications.py  # Idempotent per-tenant seeder (6 default NotificationRules, 6 sample Alerts)
+│           ├── generate_stock_alerts.py      # Scan StockLevel → low_stock / out_of_stock
+│           ├── generate_overstock_alerts.py  # Scan LocationSafetyStockRule.max_stock_qty vs StockLevel.on_hand → overstock
+│           ├── alerts_scan_expiry.py         # Scan LotBatch.expiry_date → expiry_approaching / expired (named distinctly to avoid collision with lot_tracking.generate_expiry_alerts)
+│           ├── generate_workflow_alerts.py   # Scan PO pending-approval stale hours + shipment estimated_delivery overdue → po_approval_pending / shipment_delayed
+│           └── dispatch_notifications.py     # For every undelivered Alert, expand matching NotificationRule.recipient_users, send_mail() per email-channel rule, write NotificationDelivery audit row
+│
 ├── quality_control/            # Module 16: Quality Control & Inspection
 │   ├── models.py               # QCChecklist, QCChecklistItem, InspectionRoute, InspectionRouteRule, QuarantineRecord, DefectReport, DefectPhoto, ScrapWriteOff — TenantUniqueCodeMixin + StateMachineMixin + _save_with_number_retry + soft-delete (deleted_at) on top-level docs
 │   ├── forms.py                # 7 ModelForms + 3 inline formsets (tenant-aware form_kwargs, zone-vs-warehouse cross-validation, applies-to scoping guards)
@@ -398,6 +413,19 @@ NavIMS/
 │   │   ├── batch_session_list.html     # Batch session listing with status/purpose/warehouse filters
 │   │   ├── batch_session_form.html     # Batch session create/edit with inline item formset
 │   │   └── batch_session_detail.html   # Batch session detail with items + complete/cancel actions
+│   ├── alerts_notifications/
+│   │   ├── alert_dashboard.html        # KPI cards + open-by-type breakdown + recent-alerts table
+│   │   ├── alert_list.html             # Alert inbox with search + status/severity/type/warehouse filters + action buttons
+│   │   ├── alert_detail.html           # Alert detail with source-object card + delivery log + sidebar actions (Acknowledge / Resolve / Dismiss / Delete)
+│   │   ├── alert_form.html             # Manual alert create form
+│   │   ├── rule_list.html              # Notification rule listing with alert-type / active filters
+│   │   ├── rule_form.html              # Rule create/edit with recipient-users multi-select
+│   │   ├── rule_detail.html            # Rule detail with recipients list + matching-alerts table + actions
+│   │   ├── delivery_list.html          # Notification delivery audit log with status/channel filters
+│   │   ├── delivery_detail.html        # Single-delivery detail view
+│   │   └── partials/
+│   │       ├── _alert_badge.html       # Severity + status pill fragment (reusable)
+│   │       └── _alert_inbox_item.html  # Topbar-dropdown row fragment
 │   ├── quality_control/
 │   │   ├── checklist_list.html         # QC checklist listing with scope/active filters
 │   │   ├── checklist_form.html         # Checklist create/edit with inline item formset
@@ -505,6 +533,7 @@ NavIMS/
    python manage.py seed_forecasting
    python manage.py seed_barcode_rfid
    python manage.py seed_quality_control
+   python manage.py seed_alerts_notifications
    ```
 
    To reset and re-seed:
@@ -525,6 +554,16 @@ NavIMS/
    python manage.py seed_forecasting --flush
    python manage.py seed_barcode_rfid --flush
    python manage.py seed_quality_control --flush
+   python manage.py seed_alerts_notifications --flush
+   ```
+
+   After seeding, run the alert scanners and dispatcher (safe to schedule in cron):
+   ```bash
+   python manage.py generate_stock_alerts
+   python manage.py generate_overstock_alerts
+   python manage.py alerts_scan_expiry
+   python manage.py generate_workflow_alerts
+   python manage.py dispatch_notifications
    ```
 
 ---
@@ -756,6 +795,8 @@ The seed command creates the following demo accounts:
 - 4 quarantine records per tenant across all statuses (active, under_review, released, scrapped)
 - 5 defect reports per tenant across severities (minor/major/critical) and sources (receiving, stocktaking, customer_return, production)
 - 2 scrap write-offs per tenant (1 pending, 1 posted — posted creates a real negative StockAdjustment inside transaction.atomic + select_for_update)
+- 6 notification rules per tenant (one per alert type: out_of_stock, low_stock, overstock, expired, po_approval_pending, shipment_delayed) with all tenant admins as recipients
+- 6 sample alerts per tenant across all statuses (new / acknowledged / resolved) and all alert categories, wired to real products, warehouses, lots, POs, and shipments
 
 ---
 
@@ -942,11 +983,25 @@ The seed command creates the following demo accounts:
 | Stock integration        | Quarantine is a logical hold (no physical stock move); scrap posting is the *only* path that decrements `StockLevel.on_hand`. Every mutation re-uses `StockAdjustment.apply_adjustment()` — the single canonical write path already exercised by `stocktaking` and `returns`. |
 | RBAC + Audit             | Every create / edit / delete / state-change view carries the `@tenant_admin_required` + `@require_POST` + `emit_audit` triad; reads stay open to all tenant users. `TenantScopedAdmin` scopes admin visibility per tenant. |
 
+### Module 17: Alerts & Notifications (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Low Stock & Out-of-Stock Alerts | `generate_stock_alerts` scanner reads `inventory.StockLevel`: `available <= 0` emits a `critical out_of_stock` alert, `needs_reorder` emits a `warning low_stock` alert. Every alert stores threshold + current value and links to the stock_level row for one-click navigation. |
+| Overstock Alerts         | `generate_overstock_alerts` scanner reads `multi_location.LocationSafetyStockRule.max_stock_qty` (> 0) and flags any `StockLevel.on_hand > max_stock_qty` at a warehouse that maps to a location with a rule. No schema change to `inventory.StockLevel` — thresholds come from the existing location-rule table. |
+| Expiry Alerts            | `alerts_scan_expiry` scanner reads `LotBatch.expiry_date` (active lots only): `expiry_date < today` → `critical expired`; within `--days-ahead N` (default 30) → `warning expiry_approaching`. Named `alerts_scan_expiry` to avoid colliding with the pre-existing `lot_tracking.generate_expiry_alerts` (which still populates `lot_tracking.ExpiryAlert`; the two systems now coexist, with `alerts_notifications.Alert` as the canonical inbox going forward). |
+| Workflow Triggers        | `generate_workflow_alerts` scanner covers two sources: (a) `PurchaseOrder.status='pending_approval'` AND `updated_at` older than `--po-stale-hours` (default 48) → `po_approval_pending`; (b) `Shipment.estimated_delivery_date + --grace-days < today` with status in pending/dispatched/in_transit → `shipment_delayed`. An `import_failed` enum value is reserved for a future sprint when a central import-log model lands. |
+| Alert State Machine      | Every `Alert` carries `StateMachineMixin` with `VALID_TRANSITIONS = {new: [acknowledged, dismissed], acknowledged: [resolved, dismissed], resolved: [], dismissed: []}`. Views enforce transitions server-side (`can_transition_to` + `@require_POST` + `emit_audit`), preventing drive-by status edits via GET. |
+| Dedup by Day             | Every scanner computes `dedup_key = "{alert_type}:{source_kind}:{source_pk}:{YYYY-MM-DD}"` and skips creation if the tenant already has that key. Safe to run every scanner multiple times per day — no duplicate alerts. |
+| Notification Rules       | Tenant admins configure `NotificationRule` rows (`NR-NNNNN`) that bind an `alert_type` + `min_severity` threshold to a `recipient_users` M2M + email/in-app channel flags. Rules can be toggled active/inactive without deletion. |
+| Email Dispatch + Audit   | `dispatch_notifications` command iterates all open alerts without a matching delivery, resolves matching active rules, expands recipients, calls `django.core.mail.send_mail()` for email channels, and writes a `NotificationDelivery` row per (alert, recipient, channel). Delivery failures (e.g. missing email) are logged with error_message for visibility; idempotent via `unique_together(alert, recipient, channel)`. |
+| Topbar Bell Integration  | The existing topbar bell dropdown now hydrates from `alert_inbox_json` on every page load, showing the current tenant's top-5 unread alerts with severity-coded icons, each deep-linking to the alert detail. |
+| RBAC + Audit             | Every create/edit/delete/state-change view carries the `@tenant_admin_required` + `@require_POST` + `emit_audit` triad; reads stay open to all tenant users. `TenantScopedAdmin` scopes admin visibility per tenant. |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 17 | Alerts & Notifications          | Low stock, overstock, expiry, workflow alerts  |
 | 18 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
 | 19 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
 | 20 | Third-Party Integrations & API  | E-commerce, ERP, accounting software sync      |
