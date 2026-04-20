@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quality_control:defect_list' %}">Defects</a></li>
+        <li class="breadcrumb-item active">{% if defect %}Edit{% else %}New{% endif %}</li>
+    </ol></div>
+</div></div></div>
+
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card"><div class="card-header"><h5 class="card-title mb-0">Defect Details</h5></div><div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Product <span class="text-danger">*</span></label>{{ form.product }}{% if form.product.errors %}<div class="text-danger small">{{ form.product.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-3 mb-3"><label class="form-label">Qty Affected <span class="text-danger">*</span></label>{{ form.quantity_affected }}{% if form.quantity_affected.errors %}<div class="text-danger small">{{ form.quantity_affected.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-3 mb-3"><label class="form-label">Warehouse <span class="text-danger">*</span></label>{{ form.warehouse }}{% if form.warehouse.errors %}<div class="text-danger small">{{ form.warehouse.errors.0 }}</div>{% endif %}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Defect Type</label>{{ form.defect_type }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Severity</label>{{ form.severity }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Source</label>{{ form.source }}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Lot / Batch</label>{{ form.lot }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Serial</label>{{ form.serial }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Source GRN</label>{{ form.grn }}</div>
+                </div>
+                <div class="mb-3"><label class="form-label">Linked Quarantine</label>{{ form.quarantine_record }}</div>
+                <div class="mb-0"><label class="form-label">Description <span class="text-danger">*</span></label>{{ form.description }}{% if form.description.errors %}<div class="text-danger small">{{ form.description.errors.0 }}</div>{% endif %}</div>
+            </div></div>
+
+            <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Photos</h5></div><div class="card-body">
+                {% if formset %}
+                {{ formset.management_form }}
+                {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
+                <div class="row">
+                {% for f in formset %}
+                    <div class="col-md-4 mb-3">
+                        {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                        <label class="form-label small">Photo</label>{{ f.image }}
+                        {% if f.image.errors %}<div class="text-danger small">{{ f.image.errors.0 }}</div>{% endif %}
+                        {{ f.caption }}
+                        {% if f.instance.pk %}
+                            <div class="form-check mt-1">{{ f.DELETE }}<label class="form-check-label small">Delete this photo</label></div>
+                            {% if f.instance.image %}<a href="{{ f.instance.image.url }}" target="_blank" class="small">View current</a>{% endif %}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                </div>
+                {% endif %}
+            </div></div>
+        </div>
+        <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div><div class="card-body">
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{% if defect %}Update Defect{% else %}Report Defect{% endif %}</button>
+                {% if defect %}<a href="{% url 'quality_control:defect_detail' defect.pk %}" class="btn btn-light">Cancel</a>
+                {% else %}<a href="{% url 'quality_control:defect_list' %}" class="btn btn-light">Cancel</a>{% endif %}
+            </div>
+        </div></div></div>
+    </div>
+</form>
+{% endblock %}
