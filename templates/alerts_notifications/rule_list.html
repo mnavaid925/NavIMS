@@ -55,7 +55,7 @@
                     {% if r.notify_email %}<i class="ri-mail-line text-primary" title="Email"></i>{% endif %}
                     {% if r.notify_inbox %}<i class="ri-notification-2-line text-info ms-1" title="In-App"></i>{% endif %}
                 </td>
-                <td><small>{{ r.recipient_users.count }} user{{ r.recipient_users.count|pluralize }}</small></td>
+                <td><small>{{ r.recipient_users.all|length }} user{{ r.recipient_users.all|length|pluralize }}</small></td>
                 <td>{% if r.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</td>
                 <td class="text-center"><div class="d-flex gap-1 justify-content-center">
                     <a href="{% url 'alerts_notifications:rule_detail' r.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
