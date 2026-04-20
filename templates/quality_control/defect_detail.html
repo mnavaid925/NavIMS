@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}{{ defect.defect_number }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0 font-monospace">{{ defect.defect_number }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quality_control:defect_list' %}">Defects</a></li>
+        <li class="breadcrumb-item active">{{ defect.defect_number }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Defect Info</h5>
+            {% if defect.severity == 'minor' %}<span class="badge bg-info-subtle text-info me-2">Minor</span>
+            {% elif defect.severity == 'major' %}<span class="badge bg-warning-subtle text-warning me-2">Major</span>
+            {% elif defect.severity == 'critical' %}<span class="badge bg-danger-subtle text-danger me-2">Critical</span>{% endif %}
+            {% if defect.status == 'open' %}<span class="badge bg-warning-subtle text-warning">Open</span>
+            {% elif defect.status == 'investigating' %}<span class="badge bg-info-subtle text-info">Investigating</span>
+            {% elif defect.status == 'resolved' %}<span class="badge bg-success-subtle text-success">Resolved</span>
+            {% elif defect.status == 'scrapped' %}<span class="badge bg-danger-subtle text-danger">Scrapped</span>
+            {% else %}<span class="badge bg-light">{{ defect.get_status_display }}</span>{% endif %}
+        </div><div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Number</dt><dd class="col-sm-8 font-monospace">{{ defect.defect_number }}</dd>
+                <dt class="col-sm-4">Product</dt><dd class="col-sm-8">{{ defect.product.sku }} — {{ defect.product.name }}</dd>
+                <dt class="col-sm-4">Warehouse</dt><dd class="col-sm-8">{{ defect.warehouse.name }}</dd>
+                <dt class="col-sm-4">Quantity Affected</dt><dd class="col-sm-8">{{ defect.quantity_affected }}</dd>
+                <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ defect.get_defect_type_display }}</dd>
+                <dt class="col-sm-4">Severity</dt><dd class="col-sm-8">{{ defect.get_severity_display }}</dd>
+                <dt class="col-sm-4">Source</dt><dd class="col-sm-8">{{ defect.get_source_display }}</dd>
+                {% if defect.lot %}<dt class="col-sm-4">Lot</dt><dd class="col-sm-8">{{ defect.lot.lot_number|default:defect.lot.pk }}</dd>{% endif %}
+                {% if defect.serial %}<dt class="col-sm-4">Serial</dt><dd class="col-sm-8">{{ defect.serial.serial_number|default:defect.serial.pk }}</dd>{% endif %}
+                {% if defect.grn %}<dt class="col-sm-4">GRN</dt><dd class="col-sm-8">{{ defect.grn.grn_number|default:defect.grn.pk }}</dd>{% endif %}
+                {% if defect.quarantine_record %}<dt class="col-sm-4">Quarantine</dt><dd class="col-sm-8"><a href="{% url 'quality_control:quarantine_detail' defect.quarantine_record.pk %}">{{ defect.quarantine_record.quarantine_number }}</a></dd>{% endif %}
+                <dt class="col-sm-4">Description</dt><dd class="col-sm-8">{{ defect.description|linebreaksbr }}</dd>
+                <dt class="col-sm-4">Reported</dt><dd class="col-sm-8">{{ defect.created_at|date:"Y-m-d H:i" }}{% if defect.reported_by %} by {{ defect.reported_by.get_full_name|default:defect.reported_by.username }}{% endif %}</dd>
+                {% if defect.resolved_at %}
+                    <dt class="col-sm-4">Resolved</dt><dd class="col-sm-8">{{ defect.resolved_at|date:"Y-m-d H:i" }}{% if defect.resolved_by %} by {{ defect.resolved_by.get_full_name|default:defect.resolved_by.username }}{% endif %}</dd>
+                    {% if defect.resolution_notes %}<dt class="col-sm-4">Resolution</dt><dd class="col-sm-8">{{ defect.resolution_notes|linebreaksbr }}</dd>{% endif %}
+                {% endif %}
+            </dl>
+        </div></div>
+
+        {% if photos %}
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Photos ({{ photos.count }})</h5></div><div class="card-body">
+            <div class="row">
+            {% for p in photos %}
+                <div class="col-md-4 mb-3">
+                    <div class="card border">
+                        <a href="{{ p.image.url }}" target="_blank"><img src="{{ p.image.url }}" class="card-img-top" alt="{{ p.caption|default:'Defect photo' }}" style="max-height:180px; object-fit:cover;"></a>
+                        <div class="card-body p-2">
+                            <div class="small text-muted">{{ p.uploaded_at|date:"Y-m-d H:i" }}</div>
+                            {% if p.caption %}<div class="small">{{ p.caption }}</div>{% endif %}
+                            {% if defect.status == 'open' or defect.status == 'investigating' %}
+                            <form method="post" action="{% url 'quality_control:defect_photo_delete' defect.pk p.pk %}" onsubmit="return confirm('Delete this photo?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger mt-1"><i class="ri-delete-bin-line"></i> Remove</button></form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        </div></div>
+        {% endif %}
+
+        {% if scrap_writeoffs %}
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Scrap Write-Offs</h5></div><div class="card-body p-0">
+            <div class="table-responsive"><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Number</th><th>Qty</th><th>Value</th><th>Status</th></tr></thead><tbody>
+            {% for s in scrap_writeoffs %}<tr>
+                <td><a href="{% url 'quality_control:scrap_detail' s.pk %}">{{ s.scrap_number }}</a></td>
+                <td>{{ s.quantity }}</td>
+                <td>{{ s.total_value }}</td>
+                <td>{{ s.get_approval_status_display }}</td>
+            </tr>{% endfor %}
+            </tbody></table></div>
+        </div></div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div><div class="card-body">
+        <div class="d-grid gap-2">
+            {% if defect.status == 'open' %}
+                <form method="post" action="{% url 'quality_control:defect_investigate' defect.pk %}" onsubmit="return confirm('Start investigating this defect?');">{% csrf_token %}<button class="btn btn-info w-100"><i class="ri-search-eye-line me-1"></i>Start Investigation</button></form>
+            {% endif %}
+            {% if defect.status == 'open' or defect.status == 'investigating' %}
+                <form method="post" action="{% url 'quality_control:defect_resolve' defect.pk %}" onsubmit="return confirm('Mark this defect as resolved?');">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-check-line me-1"></i>Resolve</button></form>
+                <form method="post" action="{% url 'quality_control:defect_scrap' defect.pk %}" onsubmit="return confirm('Mark this defect as scrapped?');">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-delete-bin-line me-1"></i>Scrap</button></form>
+                <a href="{% url 'quality_control:defect_edit' defect.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+            {% endif %}
+            {% if defect.status == 'open' %}
+                <form method="post" action="{% url 'quality_control:defect_delete' defect.pk %}" onsubmit="return confirm('Delete defect {{ defect.defect_number }}?');">{% csrf_token %}<button class="btn btn-soft-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button></form>
+            {% endif %}
+            <a href="{% url 'quality_control:defect_list' %}" class="btn btn-light">Back to List</a>
+        </div>
+    </div></div></div>
+</div>
+{% endblock %}
