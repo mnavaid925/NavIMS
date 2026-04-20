@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Delivery #{{ delivery.pk }}{% endblock %}
+{% block content %}
+
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Delivery #{{ delivery.pk }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'alerts_notifications:delivery_list' %}">Delivery Log</a></li>
+        <li class="breadcrumb-item active">#{{ delivery.pk }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8"><div class="card">
+        <div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Delivery Details</h5>
+            {% if delivery.status == 'sent' %}<span class="badge bg-success-subtle text-success">Sent</span>
+            {% elif delivery.status == 'failed' %}<span class="badge bg-danger-subtle text-danger">Failed</span>
+            {% else %}<span class="badge bg-secondary-subtle text-secondary">Pending</span>{% endif %}
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Alert</dt><dd class="col-sm-9"><a href="{% url 'alerts_notifications:alert_detail' delivery.alert.pk %}" class="font-monospace">{{ delivery.alert.alert_number }}</a> — {{ delivery.alert.title }}</dd>
+                <dt class="col-sm-3">Channel</dt><dd class="col-sm-9">{{ delivery.get_channel_display }}</dd>
+                <dt class="col-sm-3">Recipient</dt><dd class="col-sm-9">{{ delivery.recipient.username|default:"—" }}</dd>
+                <dt class="col-sm-3">Recipient Email</dt><dd class="col-sm-9">{{ delivery.recipient_email|default:"—" }}</dd>
+                <dt class="col-sm-3">Rule</dt><dd class="col-sm-9">{% if delivery.rule %}<a href="{% url 'alerts_notifications:rule_detail' delivery.rule.pk %}" class="font-monospace">{{ delivery.rule.code }}</a> — {{ delivery.rule.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ delivery.created_at|date:"Y-m-d H:i:s" }}</dd>
+                <dt class="col-sm-3">Sent</dt><dd class="col-sm-9">{{ delivery.sent_at|date:"Y-m-d H:i:s"|default:"—" }}</dd>
+                {% if delivery.error_message %}<dt class="col-sm-3">Error</dt><dd class="col-sm-9 text-danger">{{ delivery.error_message }}</dd>{% endif %}
+            </dl>
+        </div>
+    </div></div>
+    <div class="col-lg-4"><div class="card">
+        <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+        <div class="card-body"><div class="d-grid gap-2">
+            <a href="{% url 'alerts_notifications:alert_detail' delivery.alert.pk %}" class="btn btn-primary"><i class="ri-eye-line me-1"></i>View Alert</a>
+            <a href="{% url 'alerts_notifications:delivery_list' %}" class="btn btn-light">Back to Log</a>
+        </div></div>
+    </div></div>
+</div>
+
+{% endblock %}
