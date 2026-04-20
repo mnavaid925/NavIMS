@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -10,7 +12,6 @@ from django.views.decorators.http import require_POST
 
 from core.decorators import emit_audit, tenant_admin_required
 
-from catalog.models import Product
 from warehousing.models import Warehouse
 
 from .forms import AlertForm, AlertResolveForm, NotificationRuleForm
@@ -100,6 +101,7 @@ def alert_list_view(request):
 
     paginator = Paginator(qs, 20)
     page = paginator.get_page(request.GET.get('page'))
+    # D-09: `products` context was unused by the template; dropped to save a query.
     return render(request, 'alerts_notifications/alert_list.html', {
         'alerts': page,
         'q': q,
@@ -111,7 +113,6 @@ def alert_list_view(request):
         'status_choices': Alert.STATUS_CHOICES,
         'severity_choices': SEVERITY_CHOICES,
         'alert_type_choices': ALERT_TYPE_CHOICES,
-        'products': Product.objects.filter(tenant=tenant, is_active=True).order_by('sku'),
         'warehouses': Warehouse.objects.filter(tenant=tenant, is_active=True).order_by('code'),
     })
 
@@ -138,14 +139,18 @@ def alert_detail_view(request, pk):
 @tenant_admin_required
 def alert_create_view(request):
     tenant = request.tenant
+    # D-01: `obj.save()` dereferences `self.tenant` to auto-generate ALN-NNNNN;
+    # with tenant=None the FK descriptor raises RelatedObjectDoesNotExist → 500.
+    if tenant is None:
+        messages.error(request, 'No tenant context — log in as a tenant admin to create alerts.')
+        return redirect('alerts_notifications:alert_list')
     if request.method == 'POST':
         form = AlertForm(request.POST, tenant=tenant)
         if form.is_valid():
             obj = form.save(commit=False)
             obj.tenant = tenant
-            # Manual alerts use a timestamp-based dedup key so they don't
-            # collide with scanner output and don't dedup against each other.
-            obj.dedup_key = f'manual:{timezone.now().timestamp()}'
+            # D-06: uuid4 avoids float-timestamp collisions under concurrent submit.
+            obj.dedup_key = f'manual:{uuid.uuid4().hex}'
             obj.save()
             emit_audit(request, 'create', obj)
             messages.success(request, f'Alert "{obj.alert_number}" created.')
@@ -154,6 +159,32 @@ def alert_create_view(request):
         form = AlertForm(tenant=tenant)
     return render(request, 'alerts_notifications/alert_form.html', {
         'form': form, 'title': 'New Alert',
+    })
+
+
+@login_required
+@tenant_admin_required
+def alert_edit_view(request, pk):
+    """Edit a manually-created alert. Scanner-generated alerts are immutable
+    because their fields are deterministic outputs of the scanner input —
+    editing would desynchronise them from the dedup_key. D-03 policy fix.
+    """
+    tenant = request.tenant
+    alert = get_object_or_404(Alert, pk=pk, tenant=tenant, deleted_at__isnull=True)
+    if not alert.dedup_key.startswith('manual:'):
+        messages.error(request, 'Scanner-generated alerts cannot be edited. Use Acknowledge / Resolve / Dismiss instead.')
+        return redirect('alerts_notifications:alert_detail', pk=alert.pk)
+    if request.method == 'POST':
+        form = AlertForm(request.POST, instance=alert, tenant=tenant)
+        if form.is_valid():
+            form.save()
+            emit_audit(request, 'update', alert)
+            messages.success(request, f'Alert "{alert.alert_number}" updated.')
+            return redirect('alerts_notifications:alert_detail', pk=alert.pk)
+    else:
+        form = AlertForm(instance=alert, tenant=tenant)
+    return render(request, 'alerts_notifications/alert_form.html', {
+        'form': form, 'alert': alert, 'title': f'Edit {alert.alert_number}',
     })
 
 
@@ -186,11 +217,18 @@ def alert_resolve_view(request, pk):
         messages.error(request, f'Cannot resolve an alert in "{alert.get_status_display()}" state. Acknowledge it first.')
         return redirect('alerts_notifications:alert_detail', pk=alert.pk)
     old = alert.status
-    note_text = request.POST.get('notes', '').strip()
+    # D-04: validate via AlertResolveForm (max_length=2000 per submission) and
+    # cap aggregate alert.notes to 16 KB to prevent long-term bloat.
+    resolve_form = AlertResolveForm(request.POST)
+    if not resolve_form.is_valid():
+        messages.error(request, 'Resolution notes rejected: ' + '; '.join(resolve_form.errors.get('notes', [])))
+        return redirect('alerts_notifications:alert_detail', pk=alert.pk)
+    note_text = resolve_form.cleaned_data.get('notes', '').strip()
     if note_text:
         stamp = timezone.now().strftime('%Y-%m-%d %H:%M')
         prefix = f'\n\n[{stamp} — {request.user.username}]\n' if alert.notes else ''
-        alert.notes = f'{alert.notes}{prefix}{note_text}'
+        combined = f'{alert.notes}{prefix}{note_text}'
+        alert.notes = combined[-16384:] if len(combined) > 16384 else combined
     alert.status = 'resolved'
     alert.resolved_at = timezone.now()
     alert.save(update_fields=['status', 'resolved_at', 'notes', 'updated_at'])
@@ -300,6 +338,11 @@ def rule_list_view(request):
 @tenant_admin_required
 def rule_create_view(request):
     tenant = request.tenant
+    # D-02: `obj.save()` dereferences `self.tenant` to auto-generate NR-NNNNN;
+    # with tenant=None the FK descriptor raises RelatedObjectDoesNotExist → 500.
+    if tenant is None:
+        messages.error(request, 'No tenant context — log in as a tenant admin to create notification rules.')
+        return redirect('alerts_notifications:rule_list')
     if request.method == 'POST':
         form = NotificationRuleForm(request.POST, tenant=tenant)
         if form.is_valid():
