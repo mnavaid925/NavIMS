@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">{{ title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'alerts_notifications:alert_list' %}">Alerts</a></li>
+        <li class="breadcrumb-item active">New</li>
+    </ol></div>
+</div></div></div>
+
+<form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    <div class="row">
+        <div class="col-lg-8"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Alert Details</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Type <span class="text-danger">*</span></label>{{ form.alert_type }}{% if form.alert_type.errors %}<div class="text-danger small">{{ form.alert_type.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Severity</label>{{ form.severity }}</div>
+                </div>
+                <div class="mb-3"><label class="form-label">Title <span class="text-danger">*</span></label>{{ form.title }}{% if form.title.errors %}<div class="text-danger small">{{ form.title.errors.0 }}</div>{% endif %}</div>
+                <div class="mb-3"><label class="form-label">Message</label>{{ form.message }}</div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Product</label>{{ form.product }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Warehouse</label>{{ form.warehouse }}</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Threshold Value</label>{{ form.threshold_value }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Current Value</label>{{ form.current_value }}</div>
+                </div>
+                <div class="mb-3"><label class="form-label">Notes</label>{{ form.notes }}</div>
+            </div>
+        </div></div>
+        <div class="col-lg-4"><div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+            <div class="card-body"><div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>Create Alert</button>
+                <a href="{% url 'alerts_notifications:alert_list' %}" class="btn btn-light">Cancel</a>
+            </div></div>
+        </div></div>
+    </div>
+</form>
+
+{% endblock %}
