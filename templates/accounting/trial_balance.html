@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Trial Balance{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Trial Balance</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounting:overview' %}">Accounting</a></li>
+        <li class="breadcrumb-item active">Trial Balance</li>
+    </ol></div>
+</div></div></div>
+
+<div class="card"><div class="card-header d-flex align-items-center">
+    <h5 class="card-title mb-0 flex-grow-1">Posted Journal Lines by Account</h5>
+    {% if is_balanced %}<span class="badge bg-success-subtle text-success"><i class="ri-check-line"></i>&nbsp;Balanced</span>
+    {% else %}<span class="badge bg-danger-subtle text-danger"><i class="ri-error-warning-line"></i>&nbsp;Out of balance</span>{% endif %}
+</div>
+<div class="card-body"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">
+    <thead class="table-light"><tr>
+        <th>Code</th><th>Account</th><th>Type</th>
+        <th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Net</th>
+    </tr></thead>
+    <tbody>
+    {% for row in rows %}
+    <tr>
+        <td class="font-monospace">{{ row.account.code }}</td>
+        <td>{{ row.account.name }}</td>
+        <td><small class="text-muted">{{ row.account.get_account_type_display }}</small></td>
+        <td class="text-end">{% if row.debit %}${{ row.debit|floatformat:2 }}{% else %}—{% endif %}</td>
+        <td class="text-end">{% if row.credit %}${{ row.credit|floatformat:2 }}{% else %}—{% endif %}</td>
+        <td class="text-end {% if row.net > 0 %}text-success{% elif row.net < 0 %}text-danger{% endif %}">
+            ${{ row.net|floatformat:2 }}
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="text-center text-muted py-4"><i class="ri-inbox-line fs-24 d-block mb-2"></i>No accounts to report.</td></tr>
+    {% endfor %}
+    </tbody>
+    <tfoot class="table-light"><tr>
+        <th colspan="3" class="text-end">Totals</th>
+        <th class="text-end">${{ total_debit|floatformat:2 }}</th>
+        <th class="text-end">${{ total_credit|floatformat:2 }}</th>
+        <th></th>
+    </tr></tfoot>
+</table></div></div></div>
+{% endblock %}
