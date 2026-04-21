@@ -223,6 +223,20 @@ NavIMS/
 │       └── commands/
 │           └── seed_barcode_rfid.py  # Idempotent per-tenant seeder (templates, jobs, devices, RFID tags/readers/reads, batch sessions)
 │
+├── accounting/                # Module 19: Accounting & Financial Integration
+│   ├── models.py               # ChartOfAccount, FiscalPeriod, Customer, TaxJurisdiction, TaxRule, APBill/Line, ARInvoice/Line, JournalEntry/Line — TenantUniqueCodeMixin + StateMachineMixin + _save_with_number_retry + soft-delete + sync_status
+│   ├── forms.py                # 11 ModelForms + 3 inline formsets with tenant-aware __init__ closing formset-FK IDOR; JournalLine debit-xor-credit validator
+│   ├── views.py                # ~45 views — CRUD for all 11 models + state transitions + 3 dashboards + trial balance + tax calculator + 3 generate-from-source endpoints; triad @login_required + @tenant_admin_required + @require_POST + emit_audit on every destructive/transition endpoint; segregation-of-duties (creator ≠ poster) on JournalEntry + APBill
+│   ├── urls.py                 # Accounting URL routes
+│   ├── admin.py                # TenantScopedAdmin registrations for all 11 models + inlines for AP/AR/JE lines
+│   ├── tests/                  # 74 tests — models (auto-number, state machines, tenant-sequence independence), forms (tenant scoping, debit-xor-credit, unique_together), views (CRUD, RBAC, @require_POST), security (OWASP A01 cross-tenant IDOR across 8 endpoints, A08 CSRF 405, RBAC 403 on non-admin), commands (idempotency for seed + 3 generators)
+│   └── management/
+│       └── commands/
+│           ├── seed_accounting.py         # Idempotent per-tenant seeder (10 COA + 1 FiscalPeriod + N Customers from SalesOrder + 3 Jurisdictions + 9 TaxRules + AP/AR/JE from existing data)
+│           ├── generate_ap_bills.py       # Scan matched VendorInvoices → APBill (dedup by source_invoice)
+│           ├── generate_ar_invoices.py    # Scan delivered Shipments → ARInvoice (dedup by source_shipment)
+│           └── generate_journal_entries.py# Scan StockAdjustment + ScrapWriteOff → draft JournalEntry
+│
 ├── reporting/                 # Module 18: Reporting & Analytics
 │   ├── models.py               # ReportSnapshot — single table with `report_type` discriminator (21 slugs), `parameters`/`summary`/`data` JSONFields, RPT-NNNNN auto-number via `_save_with_number_retry`, unique_together(tenant, report_number)
 │   ├── registry.py             # REPORTS dict mapping 21 report_type slugs → {title, section, service, form, chart_type, csv_columns, icon} + SECTIONS metadata for the 5-section sidebar
@@ -429,6 +443,22 @@ NavIMS/
 │   │   ├── batch_session_list.html     # Batch session listing with status/purpose/warehouse filters
 │   │   ├── batch_session_form.html     # Batch session create/edit with inline item formset
 │   │   └── batch_session_detail.html   # Batch session detail with items + complete/cancel actions
+│   ├── accounting/
+│   │   ├── overview.html              # 4-card landing (AP / AR / JE / Tax)
+│   │   ├── ap_dashboard.html          # AP KPIs + aging buckets + sync status
+│   │   ├── ar_dashboard.html          # AR KPIs + aging buckets + sync status
+│   │   ├── journal_dashboard.html     # JE KPIs + recent-entries table
+│   │   ├── tax_dashboard.html         # Jurisdictions + active tax rules
+│   │   ├── trial_balance.html         # GL balances by account with balanced/unbalanced badge
+│   │   ├── tax_calculator.html        # Interactive product × jurisdiction → rate preview
+│   │   ├── chart_of_account_list/form/detail.html   (3)
+│   │   ├── fiscal_period_list/form/detail.html      (3 — with open/close/reopen actions)
+│   │   ├── customer_list/form/detail.html           (3)
+│   │   ├── tax_jurisdiction_list/form/detail.html   (3)
+│   │   ├── tax_rule_list/form/detail.html           (3)
+│   │   ├── ap_bill_list/form/detail.html            (3 — with inline line formset + state transitions)
+│   │   ├── ar_invoice_list/form/detail.html         (3 — with inline line formset + state transitions)
+│   │   └── journal_entry_list/form/detail.html      (3 — with inline debit/credit lines + post/void actions)
 │   ├── alerts_notifications/
 │   │   ├── alert_dashboard.html        # KPI cards + open-by-type breakdown + recent-alerts table
 │   │   ├── alert_list.html             # Alert inbox with search + status/severity/type/warehouse filters + action buttons
@@ -556,6 +586,7 @@ NavIMS/
    python manage.py seed_quality_control
    python manage.py seed_alerts_notifications
    python manage.py seed_reporting
+   python manage.py seed_accounting
    ```
 
    To reset and re-seed:
@@ -578,6 +609,7 @@ NavIMS/
    python manage.py seed_quality_control --flush
    python manage.py seed_alerts_notifications --flush
    python manage.py seed_reporting --flush
+   python manage.py seed_accounting --flush
    ```
 
    After seeding, run the alert scanners and dispatcher (safe to schedule in cron):
@@ -587,6 +619,13 @@ NavIMS/
    python manage.py alerts_scan_expiry
    python manage.py generate_workflow_alerts
    python manage.py dispatch_notifications
+   ```
+
+   To refresh accounting staging from upstream documents (idempotent, safe to cron):
+   ```bash
+   python manage.py generate_ap_bills           # matched VendorInvoices → APBill
+   python manage.py generate_ar_invoices        # delivered Shipments → ARInvoice
+   python manage.py generate_journal_entries    # StockAdjustment + ScrapWriteOff → draft JournalEntry
    ```
 
 ---
@@ -673,9 +712,10 @@ Reference implementation: [receiving/tests/](./receiving/tests/) and [stock_move
 | quality_control   | 82    | QC checklists, inspection routes, quarantine, defect reports (with photo uploads), scrap write-offs — OWASP A01/A03/A08/A09 matrix, D-01 scrap-post race guard (monkey-patched simulation), D-02 N+1 budgets, D-03 upload hygiene (ext + size + magic bytes), D-04 queryset-union regression, D-07 lot/serial vs product match, D-11 photo-delete gate, segregation-of-duties on scrap approval, atomic `decrease` StockAdjustment via `apply_adjustment()` |
 | alerts_notifications | 101 | Alert CRUD + state machine + inbox JSON, NotificationRule CRUD + toggle-active, Delivery audit log, 4 scanners + dispatcher — OWASP A01 IDOR sweep across 10 endpoints, CSRF 405 on @require_POST, RBAC 403 on tenant_admin_required, A03 XSS via topbar escapeHtml(), A09 AuditLog on every mutation, D-01/D-02 superuser-tenant-None create guard, D-04 notes cap 2000/16384, D-06 uuid4 dedup_key, D-11 rule_list |length budget, min_severity threshold matching, dispatcher idempotency via unique_together(alert, recipient, channel) |
 | reporting         | 51    | `ReportSnapshot` single-model + 21-slug registry — auto-number RPT-NNNNN, per-tenant sequence independence, JSON field round-trip; services invariants (valuation totals, aging bucket classification, ABC threshold split, turnover shape); forms (a+b<100, period ordering, tenant-scoped warehouse/category queryset, cross-tenant FK rejection); views for each of the 21 report types (list/generate/detail/delete/CSV/PDF); security — cross-tenant IDOR on detail/delete/CSV/PDF, wrong-report-type-for-pk IDOR, POST-only on delete (405 on GET), RBAC 403 on generate/delete for non-admin, anonymous redirected; regression guards against Vendor.company_name / Alert.triggered_at / DemandForecastLine.period_start_date / GRN.purchase_order.vendor schemas |
-| **Total**         | **1671** | |
+| accounting        | 74    | ChartOfAccount / FiscalPeriod / Customer / TaxJurisdiction / TaxRule / APBill+Line / ARInvoice+Line / JournalEntry+Line — auto-number (`FP-`, `CUST-`, `TRL-`, `BIL-`, `ARI-`, `JE-`) per tenant with independent sequences, unique_together(tenant, X) form-layer guards via `TenantUniqueCodeMixin`, state-machine transitions (draft → pending → approved → posted → paid / voided), JournalLine debit-xor-credit invariant; tenant-scoped FK querysets closing inline-formset IDOR; views — CRUD + state transitions + 3 dashboards + trial balance + tax calculator; security — OWASP A01 cross-tenant IDOR across 8 detail/delete/post endpoints, A08 CSRF 405 on GET across 6 mutating endpoints, RBAC 403 for non-admin on every create/edit/delete, anonymous redirected; segregation-of-duties (creator ≠ poster) on JournalEntry post; idempotent `seed_accounting` + 3 `generate_*` scan commands (dedup by source FK) |
+| **Total**         | **1745** | |
 
-Run `pytest` at the project root to execute all modules in one pass (~25 s on a warm cache).
+Run `pytest` at the project root to execute all modules in one pass (~80 s on a warm cache).
 
 ### What the suite guards against
 
@@ -824,6 +864,12 @@ The seed command creates the following demo accounts:
 - 6 notification rules per tenant (one per alert type: out_of_stock, low_stock, overstock, expired, po_approval_pending, shipment_delayed) with all tenant admins as recipients
 - 6 sample alerts per tenant across all statuses (new / acknowledged / resolved) and all alert categories, wired to real products, warehouses, lots, POs, and shipments
 - 21 report snapshots per tenant (one of each of the 21 report types in Module 18 — inventory valuation, aging, ABC, turnover, reservations, multi-location, PO summary, vendor performance, 3-way match variance, receiving/GRN, stock transfers, stocktake variance, quality control, scrap write-off, SO summary, fulfillment, shipment/carrier, returns/RMA, lot/expiry, forecast vs actual, alerts log)
+- 10 Chart of Accounts per tenant (Cash, AR, Inventory, AP, Tax Payable, Retained Earnings, Revenue, COGS, Scrap Expense, Adjustments)
+- 1 open fiscal period per tenant (current quarter)
+- Up to 6 customers per tenant (resolved from distinct SalesOrder customer_name values)
+- 3 tax jurisdictions per tenant (US / EU / IN) × 3 tax categories (standard / reduced / zero) = 9 tax rules
+- AP bills + AR invoices seeded from existing matched vendor invoices and delivered shipments
+- 4 journal entries per tenant (posted AP, posted AR, posted stock adjustment, draft manual opening entry)
 
 ---
 
@@ -1041,11 +1087,23 @@ The seed command creates the following demo accounts:
 | Idempotent seed          | `seed_reporting` generates one snapshot per report type per tenant (21 × 5 tenants = 105 snapshots) by running each compute service against existing seeded data. Safe to run multiple times; `--flush` clears first. |
 | 5-section sidebar        | `templates/partials/sidebar.html` gains an IMS 18 block with a top-level "Reporting & Analytics" entry that expands into 5 sub-sections (Inventory & Stock, Procurement, Warehouse Ops, Sales & Fulfillment, Tracking & Ops) plus an Overview link — each sub-section lists its reports as leaf items. |
 
+### Module 19: Accounting & Financial Integration (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| Accounts Payable (AP) Integration | `APBill` model stages vendor bills for sync to external accounting software (QuickBooks / Xero / Sage). Source FKs to `receiving.VendorInvoice`, `receiving.GoodsReceiptNote`, and `purchase_orders.PurchaseOrder` — one-way consumption, zero writes back upstream. State machine: `draft → pending_approval → approved → posted → paid`, with `voided` branch. `sync_status` (pending/queued/synced/failed) is the Module 20 hand-off point. Idempotent `generate_ap_bills` command scans matched `VendorInvoice` rows (dedup by `source_invoice` FK). Posting auto-creates a balanced `JournalEntry`: Dr Expense + Dr Input Tax, Cr AP Liability. |
+| Accounts Receivable (AR) Integration | `ARInvoice` model stages customer invoices for sync. Source FKs to `orders.SalesOrder` and `orders.Shipment`. Introduces net-new `Customer` master (orders.SalesOrder has only free-text customer_name) — generation command resolves `customer_name → Customer` via `get_or_create`. State machine: `draft → sent → paid`, with `overdue` and `voided` branches. `generate_ar_invoices` scans delivered shipments (dedup by `source_shipment` FK). Sending auto-creates a balanced JE: Dr AR, Cr Revenue + Cr Output Tax. |
+| Journal Entry Automation | `JournalEntry` + `JournalLine` implement a lightweight double-entry GL. Every line is either a debit or credit (not both); entries must balance before posting. Polymorphic `source_type` + `source_id` pointer covers `ap_bill` / `ar_invoice` / `stock_adjustment` / `scrap_writeoff` / `valuation` / `manual`. `generate_journal_entries` command scans `inventory.StockAdjustment` and `quality_control.ScrapWriteOff` and creates draft entries. State machine: `draft → posted → voided`. Segregation-of-duties: creator cannot post their own entry. Posting is wrapped in `transaction.atomic()` + `select_for_update()` with balance + period re-check inside the lock. |
+| Tax Management           | `TaxJurisdiction` × `TaxRule` lookup model. Rules carry `effective_date` + `end_date` windows so historical lookups stay correct when rates change. Rate resolution keyed on `Product.tax_category` (standard / reduced / zero / exempt) × jurisdiction. New fields on `catalog.Product`: `tax_category` + `hsn_code` (Harmonized System Nomenclature). Interactive tax calculator view in the sidebar previews the resolved rate for any product × jurisdiction × base-amount combo. |
+| Chart of Accounts + Fiscal Periods | Tenant-scoped `ChartOfAccount` with asset/liability/equity/revenue/expense types and self-FK hierarchy. `FiscalPeriod` with open → closed state machine (reopening is supported; no reversal accounting). JE posting validates that the period is open. Trial balance view aggregates posted JournalLines per account and flags out-of-balance totals. |
+| Module 20 hand-off       | Every syncable record (APBill, ARInvoice, JournalEntry) carries a `sync_status` field (pending / queued / synced / failed) plus a `sync_error` text field. A "Queue for Sync" UI button flips pending → queued; Module 20 adapters (QuickBooks/Xero/Sage) flip queued → synced or failed. No HTTP adapter is shipped in Module 19 — that lives in Module 20. |
+| RBAC + Audit             | Every create / edit / delete / state-change view carries the `@login_required` + `@tenant_admin_required` + `@require_POST` + `emit_audit` triad; list/detail reads stay open to all tenant users. `TenantScopedAdmin` scopes admin visibility per tenant. OWASP A01 (IDOR), A08 (CSRF), A09 (audit) covered by 74 tests. |
+| Sidebar                  | New top-level "Accounting & Finance" block with 5 sub-sections: Overview, Accounts Payable, Accounts Receivable, Journal Entries, Tax Management. |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 19 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
 | 20 | Third-Party Integrations & API  | E-commerce, ERP, accounting software sync      |
 | 21 | System Administration & Security| RBAC, audit trail, UOM, data import/export     |
 
