@@ -114,6 +114,29 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_tax_category" class="form-label">Tax Category</label>
+                            <select name="tax_category" id="id_tax_category" class="form-select {% if form.tax_category.errors %}is-invalid{% endif %}">
+                                {% for value, label in form.tax_category.field.choices %}
+                                <option value="{{ value }}" {% if form.tax_category.value|stringformat:"s" == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.tax_category.errors %}
+                            <div class="invalid-feedback">{% for error in form.tax_category.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                            <small class="text-muted">Drives jurisdictional tax-rate lookup in Module 19 (Accounting).</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_hsn_code" class="form-label">HSN / SAC Code</label>
+                            <input type="text" class="form-control {% if form.hsn_code.errors %}is-invalid{% endif %}" id="id_hsn_code" name="hsn_code" value="{{ form.hsn_code.value|default:'' }}" placeholder="e.g., 8471.30">
+                            {% if form.hsn_code.errors %}
+                            <div class="invalid-feedback">{% for error in form.hsn_code.errors %}{{ error }}{% endfor %}</div>
+                            {% endif %}
+                            <small class="text-muted">Optional — Harmonized System Nomenclature code (India GST / EU CN).</small>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" role="switch" id="id_is_active" name="is_active" {% if form.is_active.value %}checked{% endif %}>
