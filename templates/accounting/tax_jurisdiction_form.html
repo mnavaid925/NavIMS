@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ mode|title }} Jurisdiction{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box">
+    <h4 class="mb-0">{% if mode == 'edit' %}Edit Jurisdiction: <span class="font-monospace">{{ jurisdiction.code }}</span>{% else %}New Jurisdiction{% endif %}</h4>
+</div></div></div>
+<div class="row"><div class="col-lg-8"><div class="card"><div class="card-body">
+    <form method="post" novalidate>{% csrf_token %}
+        <div class="row">
+            <div class="col-md-4 mb-3"><label class="form-label">Code <span class="text-danger">*</span></label>{{ form.code }}
+                {% if form.code.errors %}<div class="invalid-feedback d-block">{% for e in form.code.errors %}{{ e }}{% endfor %}</div>{% endif %}</div>
+            <div class="col-md-8 mb-3"><label class="form-label">Name <span class="text-danger">*</span></label>{{ form.name }}</div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label">Country</label>{{ form.country }}</div>
+            <div class="col-md-6 mb-3"><label class="form-label">State</label>{{ form.state }}</div>
+        </div>
+        <div class="mb-3"><label class="form-label">Description</label>{{ form.description }}</div>
+        <div class="mb-3 form-check form-switch">{{ form.is_active }}<label class="form-check-label">Active</label></div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>Save</button>
+            <a href="{% url 'accounting:jurisdiction_list' %}" class="btn btn-light">Cancel</a>
+        </div>
+    </form>
+</div></div></div></div>
+{% endblock %}
