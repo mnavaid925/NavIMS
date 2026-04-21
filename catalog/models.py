@@ -73,6 +73,13 @@ class Product(models.Model):
         ('discontinued', 'Discontinued'),
     ]
 
+    TAX_CATEGORY_CHOICES = [
+        ('standard', 'Standard'),
+        ('reduced', 'Reduced'),
+        ('zero', 'Zero-rated'),
+        ('exempt', 'Exempt'),
+    ]
+
     tenant = models.ForeignKey(
         'core.Tenant',
         on_delete=models.CASCADE,
@@ -134,6 +141,18 @@ class Product(models.Model):
     barcode = models.CharField(max_length=100, blank=True, default='')
     brand = models.CharField(max_length=255, blank=True, default='')
     manufacturer = models.CharField(max_length=255, blank=True, default='')
+
+    # Tax classification (Module 19)
+    tax_category = models.CharField(
+        max_length=20, choices=TAX_CATEGORY_CHOICES, default='standard',
+        help_text='Tax category used by the accounting module to resolve jurisdictional tax rate.',
+    )
+    hsn_code = models.CharField(
+        max_length=20, blank=True, default='',
+        verbose_name='HSN/SAC Code',
+        help_text='Harmonized System Nomenclature code (India GST, EU combined nomenclature).',
+    )
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
