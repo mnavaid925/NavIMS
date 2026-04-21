@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ entry.entry_number }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0"><span class="font-monospace">{{ entry.entry_number }}</span></h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'accounting:journal_entry_list' %}">Journal Entries</a></li>
+        <li class="breadcrumb-item active">{{ entry.entry_number }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Entry Details</h5>
+            {% if entry.is_balanced %}<span class="badge bg-success-subtle text-success"><i class="ri-check-line"></i>&nbsp;Balanced</span>
+            {% else %}<span class="badge bg-warning-subtle text-warning"><i class="ri-error-warning-line"></i>&nbsp;Unbalanced</span>{% endif %}
+        </div>
+            <div class="card-body"><dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">Entry #</dt><dd class="col-sm-9 font-monospace">{{ entry.entry_number }}</dd>
+                <dt class="col-sm-3 text-muted">Entry Date</dt><dd class="col-sm-9">{{ entry.entry_date }}</dd>
+                <dt class="col-sm-3 text-muted">Fiscal Period</dt><dd class="col-sm-9"><a href="{% url 'accounting:period_detail' entry.fiscal_period.pk %}">{{ entry.fiscal_period.name }}</a></dd>
+                <dt class="col-sm-3 text-muted">Source</dt><dd class="col-sm-9">{{ entry.get_source_type_display }}{% if entry.source_reference %} · <span class="font-monospace">{{ entry.source_reference }}</span>{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Description</dt><dd class="col-sm-9">{{ entry.description|default:"—"|linebreaksbr }}</dd>
+                <dt class="col-sm-3 text-muted">Status</dt><dd class="col-sm-9">{% if entry.status == 'posted' %}<span class="badge bg-success-subtle text-success">Posted</span>
+                    {% elif entry.status == 'voided' %}<span class="badge bg-danger-subtle text-danger">Voided</span>
+                    {% else %}<span class="badge bg-secondary-subtle text-secondary">Draft</span>{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Sync</dt><dd class="col-sm-9">{{ entry.get_sync_status_display }}{% if entry.sync_error %}<br><small class="text-danger">{{ entry.sync_error }}</small>{% endif %}</dd>
+                {% if entry.posted_at %}<dt class="col-sm-3 text-muted">Posted</dt><dd class="col-sm-9">{{ entry.posted_at }} by {{ entry.posted_by|default:"—" }}</dd>{% endif %}
+            </dl></div>
+        </div>
+
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Journal Lines</h5></div>
+            <div class="card-body"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                <thead class="table-light"><tr><th>#</th><th>GL Account</th><th>Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
+                <tbody>
+                {% for ln in lines %}
+                <tr><td>{{ ln.line_order }}</td>
+                    <td><span class="font-monospace">{{ ln.gl_account.code }}</span> — {{ ln.gl_account.name }}</td>
+                    <td>{{ ln.description|default:"—" }}</td>
+                    <td class="text-end">{% if ln.debit_amount > 0 %}${{ ln.debit_amount|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if ln.credit_amount > 0 %}${{ ln.credit_amount|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+                {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">No lines yet.</td></tr>{% endfor %}
+                </tbody>
+                <tfoot class="table-light"><tr><th colspan="3" class="text-end">Totals</th><th class="text-end">${{ entry.total_debit|floatformat:2 }}</th><th class="text-end">${{ entry.total_credit|floatformat:2 }}</th></tr></tfoot>
+            </table></div></div>
+        </div>
+    </div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+        <div class="card-body d-grid gap-2">
+            {% if entry.status == 'draft' %}
+                <a href="{% url 'accounting:journal_entry_edit' entry.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+                <form method="post" action="{% url 'accounting:journal_entry_post' entry.pk %}" onsubmit="return confirm('Post entry {{ entry.entry_number }}? Cannot be edited after posting.');">{% csrf_token %}<button class="btn btn-primary w-100"><i class="ri-upload-2-line me-1"></i>Post</button></form>
+            {% endif %}
+            {% if entry.status != 'voided' %}
+                <form method="post" action="{% url 'accounting:journal_entry_void' entry.pk %}" onsubmit="return confirm('Void entry {{ entry.entry_number }}?');">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-close-circle-line me-1"></i>Void</button></form>
+            {% endif %}
+            <form method="post" action="{% url 'accounting:journal_entry_queue_sync' entry.pk %}">{% csrf_token %}<button class="btn btn-soft-info w-100"><i class="ri-send-plane-2-line me-1"></i>Queue for Sync</button></form>
+            {% if entry.status == 'draft' or entry.status == 'voided' %}
+                <form method="post" action="{% url 'accounting:journal_entry_delete' entry.pk %}" onsubmit="return confirm('Archive entry?');">{% csrf_token %}<button class="btn btn-outline-danger w-100"><i class="ri-delete-bin-line me-1"></i>Archive</button></form>
+            {% endif %}
+            <a href="{% url 'accounting:journal_entry_list' %}" class="btn btn-light">Back</a>
+        </div>
+    </div></div>
+</div>
+{% endblock %}

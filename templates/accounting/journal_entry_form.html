@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ mode|title }} Journal Entry{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box">
+    <h4 class="mb-0">{% if mode == 'edit' %}Edit Entry: <span class="font-monospace">{{ entry.entry_number }}</span>{% else %}New Journal Entry{% endif %}</h4>
+</div></div></div>
+
+<form method="post" novalidate>{% csrf_token %}
+<div class="row"><div class="col-lg-8"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Entry Header</h5></div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 mb-3"><label class="form-label">Entry Date <span class="text-danger">*</span></label>{{ form.entry_date }}</div>
+            <div class="col-md-4 mb-3"><label class="form-label">Fiscal Period <span class="text-danger">*</span></label>{{ form.fiscal_period }}</div>
+            <div class="col-md-4 mb-3"><label class="form-label">Source Type</label>{{ form.source_type }}</div>
+        </div>
+        <div class="mb-3"><label class="form-label">Source Reference</label>{{ form.source_reference }}</div>
+        <div class="mb-3"><label class="form-label">Description</label>{{ form.description }}</div>
+    </div>
+</div></div>
+<div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Save</h5></div>
+    <div class="card-body d-grid gap-2">
+        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>Save Entry</button>
+        <a href="{% if entry %}{% url 'accounting:journal_entry_detail' entry.pk %}{% else %}{% url 'accounting:journal_entry_list' %}{% endif %}" class="btn btn-light">Cancel</a>
+    </div>
+</div></div></div>
+
+<div class="row"><div class="col-12"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Journal Lines <small class="text-muted">— each line is either a debit or a credit</small></h5></div>
+    <div class="card-body">
+        {{ formset.management_form }}
+        <div class="table-responsive"><table class="table table-sm align-middle">
+            <thead class="table-light"><tr><th>Order</th><th>GL Account</th><th>Description</th><th>Debit</th><th>Credit</th><th>Delete</th></tr></thead>
+            <tbody>
+            {% for f in formset %}
+            {{ f.id }}
+            <tr>
+                <td>{{ f.line_order }}</td>
+                <td>{{ f.gl_account }}</td>
+                <td>{{ f.description }}</td>
+                <td>{{ f.debit_amount }}</td>
+                <td>{{ f.credit_amount }}</td>
+                <td>{% if f.instance.pk %}<div class="form-check">{{ f.DELETE }}</div>{% endif %}</td>
+            </tr>
+            {% if f.non_field_errors %}<tr><td colspan="6"><div class="text-danger small">{% for e in f.non_field_errors %}{{ e }}{% endfor %}</div></td></tr>{% endif %}
+            {% endfor %}
+            </tbody>
+        </table></div>
+        <div class="alert alert-info small mb-0">Rule: every line must have exactly one of debit or credit > 0; the entry must balance (total debit == total credit) before it can be posted.</div>
+    </div>
+</div></div></div>
+</form>
+{% endblock %}
