@@ -223,6 +223,20 @@ NavIMS/
 │       └── commands/
 │           └── seed_barcode_rfid.py  # Idempotent per-tenant seeder (templates, jobs, devices, RFID tags/readers/reads, batch sessions)
 │
+├── reporting/                 # Module 18: Reporting & Analytics
+│   ├── models.py               # ReportSnapshot — single table with `report_type` discriminator (21 slugs), `parameters`/`summary`/`data` JSONFields, RPT-NNNNN auto-number via `_save_with_number_retry`, unique_together(tenant, report_number)
+│   ├── registry.py             # REPORTS dict mapping 21 report_type slugs → {title, section, service, form, chart_type, csv_columns, icon} + SECTIONS metadata for the 5-section sidebar
+│   ├── services.py             # 21 pure `compute_<slug>(tenant, **params) → {summary, data, chart}` functions covering Inventory Valuation / Aging / ABC / Stock Turnover / Reservations / Multi-Location / PO Summary / Vendor Performance / 3-Way Match Variance / Receiving-GRN / Stock Transfers / Stocktake Variance / Quality Control / Scrap Write-Off / SO Summary / Fulfillment / Shipment-Carrier / Returns-RMA / Lot-Expiry / Forecast-vs-Actual / Alerts-Log
+│   ├── forms.py                # BaseReportForm + 21 subclasses via AsOfDateMixin / PeriodMixin; tenant-scoped warehouse/category querysets (formset-FK IDOR closed), threshold / period-ordering validation
+│   ├── views.py                # 7 generic dispatcher views keyed by `<slug:report_type>` — index / list (paginated + search + warehouse/date filters) / generate (POST creates snapshot, redirects to detail) / detail / delete (POST-only) / export CSV / export PDF (reportlab landscape A4); triad @tenant_admin_required + @require_POST + emit_audit on generate/delete
+│   ├── urls.py                 # 7 URL patterns cover all 21 reports — adding a new report type requires zero URL changes
+│   ├── admin.py                # TenantScopedAdmin registration for ReportSnapshot
+│   ├── templatetags/           # `dictkey`, `humanize_key`, `is_simple` filters powering the generic detail template
+│   ├── tests/                  # 51 tests — models (auto-number, unique_together, tenant-scoped sequence), services (valuation totals, aging buckets, ABC thresholds, regression guards against Vendor.company_name / Alert.triggered_at / DemandForecastLine.period_start_date / GRN.purchase_order.vendor schemas), forms (period ordering, threshold sum, cross-tenant FK rejection), views (list/detail/delete/CSV/PDF for each report type), security (cross-tenant IDOR on detail/delete/CSV/PDF, wrong-report-type IDOR, POST-only on delete, RBAC on generate/delete, anonymous redirected)
+│   └── management/
+│       └── commands/
+│           └── seed_reporting.py   # Idempotent per-tenant seeder — generates one snapshot of each of the 21 report types against existing seeded data (105 snapshots across 5 tenants)
+│
 ├── alerts_notifications/      # Module 17: Alerts & Notifications
 │   ├── models.py               # Alert (StateMachineMixin + soft-delete + ALN-NNNNN auto-number + dedup_key), NotificationRule (TenantUniqueCodeMixin + NR-NNNNN), NotificationDelivery (audit log with unique(alert, recipient, channel))
 │   ├── forms.py                # AlertForm, NotificationRuleForm (with recipient_users M2M), AlertResolveForm
@@ -428,6 +442,11 @@ NavIMS/
 │   │   └── partials/
 │   │       ├── _alert_badge.html       # Severity + status pill fragment (reusable)
 │   │       └── _alert_inbox_item.html  # Topbar-dropdown row fragment
+│   ├── reporting/
+│   │   ├── index.html                  # 5-section landing page with report cards + Recent Snapshots table
+│   │   ├── snapshot_list.html          # Saved-snapshots list per report type with search + warehouse/date filters + CSV/PDF/delete action buttons
+│   │   ├── snapshot_form.html          # Generic generate form — renders any of the 21 report-specific forms
+│   │   └── snapshot_detail.html        # KPI summary cards + Chart.js (bar/pie/doughnut/line) + data table + sidebar actions (Export CSV / Export PDF / Regenerate / Delete)
 │   ├── quality_control/
 │   │   ├── checklist_list.html         # QC checklist listing with scope/active filters
 │   │   ├── checklist_form.html         # Checklist create/edit with inline item formset
@@ -536,6 +555,7 @@ NavIMS/
    python manage.py seed_barcode_rfid
    python manage.py seed_quality_control
    python manage.py seed_alerts_notifications
+   python manage.py seed_reporting
    ```
 
    To reset and re-seed:
@@ -557,6 +577,7 @@ NavIMS/
    python manage.py seed_barcode_rfid --flush
    python manage.py seed_quality_control --flush
    python manage.py seed_alerts_notifications --flush
+   python manage.py seed_reporting --flush
    ```
 
    After seeding, run the alert scanners and dispatcher (safe to schedule in cron):
@@ -651,7 +672,8 @@ Reference implementation: [receiving/tests/](./receiving/tests/) and [stock_move
 | barcode_rfid      | 158   | Label templates/jobs, scanner devices, RFID tags/readers/reads, batch scanning — state-machine transitions with can_transition_to + @require_POST + @tenant_admin_required + emit_audit, unique_together(tenant,X) form-layer guards via `TenantUniqueCodeMixin`, inline-formset tenant-injection refusal, zone-vs-warehouse cross-validation, device API token auth (tenant derived from device never payload), PDF render smoke test |
 | quality_control   | 82    | QC checklists, inspection routes, quarantine, defect reports (with photo uploads), scrap write-offs — OWASP A01/A03/A08/A09 matrix, D-01 scrap-post race guard (monkey-patched simulation), D-02 N+1 budgets, D-03 upload hygiene (ext + size + magic bytes), D-04 queryset-union regression, D-07 lot/serial vs product match, D-11 photo-delete gate, segregation-of-duties on scrap approval, atomic `decrease` StockAdjustment via `apply_adjustment()` |
 | alerts_notifications | 101 | Alert CRUD + state machine + inbox JSON, NotificationRule CRUD + toggle-active, Delivery audit log, 4 scanners + dispatcher — OWASP A01 IDOR sweep across 10 endpoints, CSRF 405 on @require_POST, RBAC 403 on tenant_admin_required, A03 XSS via topbar escapeHtml(), A09 AuditLog on every mutation, D-01/D-02 superuser-tenant-None create guard, D-04 notes cap 2000/16384, D-06 uuid4 dedup_key, D-11 rule_list |length budget, min_severity threshold matching, dispatcher idempotency via unique_together(alert, recipient, channel) |
-| **Total**         | **1620** | |
+| reporting         | 51    | `ReportSnapshot` single-model + 21-slug registry — auto-number RPT-NNNNN, per-tenant sequence independence, JSON field round-trip; services invariants (valuation totals, aging bucket classification, ABC threshold split, turnover shape); forms (a+b<100, period ordering, tenant-scoped warehouse/category queryset, cross-tenant FK rejection); views for each of the 21 report types (list/generate/detail/delete/CSV/PDF); security — cross-tenant IDOR on detail/delete/CSV/PDF, wrong-report-type-for-pk IDOR, POST-only on delete (405 on GET), RBAC 403 on generate/delete for non-admin, anonymous redirected; regression guards against Vendor.company_name / Alert.triggered_at / DemandForecastLine.period_start_date / GRN.purchase_order.vendor schemas |
+| **Total**         | **1671** | |
 
 Run `pytest` at the project root to execute all modules in one pass (~25 s on a warm cache).
 
@@ -801,6 +823,7 @@ The seed command creates the following demo accounts:
 - 2 scrap write-offs per tenant (1 pending, 1 posted — posted creates a real negative StockAdjustment inside transaction.atomic + select_for_update)
 - 6 notification rules per tenant (one per alert type: out_of_stock, low_stock, overstock, expired, po_approval_pending, shipment_delayed) with all tenant admins as recipients
 - 6 sample alerts per tenant across all statuses (new / acknowledged / resolved) and all alert categories, wired to real products, warehouses, lots, POs, and shipments
+- 21 report snapshots per tenant (one of each of the 21 report types in Module 18 — inventory valuation, aging, ABC, turnover, reservations, multi-location, PO summary, vendor performance, 3-way match variance, receiving/GRN, stock transfers, stocktake variance, quality control, scrap write-off, SO summary, fulfillment, shipment/carrier, returns/RMA, lot/expiry, forecast vs actual, alerts log)
 
 ---
 
@@ -1002,11 +1025,26 @@ The seed command creates the following demo accounts:
 | Topbar Bell Integration  | The existing topbar bell dropdown now hydrates from `alert_inbox_json` on every page load, showing the current tenant's top-5 unread alerts with severity-coded icons, each deep-linking to the alert detail. |
 | RBAC + Audit             | Every create/edit/delete/state-change view carries the `@tenant_admin_required` + `@require_POST` + `emit_audit` triad; reads stay open to all tenant users. `TenantScopedAdmin` scopes admin visibility per tenant. |
 
+### Module 18: Reporting & Analytics (Implemented)
+
+| Feature                  | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| 21 analytics reports, 5 sections | One Django app (`reporting/`) delivers every report as a saveable, exportable `ReportSnapshot` snapshot. Reports are grouped into **Inventory & Stock** (Inventory Valuation, Aging Analysis, ABC Analysis, Stock Turnover, Reservations, Multi-Location Stock Roll-up), **Procurement** (PO Summary, Vendor Performance, 3-Way Match Variance, Receiving/GRN), **Warehouse Ops** (Stock Transfers, Stocktake Variance, Quality Control, Scrap Write-Off), **Sales & Fulfillment** (SO Summary, Fulfillment pick/pack/ship throughput, Shipment/Carrier, Returns/RMA), and **Tracking & Ops** (Lot/Serial/Expiry, Forecast vs Actual, Alerts & Notifications Log). |
+| Single `ReportSnapshot` model | Table-per-report was unjustifiable at 21 reports (21 migrations × 21 admin pages × 21 seeds). Chosen design: one model with a `report_type` discriminator + `parameters`/`summary`/`data` JSONFields; each generation persists `RPT-NNNNN` auto-numbered via `_save_with_number_retry` with `unique_together(tenant, report_number)`. Adding a new report type requires zero migrations. |
+| Registry-driven dispatch | `reporting/registry.py` maps 21 slugs → `{title, section, service_fn, form_class, chart_type, csv_columns, icon}`. The 7 generic views (index / list / generate / detail / delete / export-CSV / export-PDF) resolve the right compute service and form via the registry — adding a 22nd report is one registry entry + one compute function + one form subclass. |
+| Pure compute services    | `reporting/services.py` has 21 `compute_<slug>(tenant, **params) → {summary, data, chart}` functions — unit-testable without HTTP and reused by the `seed_reporting` command + CSV/PDF exporters + views. JSON-serializable primitives throughout (Decimal→str, date→ISO). |
+| Save snapshots, not compute-on-render | Each generation freezes the computed data at that point in time — so historical reports stay answerable even after inventory/orders change. Views orchestrate `form → service → save snapshot → redirect to detail`. |
+| Chart.js visualizations  | Every report carries a `chart` payload (bar / pie / doughnut / line) in `snapshot.data.chart`. The detail template loads Chart.js 4.4.1 from CDN and renders the config client-side with a fixed 10-colour palette. |
+| CSV + PDF exports        | CSV streamed via `csv.writer` + attachment Content-Disposition. PDF rendered via reportlab (landscape A4) with summary KPI table + data table (truncated to 200 rows) + metadata header; returned inline for in-browser viewing. |
+| Tenant-scoped forms      | `BaseReportForm` + `AsOfDateMixin` / `PeriodMixin`; every subclass's `warehouse` / `category` / `vendor` / `carrier` queryset is filtered to the current tenant at form `__init__`, closing formset-FK IDOR. ABC enforces `a_threshold + b_threshold < 100`; Turnover / PO / SO / others enforce `period_end ≥ period_start`. |
+| RBAC + audit + POST-only | `generate` and `delete` carry the `@login_required + @tenant_admin_required + @require_POST + emit_audit` triad; reads (`list`, `detail`, `CSV`, `PDF`) are open to all authenticated tenant users. Cross-tenant access on any endpoint returns 404. |
+| Idempotent seed          | `seed_reporting` generates one snapshot per report type per tenant (21 × 5 tenants = 105 snapshots) by running each compute service against existing seeded data. Safe to run multiple times; `--flush` clears first. |
+| 5-section sidebar        | `templates/partials/sidebar.html` gains an IMS 18 block with a top-level "Reporting & Analytics" entry that expands into 5 sub-sections (Inventory & Stock, Procurement, Warehouse Ops, Sales & Fulfillment, Tracking & Ops) plus an Overview link — each sub-section lists its reports as leaf items. |
+
 ### Planned Modules (see IMS.md)
 
 | #  | Module                          | Description                                    |
 |----|---------------------------------|------------------------------------------------|
-| 18 | Reporting & Analytics           | Valuation, turnover, aging, ABC analysis       |
 | 19 | Accounting & Financial Integration| AP/AR sync, journal entries, tax management  |
 | 20 | Third-Party Integrations & API  | E-commerce, ERP, accounting software sync      |
 | 21 | System Administration & Security| RBAC, audit trail, UOM, data import/export     |
