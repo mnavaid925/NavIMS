@@ -574,6 +574,83 @@
                 </ul>
             </li>
 
+            <!-- IMS 18: Reporting & Analytics -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-bar-chart-box-line"></i>
+                    <span class="menu-text">Reporting & Analytics</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'reporting:index' %}">
+                            <span class="menu-text">Overview</span>
+                        </a>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                            <span class="menu-text">Inventory & Stock</span>
+                            <i class="ri-arrow-right-s-line menu-arrow"></i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'valuation' %}"><span class="menu-text">Inventory Valuation</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'aging' %}"><span class="menu-text">Aging Analysis</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'abc' %}"><span class="menu-text">ABC Analysis</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'turnover' %}"><span class="menu-text">Stock Turnover</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'reservations' %}"><span class="menu-text">Reservations</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'multi_location' %}"><span class="menu-text">Multi-Location Roll-up</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                            <span class="menu-text">Procurement</span>
+                            <i class="ri-arrow-right-s-line menu-arrow"></i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'po_summary' %}"><span class="menu-text">PO Summary</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'vendor_performance' %}"><span class="menu-text">Vendor Performance</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'three_way_match' %}"><span class="menu-text">3-Way Match Variance</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'receiving_grn' %}"><span class="menu-text">Receiving / GRN</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                            <span class="menu-text">Warehouse Ops</span>
+                            <i class="ri-arrow-right-s-line menu-arrow"></i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'stock_transfers' %}"><span class="menu-text">Stock Transfers</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'stocktake_variance' %}"><span class="menu-text">Stocktake Variance</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'quality_control' %}"><span class="menu-text">Quality Control</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'scrap_writeoff' %}"><span class="menu-text">Scrap Write-Off</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                            <span class="menu-text">Sales & Fulfillment</span>
+                            <i class="ri-arrow-right-s-line menu-arrow"></i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'so_summary' %}"><span class="menu-text">Sales Order Summary</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'fulfillment' %}"><span class="menu-text">Fulfillment</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'shipment_carrier' %}"><span class="menu-text">Shipment / Carrier</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'returns_rma' %}"><span class="menu-text">Returns (RMA)</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                            <span class="menu-text">Tracking & Ops</span>
+                            <i class="ri-arrow-right-s-line menu-arrow"></i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'lot_expiry' %}"><span class="menu-text">Lot / Serial / Expiry</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'forecast_vs_actual' %}"><span class="menu-text">Forecast vs Actual</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'reporting:snapshot_list' 'alerts_log' %}"><span class="menu-text">Alerts Log</span></a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+
             <!-- ─── System ─── -->
             <li class="menu-title" data-toggle="section"><span>System</span></li>
 
