@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}AP Bills{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">AP Bills</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'accounting:overview' %}">Accounting</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounting:ap_dashboard' %}">AP</a></li>
+        <li class="breadcrumb-item active">Bills</li>
+    </ol></div>
+</div></div></div>
+<div class="card"><div class="card-header d-flex align-items-center">
+    <h5 class="card-title mb-0 flex-grow-1">Vendor Bills</h5>
+    <a href="{% url 'accounting:ap_bill_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>New Bill</a>
+</div>
+<div class="card-body">
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-4"><input type="text" name="q" class="form-control" value="{{ request.GET.q|default:'' }}" placeholder="Search bill # / vendor..."></div>
+        <div class="col-md-3"><select name="status" class="form-select" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for v, l in status_choices %}<option value="{{ v }}" {% if request.GET.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select></div>
+        <div class="col-md-3"><select name="sync_status" class="form-select" onchange="this.form.submit()">
+            <option value="">All Sync Statuses</option>
+            {% for v, l in sync_status_choices %}<option value="{{ v }}" {% if request.GET.sync_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select></div>
+        <div class="col-md-2"><a href="{% url 'accounting:ap_bill_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+    </form>
+    <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>Bill #</th><th>Vendor</th><th>Bill Date</th><th>Due</th><th class="text-end">Total</th><th>Status</th><th>Sync</th><th class="text-center">Actions</th></tr></thead>
+        <tbody>
+        {% for b in bills %}
+        <tr>
+            <td><a href="{% url 'accounting:ap_bill_detail' b.pk %}" class="fw-medium text-primary font-monospace">{{ b.bill_number }}</a></td>
+            <td>{{ b.vendor.company_name }}</td>
+            <td>{{ b.bill_date }}</td>
+            <td>{{ b.due_date|default:"—" }}</td>
+            <td class="text-end">${{ b.total_amount|floatformat:2 }}</td>
+            <td>{% if b.status == 'posted' %}<span class="badge bg-success-subtle text-success">{{ b.get_status_display }}</span>
+                {% elif b.status == 'paid' %}<span class="badge bg-primary-subtle text-primary">{{ b.get_status_display }}</span>
+                {% elif b.status == 'voided' %}<span class="badge bg-danger-subtle text-danger">{{ b.get_status_display }}</span>
+                {% else %}<span class="badge bg-secondary-subtle text-secondary">{{ b.get_status_display }}</span>{% endif %}</td>
+            <td><small>{{ b.get_sync_status_display }}</small></td>
+            <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                <a href="{% url 'accounting:ap_bill_detail' b.pk %}" class="btn btn-sm btn-soft-primary"><i class="ri-eye-line"></i></a>
+                {% if b.status == 'draft' or b.status == 'pending_approval' %}<a href="{% url 'accounting:ap_bill_edit' b.pk %}" class="btn btn-sm btn-soft-warning"><i class="ri-pencil-line"></i></a>{% endif %}
+                {% if b.status == 'draft' or b.status == 'voided' %}<form method="post" action="{% url 'accounting:ap_bill_delete' b.pk %}" class="d-inline" onsubmit="return confirm('Archive bill {{ b.bill_number }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger"><i class="ri-delete-bin-line"></i></button></form>{% endif %}
+            </div></td>
+        </tr>
+        {% empty %}<tr><td colspan="8" class="text-center text-muted py-4"><i class="ri-file-list-3-line fs-24 d-block mb-2"></i>No bills. <a href="{% url 'accounting:ap_bill_create' %}">Add one</a> or run <code>generate_ap_bills</code>.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+</div></div>
+{% endblock %}

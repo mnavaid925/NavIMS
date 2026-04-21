@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ mode|title }} Bill{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box">
+    <h4 class="mb-0">{% if mode == 'edit' %}Edit Bill: <span class="font-monospace">{{ bill.bill_number }}</span>{% else %}New AP Bill{% endif %}</h4>
+</div></div></div>
+
+<form method="post" novalidate>{% csrf_token %}
+<div class="row"><div class="col-lg-8"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Bill Header</h5></div>
+    <div class="card-body">
+        <div class="mb-3"><label class="form-label">Vendor <span class="text-danger">*</span></label>{{ form.vendor }}</div>
+        <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label">Bill Date <span class="text-danger">*</span></label>{{ form.bill_date }}</div>
+            <div class="col-md-6 mb-3"><label class="form-label">Due Date</label>{{ form.due_date }}</div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-3"><label class="form-label">Source PO</label>{{ form.source_po }}</div>
+            <div class="col-md-4 mb-3"><label class="form-label">Source GRN</label>{{ form.source_grn }}</div>
+            <div class="col-md-4 mb-3"><label class="form-label">Source Invoice</label>{{ form.source_invoice }}</div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-3"><label class="form-label">Currency</label>{{ form.currency }}</div>
+            <div class="col-md-4 mb-3"><label class="form-label">Payment Terms</label>{{ form.payment_terms }}</div>
+        </div>
+        <div class="mb-3"><label class="form-label">Description</label>{{ form.description }}</div>
+    </div>
+</div></div>
+
+<div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Save</h5></div>
+    <div class="card-body d-grid gap-2">
+        <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>Save Bill</button>
+        <a href="{% if bill %}{% url 'accounting:ap_bill_detail' bill.pk %}{% else %}{% url 'accounting:ap_bill_list' %}{% endif %}" class="btn btn-light">Cancel</a>
+    </div>
+</div></div></div>
+
+<div class="row"><div class="col-12"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Line Items</h5></div>
+    <div class="card-body">
+        {{ formset.management_form }}
+        <div class="table-responsive"><table class="table table-sm align-middle">
+            <thead class="table-light"><tr><th>Order</th><th>Product</th><th>GL Account</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Tax %</th><th>Delete</th></tr></thead>
+            <tbody>
+            {% for f in formset %}
+            {{ f.id }}
+            <tr>
+                <td>{{ f.line_order }}</td>
+                <td>{{ f.product }}</td>
+                <td>{{ f.gl_account }}</td>
+                <td>{{ f.description }}</td>
+                <td>{{ f.quantity }}</td>
+                <td>{{ f.unit_price }}</td>
+                <td>{{ f.tax_rate }}</td>
+                <td>{% if f.instance.pk %}<div class="form-check">{{ f.DELETE }}</div>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+        {% if formset.non_form_errors %}<div class="alert alert-danger mt-2">{% for e in formset.non_form_errors %}{{ e }}{% endfor %}</div>{% endif %}
+    </div>
+</div></div></div>
+</form>
+{% endblock %}
