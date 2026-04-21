@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ invoice.invoice_number }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0"><span class="font-monospace">{{ invoice.invoice_number }}</span></h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'accounting:ar_invoice_list' %}">AR Invoices</a></li>
+        <li class="breadcrumb-item active">{{ invoice.invoice_number }}</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header"><h5 class="card-title mb-0">Invoice Details</h5></div>
+            <div class="card-body"><dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">Invoice #</dt><dd class="col-sm-9 font-monospace">{{ invoice.invoice_number }}</dd>
+                <dt class="col-sm-3 text-muted">Customer</dt><dd class="col-sm-9"><a href="{% url 'accounting:customer_detail' invoice.customer.pk %}">{{ invoice.customer.company_name }}</a>{% if invoice.customer.tax_id %}<br><small class="text-muted">Tax ID: {{ invoice.customer.tax_id }}</small>{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Invoice Date</dt><dd class="col-sm-9">{{ invoice.invoice_date }}</dd>
+                <dt class="col-sm-3 text-muted">Due Date</dt><dd class="col-sm-9">{{ invoice.due_date|default:"—" }}</dd>
+                <dt class="col-sm-3 text-muted">Payment Terms</dt><dd class="col-sm-9">{{ invoice.payment_terms|default:"—" }}</dd>
+                <dt class="col-sm-3 text-muted">Currency</dt><dd class="col-sm-9">{{ invoice.currency }}</dd>
+                <dt class="col-sm-3 text-muted">Notes</dt><dd class="col-sm-9">{{ invoice.notes|default:"—"|linebreaksbr }}</dd>
+                <dt class="col-sm-3 text-muted">Source SO</dt><dd class="col-sm-9">{% if invoice.source_so %}<span class="font-monospace">{{ invoice.source_so.order_number }}</span>{% else %}—{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Source Shipment</dt><dd class="col-sm-9">{% if invoice.source_shipment %}<span class="font-monospace">{{ invoice.source_shipment.shipment_number }}</span>{% else %}—{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Journal Entry</dt><dd class="col-sm-9">{% if invoice.journal_entry %}<a href="{% url 'accounting:journal_entry_detail' invoice.journal_entry.pk %}" class="font-monospace">{{ invoice.journal_entry.entry_number }}</a>{% else %}—{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Status</dt><dd class="col-sm-9"><span class="badge bg-info-subtle text-info">{{ invoice.get_status_display }}</span></dd>
+                <dt class="col-sm-3 text-muted">Sync</dt><dd class="col-sm-9">{{ invoice.get_sync_status_display }}{% if invoice.sync_error %}<br><small class="text-danger">{{ invoice.sync_error }}</small>{% endif %}</dd>
+            </dl></div>
+        </div>
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Line Items</h5></div>
+            <div class="card-body"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                <thead class="table-light"><tr><th>#</th><th>Product</th><th>GL Account</th><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Tax</th><th class="text-end">Line Total</th></tr></thead>
+                <tbody>
+                {% for ln in lines %}
+                <tr><td>{{ ln.line_order }}</td>
+                    <td>{% if ln.product %}<small>{{ ln.product.sku }}</small>{% else %}—{% endif %}</td>
+                    <td><small><span class="font-monospace">{{ ln.gl_account.code }}</span> {{ ln.gl_account.name }}</small></td>
+                    <td>{{ ln.description }}</td>
+                    <td class="text-end">{{ ln.quantity }}</td>
+                    <td class="text-end">${{ ln.unit_price }}</td>
+                    <td class="text-end">{{ ln.tax_rate }}%</td>
+                    <td class="text-end">${{ ln.line_total }}</td></tr>
+                {% empty %}<tr><td colspan="8" class="text-center text-muted py-3">No line items.</td></tr>{% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr><th colspan="7" class="text-end">Subtotal</th><th class="text-end">${{ invoice.subtotal|floatformat:2 }}</th></tr>
+                    <tr><th colspan="7" class="text-end">Tax</th><th class="text-end">${{ invoice.tax_amount|floatformat:2 }}</th></tr>
+                    <tr><th colspan="7" class="text-end">Total</th><th class="text-end">${{ invoice.total_amount|floatformat:2 }}</th></tr>
+                </tfoot>
+            </table></div></div>
+        </div>
+    </div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+        <div class="card-body d-grid gap-2">
+            {% if invoice.status == 'draft' %}
+                <a href="{% url 'accounting:ar_invoice_edit' invoice.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+                <form method="post" action="{% url 'accounting:ar_invoice_send' invoice.pk %}">{% csrf_token %}<button class="btn btn-primary w-100"><i class="ri-send-plane-line me-1"></i>Send to Customer</button></form>
+            {% endif %}
+            {% if invoice.status == 'sent' or invoice.status == 'overdue' %}
+                <form method="post" action="{% url 'accounting:ar_invoice_mark_paid' invoice.pk %}" onsubmit="return confirm('Mark as paid?');">{% csrf_token %}<button class="btn btn-success w-100"><i class="ri-money-dollar-circle-line me-1"></i>Mark Paid</button></form>
+            {% endif %}
+            {% if invoice.status != 'voided' and invoice.status != 'paid' %}
+                <form method="post" action="{% url 'accounting:ar_invoice_void' invoice.pk %}" onsubmit="return confirm('Void invoice {{ invoice.invoice_number }}?');">{% csrf_token %}<button class="btn btn-danger w-100"><i class="ri-close-circle-line me-1"></i>Void</button></form>
+            {% endif %}
+            <form method="post" action="{% url 'accounting:ar_invoice_queue_sync' invoice.pk %}">{% csrf_token %}<button class="btn btn-soft-info w-100"><i class="ri-send-plane-2-line me-1"></i>Queue for Sync</button></form>
+            {% if invoice.status == 'draft' or invoice.status == 'voided' %}
+                <form method="post" action="{% url 'accounting:ar_invoice_delete' invoice.pk %}" onsubmit="return confirm('Archive invoice?');">{% csrf_token %}<button class="btn btn-outline-danger w-100"><i class="ri-delete-bin-line me-1"></i>Archive</button></form>
+            {% endif %}
+            <a href="{% url 'accounting:ar_invoice_list' %}" class="btn btn-light">Back</a>
+        </div>
+    </div></div>
+</div>
+{% endblock %}
