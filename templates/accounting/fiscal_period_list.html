@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Fiscal Periods{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Fiscal Periods</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'accounting:overview' %}">Accounting</a></li>
+        <li class="breadcrumb-item active">Fiscal Periods</li>
+    </ol></div>
+</div></div></div>
+
+<div class="card"><div class="card-header d-flex align-items-center">
+    <h5 class="card-title mb-0 flex-grow-1">All Periods</h5>
+    <a href="{% url 'accounting:period_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>New Period</a>
+</div>
+<div class="card-body">
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-4"><select name="status" class="form-select" onchange="this.form.submit()">
+            <option value="">All statuses</option>
+            {% for v, l in status_choices %}<option value="{{ v }}" {% if request.GET.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select></div>
+        <div class="col-md-2"><a href="{% url 'accounting:period_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+    </form>
+    <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>Period #</th><th>Name</th><th>Start</th><th>End</th><th>Status</th><th class="text-center">Actions</th></tr></thead>
+        <tbody>
+        {% for p in periods %}
+        <tr>
+            <td><a href="{% url 'accounting:period_detail' p.pk %}" class="fw-medium text-primary font-monospace">{{ p.period_number }}</a></td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.start_date }}</td>
+            <td>{{ p.end_date }}</td>
+            <td>{% if p.status == 'open' %}<span class="badge bg-success-subtle text-success">Open</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Closed</span>{% endif %}</td>
+            <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                <a href="{% url 'accounting:period_detail' p.pk %}" class="btn btn-sm btn-soft-primary" title="View"><i class="ri-eye-line"></i></a>
+                <a href="{% url 'accounting:period_edit' p.pk %}" class="btn btn-sm btn-soft-warning" title="Edit"><i class="ri-pencil-line"></i></a>
+                <form method="post" action="{% url 'accounting:period_delete' p.pk %}" class="d-inline" onsubmit="return confirm('Delete period {{ p.period_number }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger" title="Delete"><i class="ri-delete-bin-line"></i></button></form>
+            </div></td>
+        </tr>
+        {% empty %}<tr><td colspan="6" class="text-center text-muted py-4"><i class="ri-calendar-line fs-24 d-block mb-2"></i>No fiscal periods. <a href="{% url 'accounting:period_create' %}">Add one</a>.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+</div></div>
+{% endblock %}
