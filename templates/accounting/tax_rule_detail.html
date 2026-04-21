@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ rule.rule_number }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box">
+    <h4 class="mb-0"><span class="font-monospace">{{ rule.rule_number }}</span></h4>
+</div></div></div>
+<div class="row">
+    <div class="col-lg-8"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Rule Details</h5></div>
+        <div class="card-body"><dl class="row mb-0">
+            <dt class="col-sm-3 text-muted">Rule #</dt><dd class="col-sm-9 font-monospace">{{ rule.rule_number }}</dd>
+            <dt class="col-sm-3 text-muted">Jurisdiction</dt><dd class="col-sm-9"><a href="{% url 'accounting:jurisdiction_detail' rule.jurisdiction.pk %}" class="font-monospace">{{ rule.jurisdiction.code }}</a> — {{ rule.jurisdiction.name }}</dd>
+            <dt class="col-sm-3 text-muted">Category</dt><dd class="col-sm-9">{{ rule.get_tax_category_display }}</dd>
+            <dt class="col-sm-3 text-muted">Rate</dt><dd class="col-sm-9"><strong>{{ rule.tax_rate }}%</strong></dd>
+            <dt class="col-sm-3 text-muted">Effective</dt><dd class="col-sm-9">{{ rule.effective_date }}</dd>
+            <dt class="col-sm-3 text-muted">End Date</dt><dd class="col-sm-9">{{ rule.end_date|default:"—" }}</dd>
+            <dt class="col-sm-3 text-muted">Description</dt><dd class="col-sm-9">{{ rule.description|default:"—"|linebreaksbr }}</dd>
+            <dt class="col-sm-3 text-muted">Status</dt><dd class="col-sm-9">{% if rule.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</dd>
+        </dl></div>
+    </div></div>
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+        <div class="card-body d-grid gap-2">
+            <a href="{% url 'accounting:tax_rule_edit' rule.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+            <a href="{% url 'accounting:tax_calculator' %}" class="btn btn-soft-dark"><i class="ri-calculator-line me-1"></i>Test in Calculator</a>
+            <form method="post" action="{% url 'accounting:tax_rule_delete' rule.pk %}" onsubmit="return confirm('Delete rule {{ rule.rule_number }}?');">{% csrf_token %}
+                <button type="submit" class="btn btn-danger w-100"><i class="ri-delete-bin-line me-1"></i>Delete</button>
+            </form>
+            <a href="{% url 'accounting:tax_rule_list' %}" class="btn btn-light">Back</a>
+        </div>
+    </div></div>
+</div>
+{% endblock %}
