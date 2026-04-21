@@ -26,6 +26,7 @@ urlpatterns = [
     path('quality-control/', include('quality_control.urls')),
     path('alerts-notifications/', include('alerts_notifications.urls')),
     path('reporting/', include('reporting.urls')),
+    path('accounting/', include('accounting.urls')),
 ]
 
 if settings.DEBUG:
