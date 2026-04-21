@@ -73,7 +73,9 @@ class ProductForm(forms.ModelForm):
             'sku', 'name', 'description', 'category', 'status',
             'purchase_cost', 'wholesale_price', 'retail_price', 'markup_percentage',
             'weight', 'length', 'width', 'height',
-            'barcode', 'brand', 'manufacturer', 'is_active',
+            'barcode', 'brand', 'manufacturer',
+            'tax_category', 'hsn_code',
+            'is_active',
         ]
         widgets = {
             'sku': forms.TextInput(attrs={
@@ -151,6 +153,13 @@ class ProductForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter manufacturer (optional)',
             }),
+            'tax_category': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'hsn_code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 8471.30 (optional)',
+            }),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
                 'role': 'switch',
@@ -168,6 +177,9 @@ class ProductForm(forms.ModelForm):
             self.fields['category'].empty_label = '— Select Category —'
         # Blank = "auto-compute from cost/retail"; explicit 0 stays 0.
         self.fields['markup_percentage'].required = False
+        # Tax fields (Module 19): model supplies defaults, form should not demand them.
+        self.fields['tax_category'].required = False
+        self.fields['hsn_code'].required = False
 
     def clean_sku(self):
         # tenant isn't a form field, so Django's default unique_together check
