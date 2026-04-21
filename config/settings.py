@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'quality_control',
     'alerts_notifications',
     'reporting',
+    'accounting',
 ]
 
 MIDDLEWARE = [
