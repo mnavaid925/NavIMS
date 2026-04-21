@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Generate {{ spec.title }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0"><i class="{{ spec.icon }} me-2"></i>Generate {{ spec.title }}</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'reporting:index' %}">Reporting</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'reporting:snapshot_list' report_type %}">{{ spec.title }}</a></li>
+        <li class="breadcrumb-item active">Generate</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Parameters</h5></div>
+            <div class="card-body">
+                <p class="text-muted">{{ spec.description }}</p>
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                            {{ field }}
+                            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|join:', ' }}</div>{% endif %}
+                        </div>
+                    {% endfor %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="ri-play-line me-1"></i>Generate Report</button>
+                        <a href="{% url 'reporting:snapshot_list' report_type %}" class="btn btn-light">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">About This Report</h5></div>
+            <div class="card-body">
+                <p><strong>Section:</strong> {{ section_meta.label }}</p>
+                <p><strong>Chart:</strong> {{ spec.chart_type|default:'—' }}</p>
+                <p><strong>Export:</strong> CSV, PDF</p>
+                <hr>
+                <p class="text-muted small">Generated reports are saved as snapshots so the data at the moment of generation remains queryable even after inventory/orders change.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
