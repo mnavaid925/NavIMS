@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Customers{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Customers</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'accounting:overview' %}">Accounting</a></li>
+        <li class="breadcrumb-item active">Customers</li>
+    </ol></div>
+</div></div></div>
+<div class="card"><div class="card-header d-flex align-items-center">
+    <h5 class="card-title mb-0 flex-grow-1">Customers</h5>
+    <a href="{% url 'accounting:customer_create' %}" class="btn btn-primary btn-sm"><i class="ri-add-line me-1"></i>New Customer</a>
+</div>
+<div class="card-body">
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-5"><input type="text" name="q" class="form-control" value="{{ request.GET.q|default:'' }}" placeholder="Search company / email / number..."></div>
+        <div class="col-md-3"><select name="active" class="form-select" onchange="this.form.submit()">
+            <option value="">All</option>
+            <option value="active" {% if request.GET.active == 'active' %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if request.GET.active == 'inactive' %}selected{% endif %}>Inactive</option>
+        </select></div>
+        <div class="col-md-2"><button class="btn btn-light w-100"><i class="ri-search-line"></i></button></div>
+        <div class="col-md-2"><a href="{% url 'accounting:customer_list' %}" class="btn btn-light w-100"><i class="ri-filter-off-line"></i></a></div>
+    </form>
+    <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>Customer #</th><th>Company</th><th>Contact</th><th>Terms</th><th>Country</th><th>Status</th><th class="text-center">Actions</th></tr></thead>
+        <tbody>
+        {% for c in customers %}
+        <tr>
+            <td><a href="{% url 'accounting:customer_detail' c.pk %}" class="fw-medium text-primary font-monospace">{{ c.customer_number }}</a></td>
+            <td>{{ c.company_name }}</td>
+            <td><small>{{ c.contact_email|default:"—" }}</small></td>
+            <td><small>{{ c.get_payment_terms_display }}</small></td>
+            <td><small>{{ c.country|default:"—" }}</small></td>
+            <td>{% if c.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</td>
+            <td class="text-center"><div class="d-flex gap-1 justify-content-center">
+                <a href="{% url 'accounting:customer_detail' c.pk %}" class="btn btn-sm btn-soft-primary"><i class="ri-eye-line"></i></a>
+                <a href="{% url 'accounting:customer_edit' c.pk %}" class="btn btn-sm btn-soft-warning"><i class="ri-pencil-line"></i></a>
+                <form method="post" action="{% url 'accounting:customer_delete' c.pk %}" class="d-inline" onsubmit="return confirm('Archive customer {{ c.customer_number }}?');">{% csrf_token %}<button class="btn btn-sm btn-soft-danger"><i class="ri-delete-bin-line"></i></button></form>
+            </div></td>
+        </tr>
+        {% empty %}<tr><td colspan="7" class="text-center text-muted py-4"><i class="ri-user-line fs-24 d-block mb-2"></i>No customers. <a href="{% url 'accounting:customer_create' %}">Add one</a>.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+</div></div>
+{% endblock %}

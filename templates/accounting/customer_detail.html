@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.company_name }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box">
+    <h4 class="mb-0"><span class="font-monospace">{{ customer.customer_number }}</span> — {{ customer.company_name }}</h4>
+</div></div></div>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-header"><h5 class="card-title mb-0">Profile</h5></div>
+            <div class="card-body"><dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">Company</dt><dd class="col-sm-9">{{ customer.company_name }}</dd>
+                <dt class="col-sm-3 text-muted">Contact</dt><dd class="col-sm-9">{{ customer.contact_name|default:"—" }}<br><small>{{ customer.contact_email|default:"" }} {{ customer.contact_phone|default:"" }}</small></dd>
+                <dt class="col-sm-3 text-muted">Address</dt><dd class="col-sm-9">{{ customer.billing_address|default:"—"|linebreaksbr }}<br><small class="text-muted">{{ customer.city }}{% if customer.state %}, {{ customer.state }}{% endif %} {{ customer.postal_code }}{% if customer.country %} · {{ customer.country }}{% endif %}</small></dd>
+                <dt class="col-sm-3 text-muted">Tax ID</dt><dd class="col-sm-9">{{ customer.tax_id|default:"—" }}</dd>
+                <dt class="col-sm-3 text-muted">Terms</dt><dd class="col-sm-9">{{ customer.get_payment_terms_display }} · {{ customer.default_currency }}</dd>
+                <dt class="col-sm-3 text-muted">Status</dt><dd class="col-sm-9">{% if customer.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Notes</dt><dd class="col-sm-9">{{ customer.notes|default:"—"|linebreaksbr }}</dd>
+            </dl></div>
+        </div>
+
+        <div class="card mt-3"><div class="card-header"><h5 class="card-title mb-0">Recent AR Invoices</h5></div>
+            <div class="card-body"><div class="table-responsive"><table class="table table-sm table-hover mb-0">
+                <thead class="table-light"><tr><th>Invoice</th><th>Date</th><th class="text-end">Total</th><th>Status</th></tr></thead>
+                <tbody>
+                {% for i in invoices %}
+                <tr><td><a href="{% url 'accounting:ar_invoice_detail' i.pk %}" class="font-monospace">{{ i.invoice_number }}</a></td>
+                    <td>{{ i.invoice_date }}</td><td class="text-end">${{ i.total_amount|floatformat:2 }}</td>
+                    <td><span class="badge bg-info-subtle text-info">{{ i.get_status_display }}</span></td></tr>
+                {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">No invoices for this customer.</td></tr>{% endfor %}
+                </tbody>
+            </table></div></div>
+        </div>
+    </div>
+    <div class="col-lg-4"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Actions</h5></div>
+        <div class="card-body d-grid gap-2">
+            <a href="{% url 'accounting:customer_edit' customer.pk %}" class="btn btn-warning"><i class="ri-pencil-line me-1"></i>Edit</a>
+            <form method="post" action="{% url 'accounting:customer_delete' customer.pk %}" onsubmit="return confirm('Archive customer {{ customer.customer_number }}?');">{% csrf_token %}
+                <button type="submit" class="btn btn-danger w-100"><i class="ri-delete-bin-line me-1"></i>Archive</button>
+            </form>
+            <a href="{% url 'accounting:customer_list' %}" class="btn btn-light">Back to List</a>
+        </div>
+    </div></div>
+</div>
+{% endblock %}

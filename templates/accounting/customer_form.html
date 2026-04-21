@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ mode|title }} Customer{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box">
+    <h4 class="mb-0">{% if mode == 'edit' %}Edit Customer: <span class="font-monospace">{{ customer.customer_number }}</span>{% else %}New Customer{% endif %}</h4>
+</div></div></div>
+<div class="card"><div class="card-body">
+    <form method="post" novalidate>{% csrf_token %}
+        <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label">Company Name <span class="text-danger">*</span></label>{{ form.company_name }}</div>
+            <div class="col-md-6 mb-3"><label class="form-label">Contact Name</label>{{ form.contact_name }}</div>
+            <div class="col-md-6 mb-3"><label class="form-label">Email</label>{{ form.contact_email }}</div>
+            <div class="col-md-6 mb-3"><label class="form-label">Phone</label>{{ form.contact_phone }}</div>
+        </div>
+        <div class="mb-3"><label class="form-label">Billing Address</label>{{ form.billing_address }}</div>
+        <div class="row">
+            <div class="col-md-3 mb-3"><label class="form-label">Country</label>{{ form.country }}</div>
+            <div class="col-md-3 mb-3"><label class="form-label">State</label>{{ form.state }}</div>
+            <div class="col-md-3 mb-3"><label class="form-label">City</label>{{ form.city }}</div>
+            <div class="col-md-3 mb-3"><label class="form-label">Postal Code</label>{{ form.postal_code }}</div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-3"><label class="form-label">Tax ID</label>{{ form.tax_id }}</div>
+            <div class="col-md-4 mb-3"><label class="form-label">Payment Terms</label>{{ form.payment_terms }}</div>
+            <div class="col-md-4 mb-3"><label class="form-label">Currency</label>{{ form.default_currency }}</div>
+        </div>
+        <div class="mb-3"><label class="form-label">Notes</label>{{ form.notes }}</div>
+        <div class="mb-3 form-check form-switch">{{ form.is_active }}<label class="form-check-label">Active</label></div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>Save</button>
+            <a href="{% url 'accounting:customer_list' %}" class="btn btn-light">Cancel</a>
+        </div>
+    </form>
+</div></div>
+{% endblock %}
