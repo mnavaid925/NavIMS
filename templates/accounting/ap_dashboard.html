@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Accounts Payable{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12"><div class="page-title-box d-sm-flex align-items-center justify-content-between">
+    <h4 class="mb-sm-0">Accounts Payable</h4>
+    <div class="page-title-right"><ol class="breadcrumb m-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounting:overview' %}">Accounting</a></li>
+        <li class="breadcrumb-item active">AP Dashboard</li>
+    </ol></div>
+</div></div></div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card card-body">
+        <small class="text-muted">Open Bills</small>
+        <h4 class="mb-0">{{ count_open }}</h4>
+        <small class="text-muted">${{ total_open|floatformat:2 }} outstanding</small>
+    </div></div>
+    <div class="col-md-3"><div class="card card-body">
+        <small class="text-muted">Draft</small>
+        <h4 class="mb-0">{{ count_draft }}</h4>
+    </div></div>
+    <div class="col-md-3"><div class="card card-body">
+        <small class="text-muted">Posted</small>
+        <h4 class="mb-0">{{ count_posted }}</h4>
+    </div></div>
+    <div class="col-md-3"><div class="card card-body">
+        <small class="text-muted">Paid (Lifetime)</small>
+        <h4 class="mb-0">{{ count_paid }}</h4>
+    </div></div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-6"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Aging Buckets</h5></div>
+        <div class="card-body"><div class="table-responsive"><table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>Bucket</th><th class="text-end">Count</th><th class="text-end">Total</th></tr></thead>
+            <tbody>
+                {% for label, data in aging.items %}
+                <tr><td><span class="badge {% if label == 'current' %}bg-success-subtle text-success{% elif label == '31-60' %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %}">{{ label|title }}</span></td>
+                    <td class="text-end">{{ data.count }}</td>
+                    <td class="text-end">${{ data.total|floatformat:2 }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div></div>
+    </div></div>
+    <div class="col-lg-6"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Sync Status</h5></div>
+        <div class="card-body"><div class="row g-2">
+            <div class="col-6"><div class="border rounded p-2"><small class="text-muted">Pending</small><h5 class="mb-0">{{ sync_counts.pending }}</h5></div></div>
+            <div class="col-6"><div class="border rounded p-2"><small class="text-muted">Queued</small><h5 class="mb-0 text-info">{{ sync_counts.queued }}</h5></div></div>
+            <div class="col-6"><div class="border rounded p-2"><small class="text-muted">Synced</small><h5 class="mb-0 text-success">{{ sync_counts.synced }}</h5></div></div>
+            <div class="col-6"><div class="border rounded p-2"><small class="text-muted">Failed</small><h5 class="mb-0 text-danger">{{ sync_counts.failed }}</h5></div></div>
+        </div></div>
+    </div></div>
+</div>
+
+<div class="card"><div class="card-header d-flex align-items-center">
+    <h5 class="card-title mb-0 flex-grow-1">Recent Open Bills</h5>
+    <a href="{% url 'accounting:ap_bill_list' %}" class="btn btn-sm btn-soft-primary">All Bills</a>
+    <a href="{% url 'accounting:ap_bill_create' %}" class="btn btn-sm btn-primary ms-2"><i class="ri-add-line me-1"></i>New Bill</a>
+</div>
+<div class="card-body"><div class="table-responsive"><table class="table table-borderless table-hover align-middle table-nowrap mb-0">
+    <thead class="table-light"><tr><th>Bill #</th><th>Vendor</th><th>Bill Date</th><th>Due</th><th class="text-end">Total</th><th>Status</th><th>Sync</th></tr></thead>
+    <tbody>
+    {% for b in bills %}
+    <tr>
+        <td><a href="{% url 'accounting:ap_bill_detail' b.pk %}" class="fw-medium text-primary font-monospace">{{ b.bill_number }}</a></td>
+        <td>{{ b.vendor.company_name }}</td>
+        <td>{{ b.bill_date }}</td>
+        <td>{{ b.due_date|default:"—" }}</td>
+        <td class="text-end">${{ b.total_amount|floatformat:2 }}</td>
+        <td><span class="badge bg-info-subtle text-info">{{ b.get_status_display }}</span></td>
+        <td><small class="text-muted">{{ b.get_sync_status_display }}</small></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="text-center text-muted py-4"><i class="ri-inbox-line fs-24 d-block mb-2"></i>No open AP bills.</td></tr>
+    {% endfor %}
+    </tbody>
+</table></div></div></div>
+{% endblock %}
