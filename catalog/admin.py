@@ -27,9 +27,9 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('sku', 'name', 'tenant', 'category', 'status', 'retail_price', 'created_at')
-    list_filter = ('status', 'is_active', 'tenant')
-    search_fields = ('sku', 'name', 'barcode')
+    list_display = ('sku', 'name', 'tenant', 'category', 'status', 'tax_category', 'retail_price', 'created_at')
+    list_filter = ('status', 'is_active', 'tax_category', 'tenant')
+    search_fields = ('sku', 'name', 'barcode', 'hsn_code')
     inlines = [ProductAttributeInline, ProductImageInline, ProductDocumentInline]
 
 
