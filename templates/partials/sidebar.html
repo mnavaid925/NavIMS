@@ -651,6 +651,71 @@
                 </ul>
             </li>
 
+            <!-- IMS 19: Accounting & Financial Integration -->
+            <li class="nav-item has-submenu">
+                <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                    <i class="ri-bank-line"></i>
+                    <span class="menu-text">Accounting & Finance</span>
+                    <i class="ri-arrow-right-s-line menu-arrow"></i>
+                </a>
+                <ul class="sub-menu">
+                    <li class="nav-item">
+                        <a class="menu-link" href="{% url 'accounting:overview' %}">
+                            <span class="menu-text">Overview</span>
+                        </a>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                            <span class="menu-text">Accounts Payable</span>
+                            <i class="ri-arrow-right-s-line menu-arrow"></i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:ap_dashboard' %}"><span class="menu-text">AP Dashboard</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:ap_bill_list' %}"><span class="menu-text">All Bills</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:ap_bill_create' %}"><span class="menu-text">New Bill</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                            <span class="menu-text">Accounts Receivable</span>
+                            <i class="ri-arrow-right-s-line menu-arrow"></i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:ar_dashboard' %}"><span class="menu-text">AR Dashboard</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:ar_invoice_list' %}"><span class="menu-text">All Invoices</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:ar_invoice_create' %}"><span class="menu-text">New Invoice</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:customer_list' %}"><span class="menu-text">Customers</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                            <span class="menu-text">Journal Entries</span>
+                            <i class="ri-arrow-right-s-line menu-arrow"></i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:journal_dashboard' %}"><span class="menu-text">JE Dashboard</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:journal_entry_list' %}"><span class="menu-text">All Entries</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:journal_entry_create' %}"><span class="menu-text">New Entry</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:trial_balance' %}"><span class="menu-text">Trial Balance</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:coa_list' %}"><span class="menu-text">Chart of Accounts</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:period_list' %}"><span class="menu-text">Fiscal Periods</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a class="menu-link" href="javascript:void(0);" data-toggle="submenu">
+                            <span class="menu-text">Tax Management</span>
+                            <i class="ri-arrow-right-s-line menu-arrow"></i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:tax_dashboard' %}"><span class="menu-text">Tax Dashboard</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:jurisdiction_list' %}"><span class="menu-text">Jurisdictions</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:tax_rule_list' %}"><span class="menu-text">Tax Rules</span></a></li>
+                            <li class="nav-item"><a class="menu-link" href="{% url 'accounting:tax_calculator' %}"><span class="menu-text">Tax Calculator</span></a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+
             <!-- ─── System ─── -->
             <li class="menu-title" data-toggle="section"><span>System</span></li>
 
