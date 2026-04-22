@@ -34,7 +34,7 @@
                         <p class="mb-1"><strong>Amount:</strong> <span class="fs-5 text-primary">{{ refund.amount }} {{ refund.currency }}</span></p>
                         <p class="mb-1"><strong>Reference:</strong> {{ refund.reference_number|default:"—" }}</p>
                         <p class="mb-1"><strong>Processed:</strong> {{ refund.processed_at|date:"M d, Y H:i"|default:"—" }}</p>
-                        <p class="mb-0"><strong>Processed By:</strong> {{ refund.processed_by.get_full_name|default:refund.processed_by.username|default:"—" }}</p>
+                        <p class="mb-0"><strong>Processed By:</strong> {% if refund.processed_by %}{{ refund.processed_by.get_full_name|default:refund.processed_by.username }}{% else %}—{% endif %}</p>
                     </div>
                 </div>
                 {% if refund.notes %}<p class="mb-0 mt-2"><strong>Notes:</strong> {{ refund.notes }}</p>{% endif %}
