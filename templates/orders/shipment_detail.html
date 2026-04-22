@@ -201,7 +201,7 @@
             <div class="card-body">
                 <div class="d-grid gap-2">
                     {% if sh.status == 'pending' %}
-                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'dispatched' %}" onsubmit="return confirm('Dispatch this shipment?');">
+                    <form method="post" action="{% url 'orders:shipment_dispatch' sh.pk %}" onsubmit="return confirm('Dispatch this shipment?');">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="ri-truck-line align-middle me-1"></i> Dispatch
@@ -217,20 +217,20 @@
                         </button>
                     </form>
                     {% elif sh.status == 'dispatched' %}
-                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'in_transit' %}" onsubmit="return confirm('Mark as In Transit?');">
+                    <form method="post" action="{% url 'orders:shipment_in_transit' sh.pk %}" onsubmit="return confirm('Mark as In Transit?');">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-warning w-100">
                             <i class="ri-roadster-line align-middle me-1"></i> Mark In Transit
                         </button>
                     </form>
-                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'delivered' %}" onsubmit="return confirm('Mark as Delivered?');">
+                    <form method="post" action="{% url 'orders:shipment_delivered' sh.pk %}" onsubmit="return confirm('Mark as Delivered?');">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success w-100">
                             <i class="ri-checkbox-circle-line align-middle me-1"></i> Mark Delivered
                         </button>
                     </form>
                     {% elif sh.status == 'in_transit' %}
-                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'delivered' %}" onsubmit="return confirm('Mark as Delivered?');">
+                    <form method="post" action="{% url 'orders:shipment_delivered' sh.pk %}" onsubmit="return confirm('Mark as Delivered?');">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success w-100">
                             <i class="ri-checkbox-circle-line align-middle me-1"></i> Mark Delivered
@@ -239,7 +239,7 @@
                     {% endif %}
 
                     {% if sh.status != 'cancelled' and sh.status != 'delivered' %}
-                    <form method="post" action="{% url 'orders:shipment_transition' sh.pk 'cancelled' %}" onsubmit="return confirm('Cancel this shipment?');">
+                    <form method="post" action="{% url 'orders:shipment_cancel' sh.pk %}" onsubmit="return confirm('Cancel this shipment?');">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-soft-danger w-100">
                             <i class="ri-close-line align-middle me-1"></i> Cancel
